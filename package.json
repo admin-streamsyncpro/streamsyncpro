@@ -1,0 +1,64 @@
+{
+  "name": "ssp-live",
+  "version": "1.0.0",
+  "description": "Stream Sync Pro LIVE desktop app for TikTok chat monitoring, TTS, and remote updates.",
+  "main": "src/main.mjs",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/admin-streamsyncpro/streamsyncpro.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "dist:publish": "electron-builder --win nsis --publish always",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
+    "tiktok-live-connector": "^2.0.7-beta1"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.codex.tiktoklivereader",
+    "productName": "Stream Sync Pro LIVE",
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "admin-streamsyncpro",
+        "repo": "streamsyncpro",
+        "releaseType": "release"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "icon": "build/SSP.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
