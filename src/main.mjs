@@ -18,14 +18,16 @@ const __dirname = path.dirname(__filename);
 const { NsisUpdater } = electronUpdater;
 const execFileAsync = promisify(execFile);
 const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
+const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
+const DEFAULT_GITHUB_REPO = "streamsyncpro";
 
 let mainWindow = null;
 let updateConfig = null;
 let updater = null;
 let hasCheckedForUpdatesOnLaunch = false;
 let settings = {
-  githubOwner: "",
-  githubRepo: "",
+  githubOwner: DEFAULT_GITHUB_OWNER,
+  githubRepo: DEFAULT_GITHUB_REPO,
   rememberedUsername: "",
   rememberUsername: false,
   translationEnabled: false,
@@ -81,7 +83,10 @@ function getSettingsPath() {
 async function loadSettings() {
   try {
     const raw = await fs.readFile(getSettingsPath(), "utf8");
-    settings = JSON.parse(raw);
+    settings = {
+      ...settings,
+      ...JSON.parse(raw)
+    };
   } catch (error) {
     if (error.code !== "ENOENT") {
       log.error("Failed to read settings", error);
@@ -97,6 +102,10 @@ async function loadSettings() {
           : { allViewers: true, subscribers: false, moderators: false };
   }
 
+  // Keep updater settings pinned to the built-in GitHub Releases repo.
+  settings.githubOwner = DEFAULT_GITHUB_OWNER;
+  settings.githubRepo = DEFAULT_GITHUB_REPO;
+
   updateConfig = getGitHubUpdateConfig(settings);
 }
 
@@ -105,6 +114,11 @@ async function saveSettings(partialSettings) {
     ...settings,
     ...partialSettings
   };
+
+  // Ignore stale or mistyped repo settings from older builds.
+  settings.githubOwner = DEFAULT_GITHUB_OWNER;
+  settings.githubRepo = DEFAULT_GITHUB_REPO;
+
   updateConfig = getGitHubUpdateConfig(settings);
 
   await fs.mkdir(app.getPath("userData"), { recursive: true });
@@ -112,8 +126,8 @@ async function saveSettings(partialSettings) {
 }
 
 function getGitHubUpdateConfig(sourceSettings = settings) {
-  const owner = sourceSettings.githubOwner?.trim() ?? "";
-  const repo = sourceSettings.githubRepo?.trim() ?? "";
+  const owner = sourceSettings.githubOwner?.trim() || DEFAULT_GITHUB_OWNER;
+  const repo = sourceSettings.githubRepo?.trim() || DEFAULT_GITHUB_REPO;
 
   if (!owner || !repo) {
     return null;
@@ -501,6 +515,10 @@ ipcMain.handle("updates:configure", async (_event, payload) => {
 
 ipcMain.handle("app:get-settings", async () => {
   return settings;
+});
+
+ipcMain.handle("app:get-version", async () => {
+  return app.getVersion();
 });
 
 ipcMain.handle("app:save-settings", async (_event, payload) => {

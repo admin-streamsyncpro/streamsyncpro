@@ -1,9 +1,7 @@
 const connectForm = document.querySelector("#connect-form");
-const updateForm = document.querySelector("#update-form");
 const usernameInput = document.querySelector("#username");
 const rememberUsernameInput = document.querySelector("#remember-username");
-const githubOwnerInput = document.querySelector("#github-owner");
-const githubRepoInput = document.querySelector("#github-repo");
+const appVersionLabel = document.querySelector("#app-version");
 const connectionStatus = document.querySelector("#connection-status");
 const signalDot = document.querySelector(".signal-dot");
 const updateStatus = document.querySelector("#update-status");
@@ -12,8 +10,6 @@ const ttsStatus = document.querySelector("#tts-status");
 const chatList = document.querySelector("#chat-list");
 const chatCount = document.querySelector("#chat-count");
 const disconnectButton = document.querySelector("#disconnect-button");
-const checkUpdatesButton = document.querySelector("#check-updates-button");
-const installUpdateButton = document.querySelector("#install-update-button");
 const ttsForm = document.querySelector("#tts-form");
 const translationEnabledInput = document.querySelector("#translation-enabled");
 const translationTargetLanguageSelect = document.querySelector("#translation-target-language");
@@ -35,6 +31,8 @@ const ttsVolumeInput = document.querySelector("#tts-volume");
 const ttsVolumeValue = document.querySelector("#tts-volume-value");
 const ttsTestButton = document.querySelector("#tts-test-button");
 const desktopApp = window.desktopApp;
+const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
+const DEFAULT_GITHUB_REPO = "streamsyncpro";
 
 const TTS_STYLE_PRESETS = {
   natural: {
@@ -72,8 +70,8 @@ const TTS_STYLE_PRESETS = {
 let messageCount = 0;
 let availableVoices = [];
 let currentSettings = {
-  githubOwner: "",
-  githubRepo: "",
+  githubOwner: DEFAULT_GITHUB_OWNER,
+  githubRepo: DEFAULT_GITHUB_REPO,
   rememberedUsername: "",
   rememberUsername: false,
   translationEnabled: false,
@@ -586,39 +584,6 @@ disconnectButton.addEventListener("click", async () => {
   }
 });
 
-updateForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const result = await requireDesktopBridge().configureUpdates({
-    githubOwner: githubOwnerInput.value.trim(),
-    githubRepo: githubRepoInput.value.trim()
-  });
-
-  if (result.configured) {
-    setStatus(updateStatus, "success", "GitHub Releases repo saved.");
-    return;
-  }
-
-  setStatus(
-    updateStatus,
-    "info",
-    result.packaged
-      ? "Add your GitHub owner and repo to enable remote updates."
-      : "Save complete. Automatic update checks will work after packaging the app."
-  );
-});
-
-checkUpdatesButton.addEventListener("click", async () => {
-  const result = await requireDesktopBridge().checkForUpdates();
-
-  if (result.ok === false) {
-    setStatus(updateStatus, "error", result.message);
-  }
-});
-
-installUpdateButton.addEventListener("click", async () => {
-  await requireDesktopBridge().installUpdate();
-});
-
 translationEnabledInput.addEventListener("change", queueAutoSaveTranslationSettings);
 translationTargetLanguageSelect.addEventListener("change", queueAutoSaveTranslationSettings);
 
@@ -671,6 +636,12 @@ ttsTestButton.addEventListener("click", async () => {
 });
 
 if (desktopApp) {
+  desktopApp.getAppVersion().then((version) => {
+    if (appVersionLabel) {
+      appVersionLabel.textContent = version;
+    }
+  });
+
   desktopApp.onChat(async (chat) => {
     const translatedChat = await maybeTranslateChat(chat);
     addChatMessage(translatedChat);
@@ -703,8 +674,6 @@ if (desktopApp) {
       ? currentSettings.rememberedUsername ?? ""
       : "";
     rememberUsernameInput.checked = Boolean(currentSettings.rememberUsername);
-    githubOwnerInput.value = currentSettings.githubOwner ?? "";
-    githubRepoInput.value = currentSettings.githubRepo ?? "";
     syncTtsControls();
   });
 

@@ -98,17 +98,28 @@ body {
 }
 
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.9fr);
+  gap: 22px;
   margin-bottom: 18px;
+}
+
+.brand-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .brand-lockup {
   display: flex;
   align-items: center;
   gap: 18px;
+}
+
+.hero-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .brand-logo {
@@ -118,12 +129,37 @@ body {
   filter: drop-shadow(0 0 16px rgba(37, 220, 255, 0.35));
 }
 
+.status-rail {
+  display: grid;
+  gap: 14px;
+}
+
+.status-card {
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(111, 169, 255, 0.16);
+  background: linear-gradient(180deg, rgba(7, 18, 45, 0.94), rgba(9, 24, 62, 0.88));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
 .status-cluster {
   display: flex;
   align-items: center;
   gap: 14px;
   min-width: 180px;
-  justify-content: flex-end;
+}
+
+.status-card-title {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.status-card-copy {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
 }
 
 .signal-dot {
@@ -192,16 +228,35 @@ h2 {
   font-size: 1.85rem;
 }
 
+.hero-title {
+  font-size: clamp(1.6rem, 2vw, 2.35rem);
+  line-height: 1.1;
+}
+
 .hero-copy {
-  margin-top: 12px;
+  margin-top: 0;
   color: var(--muted);
-  max-width: 37ch;
+  max-width: 52ch;
   line-height: 1.55;
+}
+
+.build-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(103, 168, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
 }
 
 .control-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr);
   gap: 18px;
   align-items: start;
 }
@@ -245,12 +300,12 @@ h2 {
 }
 
 .compact-status {
-  min-height: 50px;
+  min-height: 62px;
 }
 
 .workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 420px);
+  grid-template-columns: minmax(0, 1.65fr) minmax(340px, 430px);
   gap: 20px;
   min-height: 0;
 }
@@ -267,6 +322,20 @@ h2 {
 
 .translation-grid {
   margin-bottom: 8px;
+}
+
+.two-up,
+.slider-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.slider-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .stack,
@@ -289,6 +358,27 @@ h2 {
 
 .section-title {
   font-size: 1.28rem;
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 1.16rem;
+  line-height: 1.2;
+}
+
+.settings-heading {
+  margin-bottom: 2px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(111, 169, 255, 0.14);
+  background: linear-gradient(180deg, rgba(6, 18, 49, 0.95), rgba(8, 24, 63, 0.88));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .field {
@@ -356,6 +446,10 @@ input[type="range"] {
   border: 1px solid rgba(103, 168, 255, 0.16);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.04);
+}
+
+.audience-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 button {
@@ -431,6 +525,15 @@ button.ghost {
   min-height: 0;
 }
 
+.chat-stage {
+  min-height: 0;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid rgba(111, 169, 255, 0.12);
+  background: linear-gradient(180deg, rgba(4, 12, 33, 0.96), rgba(6, 18, 46, 0.92));
+}
+
 .chat-row {
   padding: 16px;
   border-radius: 18px;
@@ -481,12 +584,7 @@ button.ghost {
 
 @media (max-width: 980px) {
   .topbar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .status-cluster {
-    justify-content: flex-start;
+    grid-template-columns: 1fr;
   }
 
   .brand-lockup {
@@ -501,12 +599,13 @@ button.ghost {
   .control-bar,
   .workspace-grid,
   .connect-grid,
-  .update-grid {
+  .two-up,
+  .slider-grid,
+  .audience-grid {
     grid-template-columns: 1fr;
   }
 
-  .connect-actions,
-  .update-actions {
+  .connect-actions {
     width: 100%;
   }
 }

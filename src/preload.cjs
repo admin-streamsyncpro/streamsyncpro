@@ -10,6 +10,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getConnectionState() {
     return ipcRenderer.invoke("live:get-state");
   },
+  getAppVersion() {
+    return ipcRenderer.invoke("app:get-version");
+  },
   getSettings() {
     return ipcRenderer.invoke("app:get-settings");
   },
