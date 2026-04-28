@@ -5,6 +5,8 @@ import {
   WebcastEvent
 } from "tiktok-live-connector";
 
+const CONNECT_RETRY_DELAYS_MS = [0, 1200, 2500];
+
 let currentConnection = null;
 let connectionState = {
   connected: false,
@@ -26,8 +28,28 @@ function getGiftName(data) {
 }
 
 function getGiftCount(data) {
-  const repeatCount = Number(data.repeatCount ?? data.comboCount ?? 1);
+  const repeatCount = Number(
+    data.repeatCount ??
+    data.repeat_count ??
+    data.giftCount ??
+    data.gift_count ??
+    1
+  );
+
   return Number.isFinite(repeatCount) && repeatCount > 0 ? repeatCount : 1;
+}
+
+function getGiftCoinValue(data) {
+  const unitValue = Number(
+    data.diamondCount ??
+    data.giftDetails?.diamondCount ??
+    data.giftDetails?.diamond_count ??
+    data.gift?.diamondCount ??
+    data.gift?.diamond_count ??
+    0
+  );
+
+  return Number.isFinite(unitValue) && unitValue > 0 ? unitValue : 0;
 }
 
 export async function disconnectFromLive() {
@@ -49,26 +71,39 @@ export function getConnectionState() {
   return connectionState;
 }
 
-export async function connectToLive(username, listeners) {
-  const normalizedUsername = normalizeUsername(username ?? "");
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
-  if (!normalizedUsername) {
-    throw new Error("Enter a TikTok username.");
+function shouldRetryConnection(error) {
+  const message = String(error?.info ?? error?.message ?? error ?? "").toLowerCase();
+
+  return (
+    message.includes("websocket connection failed") ||
+    message.includes("unexpected server response: 200") ||
+    message.includes("websocket not responding") ||
+    message.includes("econnreset") ||
+    message.includes("socket hang up") ||
+    message.includes("timed out")
+  );
+}
+
+function formatConnectionError(error, username) {
+  const rawMessage = String(error?.info ?? error?.message ?? error ?? "").trim();
+
+  if (
+    rawMessage.toLowerCase().includes("websocket connection failed") &&
+    rawMessage.toLowerCase().includes("unexpected server response: 200")
+  ) {
+    return `TikTok refused the live chat handshake for @${username}. This is usually temporary, so please try again in a moment.`;
   }
 
-  if (currentConnection) {
-    await disconnectFromLive();
-  }
+  return rawMessage || `Unable to connect to @${username}.`;
+}
 
-  listeners.onStatus({
-    level: "info",
-    message: `Connecting to @${normalizedUsername}...`
-  });
-
-  const connection = new TikTokLiveConnection(normalizedUsername, {
-    processInitialData: false
-  });
-
+function bindConnectionEvents(connection, normalizedUsername, listeners) {
   connection.on(WebcastEvent.CHAT, (data) => {
     const userIdentity = data.userIdentity ?? {};
 
@@ -90,7 +125,11 @@ export async function connectToLive(username, listeners) {
 
   connection.on(WebcastEvent.GIFT, (data) => {
     const userIdentity = data.userIdentity ?? {};
-    const isStreakableGift = Number(data.giftType) === 1;
+    const isStreakableGift = Number(
+      data.giftType ??
+      data.giftDetails?.giftType ??
+      data.gift?.giftType
+    ) === 1;
 
     if (isStreakableGift && !data.repeatEnd) {
       return;
@@ -98,6 +137,7 @@ export async function connectToLive(username, listeners) {
 
     const giftCount = getGiftCount(data);
     const giftName = getGiftName(data);
+    const coinValue = getGiftCoinValue(data);
     const countSuffix = giftCount > 1 ? ` x${giftCount}` : "";
 
     listeners.onChat({
@@ -114,6 +154,64 @@ export async function connectToLive(username, listeners) {
       message: `sent ${giftName}${countSuffix}`,
       giftName,
       giftCount,
+      coinValue,
+      totalCoins: coinValue * giftCount,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  connection.on(WebcastEvent.FOLLOW, (data) => {
+    listeners.onChat({
+      id: data.msgId ?? randomUUID(),
+      type: "follow",
+      user: data.user?.uniqueId ?? data.uniqueId ?? "unknown",
+      nickname:
+        data.user?.nickname ??
+        data.nickname ??
+        data.user?.uniqueId ??
+        data.uniqueId ??
+        "unknown",
+      message: "followed the stream",
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  connection.on(WebcastEvent.SHARE, (data) => {
+    listeners.onChat({
+      id: data.msgId ?? randomUUID(),
+      type: "share",
+      user: data.user?.uniqueId ?? data.uniqueId ?? "unknown",
+      nickname:
+        data.user?.nickname ??
+        data.nickname ??
+        data.user?.uniqueId ??
+        data.uniqueId ??
+        "unknown",
+      message: "shared the stream",
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  connection.on(WebcastEvent.LIKE, (data) => {
+    const likeCount = Number(data.likeCount ?? 0);
+    const totalLikeCount = Number(data.totalLikeCount ?? 0);
+
+    listeners.onChat({
+      id: data.msgId ?? randomUUID(),
+      type: "like",
+      user: data.user?.uniqueId ?? data.uniqueId ?? "unknown",
+      nickname:
+        data.user?.nickname ??
+        data.nickname ??
+        data.user?.uniqueId ??
+        data.uniqueId ??
+        "unknown",
+      message:
+        likeCount > 0
+          ? `sent ${likeCount} like${likeCount === 1 ? "" : "s"}`
+          : "sent likes",
+      likeCount,
+      totalLikeCount,
       timestamp: new Date().toISOString()
     });
   });
@@ -151,14 +249,79 @@ export async function connectToLive(username, listeners) {
       message: error?.info ?? error?.message ?? "TikTok connection error."
     });
   });
+}
 
-  const state = await connection.connect();
-  currentConnection = connection;
+export async function connectToLive(username, listeners) {
+  const normalizedUsername = normalizeUsername(username ?? "");
+
+  if (!normalizedUsername) {
+    throw new Error("Enter a TikTok username.");
+  }
+
+  if (currentConnection) {
+    await disconnectFromLive();
+  }
+
+  listeners.onStatus({
+    level: "info",
+    message: `Connecting to @${normalizedUsername}...`
+  });
+
+  let lastError = null;
+
+  for (let attemptIndex = 0; attemptIndex < CONNECT_RETRY_DELAYS_MS.length; attemptIndex += 1) {
+    const attemptNumber = attemptIndex + 1;
+    const waitMs = CONNECT_RETRY_DELAYS_MS[attemptIndex];
+
+    if (waitMs > 0) {
+      listeners.onStatus({
+        level: "info",
+        message: `Retrying connection to @${normalizedUsername} (${attemptNumber}/${CONNECT_RETRY_DELAYS_MS.length})...`
+      });
+      await delay(waitMs);
+    }
+
+    const connection = new TikTokLiveConnection(normalizedUsername, {
+      processInitialData: false
+    });
+
+    bindConnectionEvents(connection, normalizedUsername, listeners);
+
+    try {
+      const state = await connection.connect();
+      currentConnection = connection;
+      connectionState = {
+        connected: true,
+        username: normalizedUsername,
+        roomId: state.roomId ?? null
+      };
+
+      return connectionState;
+    } catch (error) {
+      lastError = error;
+
+      try {
+        await connection.disconnect();
+      } catch {
+        // Ignore cleanup errors after a failed connect attempt.
+      }
+
+      if (!shouldRetryConnection(error) || attemptIndex === CONNECT_RETRY_DELAYS_MS.length - 1) {
+        break;
+      }
+
+      listeners.onStatus({
+        level: "info",
+        message: `TikTok connection handshake failed for @${normalizedUsername}. Trying again...`
+      });
+    }
+  }
+
   connectionState = {
-    connected: true,
+    connected: false,
     username: normalizedUsername,
-    roomId: state.roomId ?? null
+    roomId: null
   };
 
-  return connectionState;
+  throw new Error(formatConnectionError(lastError, normalizedUsername));
 }

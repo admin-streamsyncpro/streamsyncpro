@@ -20,11 +20,20 @@ const execFileAsync = promisify(execFile);
 const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
 const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
 const DEFAULT_GITHUB_REPO = "streamsyncpro";
+const MYINSTANTS_CATEGORY_URL = "https://www.myinstants.com/en/categories/sound%20effects/us/";
+const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
+const MYINSTANTS_MAX_PAGES = 50;
+const DEFAULT_CUSTOM_EVENT_RULES = [];
 
 let mainWindow = null;
 let updateConfig = null;
 let updater = null;
 let hasCheckedForUpdatesOnLaunch = false;
+let myInstantsCatalogCache = {
+  fetchedAt: 0,
+  sounds: []
+};
+const myInstantsAudioUrlCache = new Map();
 let settings = {
   githubOwner: DEFAULT_GITHUB_OWNER,
   githubRepo: DEFAULT_GITHUB_REPO,
@@ -46,7 +55,8 @@ let settings = {
     allViewers: true,
     subscribers: false,
     moderators: false
-  }
+  },
+  customEventRules: DEFAULT_CUSTOM_EVENT_RULES
 };
 
 log.initialize();
@@ -65,7 +75,8 @@ function createWindow() {
     height: 780,
     minWidth: 960,
     minHeight: 640,
-    backgroundColor: "#f5efe6",
+    autoHideMenuBar: true,
+    backgroundColor: "#071124",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -73,12 +84,31 @@ function createWindow() {
     }
   });
 
+  mainWindow.setMenuBarVisibility(false);
   mainWindow.loadFile(path.join(__dirname, "index.html"));
 }
 
 function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
+
+function normalizeCustomEventRules(source = []) {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+    return source
+      .map((rule, index) => ({
+        id: String(rule?.id ?? `rule-${index + 1}`),
+        enabled: rule?.enabled !== false,
+        name: String(rule?.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
+        metric: ["follows", "likes", "shares", "coins"].includes(rule?.metric) ? rule.metric : "follows",
+        scope: ["total", "perUser"].includes(rule?.scope) ? rule.scope : "total",
+        threshold: Math.max(1, Number(rule?.threshold) || 1),
+        soundId: String(rule?.soundId ?? "").trim()
+      }))
+      .slice(0, 50);
+  }
 
 async function loadSettings() {
   try {
@@ -105,6 +135,7 @@ async function loadSettings() {
   // Keep updater settings pinned to the built-in GitHub Releases repo.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
   settings.githubRepo = DEFAULT_GITHUB_REPO;
+  settings.customEventRules = normalizeCustomEventRules(settings.customEventRules);
 
   updateConfig = getGitHubUpdateConfig(settings);
 }
@@ -118,6 +149,7 @@ async function saveSettings(partialSettings) {
   // Ignore stale or mistyped repo settings from older builds.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
   settings.githubRepo = DEFAULT_GITHUB_REPO;
+  settings.customEventRules = normalizeCustomEventRules(settings.customEventRules);
 
   updateConfig = getGitHubUpdateConfig(settings);
 
@@ -214,6 +246,143 @@ async function translateText({ text, targetLanguage, providerUrl, apiKey }) {
     translatedText: result.translatedText,
     detectedLanguage: result.detectedLanguage?.language ?? null
   };
+}
+
+function decodeHtmlEntities(value) {
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&quot;", "\"")
+    .replaceAll("&#39;", "'")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">");
+}
+
+async function resolveMyInstantsDownloadUrl(pageUrl) {
+  const response = await fetch(pageUrl);
+
+  if (!response.ok) {
+    throw new Error(`MyInstants detail request failed with status ${response.status}.`);
+  }
+
+  const html = await response.text();
+  const downloadMatch =
+    html.match(/href="([^"]+\.mp3[^"]*)"\s*[^>]*>\s*Download MP3/i) ??
+    html.match(/href="([^"]*\/media\/sounds\/[^"]+\.mp3[^"]*)"/i);
+
+  if (!downloadMatch?.[1]) {
+    throw new Error("Unable to resolve the sound download URL from MyInstants.");
+  }
+
+  return new URL(downloadMatch[1], pageUrl).toString();
+}
+
+function getMyInstantsCategoryPageUrl(pageNumber) {
+  if (pageNumber <= 1) {
+    return MYINSTANTS_CATEGORY_URL;
+  }
+
+  return `${MYINSTANTS_CATEGORY_URL}?page=${pageNumber}`;
+}
+
+function extractMyInstantsEntriesFromHtml(html) {
+  const entryRegex = /<a[^>]+href="(\/en\/instant\/[^"]+)"[^>]*>([^<]+)<\/a>/gi;
+  const entries = [];
+  const seen = new Set();
+
+  for (const match of html.matchAll(entryRegex)) {
+    const relativePath = match[1];
+    const title = decodeHtmlEntities(match[2].trim());
+
+    if (!relativePath || !title || seen.has(relativePath)) {
+      continue;
+    }
+
+    seen.add(relativePath);
+    entries.push({
+      id: relativePath,
+      title,
+      pageUrl: new URL(relativePath, MYINSTANTS_CATEGORY_URL).toString()
+    });
+  }
+
+  return entries;
+}
+
+async function fetchMyInstantsCatalog(forceRefresh = false) {
+  const now = Date.now();
+
+  if (
+    !forceRefresh &&
+    myInstantsCatalogCache.sounds.length > 0 &&
+    now - myInstantsCatalogCache.fetchedAt < MYINSTANTS_CACHE_TTL_MS
+  ) {
+    return myInstantsCatalogCache.sounds;
+  }
+
+  const seen = new Set();
+  const sounds = [];
+  let consecutiveEmptyPages = 0;
+
+  for (let pageNumber = 1; pageNumber <= MYINSTANTS_MAX_PAGES; pageNumber += 1) {
+    const response = await fetch(getMyInstantsCategoryPageUrl(pageNumber));
+    if (!response.ok) {
+      throw new Error(`MyInstants category request failed with status ${response.status}.`);
+    }
+
+    const html = await response.text();
+    const pageEntries = extractMyInstantsEntriesFromHtml(html);
+
+    if (pageEntries.length === 0) {
+      consecutiveEmptyPages += 1;
+      if (consecutiveEmptyPages >= 2) {
+        break;
+      }
+      continue;
+    }
+
+    consecutiveEmptyPages = 0;
+
+    for (const entry of pageEntries) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+
+      seen.add(entry.id);
+      sounds.push(entry);
+    }
+  }
+
+  if (sounds.length === 0) {
+    throw new Error("No usable sounds were found from MyInstants.");
+  }
+
+  myInstantsCatalogCache = {
+    fetchedAt: now,
+    sounds
+  };
+
+  return sounds;
+}
+
+async function resolveMyInstantsAudioUrl(soundId) {
+  if (!soundId) {
+    throw new Error("Choose a sound first.");
+  }
+
+  if (myInstantsAudioUrlCache.has(soundId)) {
+    return myInstantsAudioUrlCache.get(soundId);
+  }
+
+  const catalog = await fetchMyInstantsCatalog(false);
+  const sound = catalog.find((entry) => entry.id === soundId);
+
+  if (!sound?.pageUrl) {
+    throw new Error("That sound could not be found in the MyInstants catalog.");
+  }
+
+  const audioUrl = await resolveMyInstantsDownloadUrl(sound.pageUrl);
+  myInstantsAudioUrlCache.set(soundId, audioUrl);
+  return audioUrl;
 }
 
 async function ensureTtsScript() {
@@ -499,20 +668,6 @@ ipcMain.handle("live:get-state", async () => {
   return getConnectionState();
 });
 
-ipcMain.handle("updates:configure", async (_event, payload) => {
-  await saveSettings({
-    githubOwner: payload.githubOwner ?? "",
-    githubRepo: payload.githubRepo ?? ""
-  });
-  hasCheckedForUpdatesOnLaunch = false;
-  configureAutoUpdater();
-  return {
-    ok: true,
-    packaged: app.isPackaged,
-    configured: Boolean(updateConfig)
-  };
-});
-
 ipcMain.handle("app:get-settings", async () => {
   return settings;
 });
@@ -552,38 +707,12 @@ ipcMain.handle("tts:delete-file", async (_event, payload) => {
   return { ok: true };
 });
 
-ipcMain.handle("updates:check", async () => {
-  if (!app.isPackaged) {
-    return {
-      ok: false,
-      message: "Package the app before checking for remote updates."
-    };
-  }
-
-  const activeUpdater = getUpdater();
-  if (!activeUpdater) {
-    return {
-      ok: false,
-      message: "Set your GitHub owner and repo first."
-    };
-  }
-
-  await activeUpdater.checkForUpdates();
-  return {
-    ok: true
-  };
+ipcMain.handle("sound-alerts:get-catalog", async (_event, payload) => {
+  return fetchMyInstantsCatalog(Boolean(payload?.refresh));
 });
 
-ipcMain.handle("updates:install", () => {
-  const activeUpdater = getUpdater();
-  if (!activeUpdater) {
-    return { ok: false };
-  }
-
-  sendToRenderer("update-status", {
-    status: "installing",
-    message: "Installing update and restarting..."
-  });
-  activeUpdater.quitAndInstall();
-  return { ok: true };
+ipcMain.handle("sound-alerts:resolve-audio", async (_event, payload) => {
+  return {
+    audioUrl: await resolveMyInstantsAudioUrl(payload?.soundId ?? "")
+  };
 });

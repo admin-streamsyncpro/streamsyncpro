@@ -10,140 +10,153 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <div id="connection-status" class="status-toast" aria-live="polite"></div>
+
     <main class="app-shell">
-      <section class="workspace-shell neon-frame">
-        <header class="topbar card ambient">
-          <div class="brand-panel">
+      <section class="dashboard-shell">
+        <!-- Header -->
+        <header class="dashboard-header card">
+          <section class="brand-block">
             <div class="brand-lockup">
-              <img class="brand-logo" src="./assets/SSP.png" alt="SSP logo" />
-              <div>
-                <p class="eyebrow">Stream Sync Pro</p>
-                <h1>LIVE</h1>
-                <p class="build-chip">
-                  Running version <span id="app-version">Loading...</span>
-                </p>
+              <img class="brand-logo" src="./assets/SSP.png" alt="Stream Sync Pro logo" />
+              <div class="brand-copy">
+                <h1>Stream Sync Pro LIVE</h1>
+                <p class="brand-tagline">Live chat, translation, and voice automation</p>
               </div>
             </div>
-            <div class="hero-block">
-              <p class="eyebrow">Stream Sync Pro</p>
-              <h2 class="hero-title">TikTok LIVE command center</h2>
-              <p class="hero-copy">
-                Professional TikTok LIVE monitoring with automatic translation,
-                amplified text-to-speech, gift alerts, and built-in desktop updates.
-              </p>
-            </div>
-          </div>
+          </section>
 
-          <div class="status-rail">
-            <article class="status-card">
-              <p class="eyebrow">Connection</p>
-              <div class="status-cluster">
-                <span class="signal-dot"></span>
-                <p id="connection-status" class="status-line">Waiting for a TikTok username.</p>
+          <section class="header-controls">
+            <div class="header-controls-top">
+              <div class="status-pill-group">
+                <span id="connection-pill" class="status-pill info">Disconnected</span>
+                <span id="translation-pill" class="status-pill muted">Translation Off</span>
+                <span id="tts-pill" class="status-pill muted">TTS Off</span>
               </div>
-            </article>
-
-            <article class="status-card">
-              <p class="eyebrow">Application</p>
-              <p class="status-card-title">Automatic update channel enabled</p>
-              <p class="status-card-copy">
-                Launch checks for newer releases and downloaded updates install after restart.
-              </p>
-            </article>
-          </div>
-        </header>
-
-        <section class="control-bar card ambient">
-          <form id="connect-form" class="control-group control-connect">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">Connection</p>
-                <h2 class="section-title">TikTok LIVE source</h2>
-              </div>
+              <span id="app-version-pill" class="version-pill">Version <span id="app-version">Loading...</span></span>
             </div>
 
-            <div class="connect-grid">
-              <label class="field">
+            <form id="connect-form" class="header-connect-form">
+              <label class="field header-field">
                 <span>TikTok username</span>
-                <input
-                  id="username"
-                  name="username"
-                  placeholder="@creator"
-                  autocomplete="off"
-                  required
-                />
+                <div class="header-connect-row">
+                  <input
+                    id="username"
+                    name="username"
+                    placeholder="@creator"
+                    autocomplete="off"
+                    required
+                  />
+                  <button type="submit" id="connect-button">Connect</button>
+                </div>
               </label>
 
-              <div class="connect-actions">
-                <button type="submit" id="connect-button">Connect</button>
-                <button type="button" id="disconnect-button" class="secondary">
-                  Disconnect
-                </button>
-              </div>
-            </div>
-
-            <div class="inline-options">
-              <label class="toggle-row compact">
+              <label class="toggle-row remember-toggle">
                 <input id="remember-username" type="checkbox" />
                 <span>Remember username</span>
               </label>
-            </div>
-          </form>
-
-          <section class="control-group control-updates">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">Updates</p>
-                <h2 class="section-title">Automatic updates</h2>
-              </div>
-            </div>
-
-            <p class="hero-copy">
-              This app checks for new versions automatically when it opens and
-              installs downloaded updates after restart.
-            </p>
-
-            <p id="update-status" class="status info compact-status">
-              Automatic updates are configured for GitHub Releases.
-            </p>
+            </form>
           </section>
-        </section>
+        </header>
 
-        <section class="workspace-grid">
-          <section class="chat-panel">
-            <div class="chat-header">
+        <!-- Main Layout -->
+        <section class="dashboard-grid">
+          <!-- Chat Feed -->
+          <section class="chat-panel card">
+            <div class="panel-heading">
               <div>
-                <p class="eyebrow">Live comments</p>
-                <h2>Incoming chat</h2>
+                <p class="eyebrow">Live feed</p>
+                <h2>Incoming Chat</h2>
               </div>
               <span id="chat-count" class="count-pill">0 messages</span>
             </div>
 
+            <div class="chat-toolbar">
+              <label class="field toolbar-search">
+                <span class="sr-only">Search chat</span>
+                <input
+                  id="chat-search"
+                  type="search"
+                  placeholder="Search messages or usernames"
+                  autocomplete="off"
+                />
+              </label>
+
+              <div class="toolbar-actions">
+                <button type="button" id="pause-scroll-button" class="ghost toolbar-button">
+                  Pause Scroll
+                </button>
+                <button type="button" id="clear-chat-button" class="ghost toolbar-button">
+                  Clear
+                </button>
+                <button type="button" id="export-chat-button" class="ghost toolbar-button">
+                  Export
+                </button>
+              </div>
+            </div>
+
             <div class="chat-stage">
+              <div id="chat-empty" class="chat-empty">
+                Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
+              </div>
               <div id="chat-list" class="chat-list" aria-live="polite"></div>
             </div>
           </section>
 
-          <form id="tts-form" class="settings-panel card panel stack">
-            <div class="section-head settings-heading">
-              <div>
-                <span class="eyebrow">Automation</span>
-                <h2 class="section-title">Language and voice controls</h2>
-              </div>
+          <!-- Right Sidebar -->
+          <aside class="sidebar-stack">
+            <div class="sidebar-tabs card">
+              <button type="button" id="controls-tab-button" class="sidebar-tab-button active">Controls</button>
+              <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
             </div>
 
-            <section class="settings-section">
+            <div id="controls-tab-panel" class="sidebar-tab-panel active">
+            <!-- Stream Status -->
+            <section class="sidebar-card card">
               <div class="section-head">
                 <div>
-                  <span class="eyebrow">Translation</span>
-                  <h3 class="section-subtitle">Auto translate</h3>
+                  <p class="eyebrow">Overview</p>
+                  <h3 class="section-title">Stream Status</h3>
                 </div>
               </div>
 
-              <div class="settings-grid translation-grid">
-                <label class="toggle-row">
+              <div class="stats-grid">
+                <article class="stat-tile">
+                  <span class="stat-label">Viewers</span>
+                  <strong id="stat-viewers">--</strong>
+                </article>
+                <article class="stat-tile">
+                  <span class="stat-label">Messages/min</span>
+                  <strong id="stat-messages-per-minute">0</strong>
+                </article>
+                <article class="stat-tile">
+                  <span class="stat-label">Gifts</span>
+                  <strong id="stat-gifts">0</strong>
+                </article>
+                <article class="stat-tile">
+                  <span class="stat-label">New followers</span>
+                  <strong id="stat-followers">0</strong>
+                </article>
+              </div>
+            </section>
+
+            <!-- Translation -->
+            <section class="sidebar-card card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Translation</p>
+                  <h3 class="section-title">Auto Translate</h3>
+                </div>
+              </div>
+
+              <div class="settings-grid">
+                <label class="toggle-switch">
                   <input id="translation-enabled" type="checkbox" />
-                  <span>Automatically translate incoming chat</span>
+                  <span class="switch-ui"></span>
+                  <span class="switch-copy">
+                    <strong>Automatically translate incoming chat</strong>
+                    <small>Translate new live chat messages as they arrive.</small>
+                  </span>
                 </label>
 
                 <label class="field">
@@ -168,9 +181,9 @@
                   </select>
                 </label>
 
-                <div class="two-up">
+                <div class="field-grid">
                   <label class="field">
-                    <span>Translator</span>
+                    <span>Translator provider</span>
                     <input
                       id="translation-provider-url"
                       value="Google online translator"
@@ -189,56 +202,51 @@
                     />
                   </label>
                 </div>
-              </div>
 
-              <p id="translation-status" class="status info">
-                Translation is off.
-              </p>
+                <p id="translation-status" class="status info">
+                  Translation is off.
+                </p>
+              </div>
             </section>
 
-            <section class="settings-section">
+            <!-- Text To Speech -->
+            <section class="sidebar-card card">
               <div class="section-head">
                 <div>
-                  <span class="eyebrow">Speech</span>
-                  <h3 class="section-subtitle">Text to speech</h3>
+                  <p class="eyebrow">Voice</p>
+                  <h3 class="section-title">Text to Speech</h3>
                 </div>
               </div>
 
               <div class="settings-grid">
-                <label class="toggle-row">
+                <label class="toggle-switch">
                   <input id="tts-enabled" type="checkbox" />
-                  <span>Read incoming chat aloud</span>
+                  <span class="switch-ui"></span>
+                  <span class="switch-copy">
+                    <strong>Read incoming chat aloud</strong>
+                    <small>Speak live comments using your selected voice profile.</small>
+                  </span>
                 </label>
 
-                <label class="toggle-row">
+                <label class="toggle-switch">
                   <input id="tts-include-username" type="checkbox" checked />
-                  <span>Include the username before each message</span>
+                  <span class="switch-ui"></span>
+                  <span class="switch-copy">
+                    <strong>Include username</strong>
+                    <small>Say the display name before each spoken message.</small>
+                  </span>
                 </label>
 
-                <label class="toggle-row">
+                <label class="toggle-switch">
                   <input id="tts-read-gifts" type="checkbox" />
-                  <span>Read gift alerts aloud</span>
+                  <span class="switch-ui"></span>
+                  <span class="switch-copy">
+                    <strong>Gift alerts</strong>
+                    <small>Read gifts aloud along with the sender name.</small>
+                  </span>
                 </label>
 
-                <div class="field">
-                  <span>Read chat from</span>
-                  <div class="option-grid audience-grid">
-                    <label class="toggle-row">
-                      <input id="tts-audience-all" type="checkbox" checked />
-                      <span>All viewers</span>
-                    </label>
-                    <label class="toggle-row">
-                      <input id="tts-audience-subscribers" type="checkbox" />
-                      <span>Subscribers</span>
-                    </label>
-                    <label class="toggle-row">
-                      <input id="tts-audience-moderators" type="checkbox" />
-                      <span>Moderators</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div class="two-up">
+                <div class="field-grid">
                   <label class="field">
                     <span>Voice</span>
                     <select id="tts-voice"></select>
@@ -296,17 +304,101 @@
                     <span id="tts-volume-value" class="field-hint">100%</span>
                   </label>
                 </div>
+
+                <div class="actions">
+                  <button type="button" id="tts-test-button" class="ghost">Test voice</button>
+                </div>
+
+                <p id="tts-status" class="status info">
+                  TTS is off.
+                </p>
+              </div>
+            </section>
+
+            </div>
+
+            <div id="event-actions-tab-panel" class="sidebar-tab-panel">
+            <section class="sidebar-card card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Custom Automation</p>
+                  <h3 class="section-title">Threshold Rules</h3>
+                </div>
+                <button type="button" id="add-custom-rule-button" class="ghost compact-button">
+                  New Rule
+                </button>
               </div>
 
-              <div class="actions">
-                <button type="button" id="tts-test-button" class="ghost">Test voice</button>
-              </div>
+              <p class="helper-text">
+                Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session.
+              </p>
 
-              <p id="tts-status" class="status info">
-                TTS is off.
+              <div id="custom-rule-list" class="custom-rule-list"></div>
+
+              <p id="custom-rule-status" class="status info">
+                No custom trigger rules yet.
               </p>
             </section>
-          </form>
+            </div>
+
+            <!-- Audience Filters -->
+            <section class="sidebar-card card">
+              <div class="section-head">
+                <div>
+                  <p class="eyebrow">Audience</p>
+                  <h3 class="section-title">Filters</h3>
+                </div>
+              </div>
+
+              <div class="filter-grid">
+                <label class="filter-tile">
+                  <input id="tts-audience-all" type="checkbox" checked />
+                  <span>All viewers</span>
+                </label>
+                <label class="filter-tile">
+                  <input id="tts-audience-subscribers" type="checkbox" />
+                  <span>Subscribers</span>
+                </label>
+                <label class="filter-tile">
+                  <input id="tts-audience-moderators" type="checkbox" />
+                  <span>Moderators</span>
+                </label>
+                <label class="filter-tile disabled" aria-disabled="true">
+                  <input id="tts-audience-vips" type="checkbox" disabled />
+                  <span>VIPs</span>
+                </label>
+              </div>
+
+              <p class="helper-text">
+                VIP filtering is reserved for future role detection. Current live role filters continue to work as normal.
+              </p>
+            </section>
+          </aside>
+        </section>
+
+        <!-- Footer Status -->
+        <section class="footer-card card">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Build and Updates</p>
+              <h3 class="section-title">Deployment Status</h3>
+            </div>
+          </div>
+
+          <div class="footer-grid">
+            <div class="footer-copy">
+              <p class="status-card-title">
+                Running version <span id="app-version-inline">Loading...</span>
+              </p>
+              <p class="status-card-copy">
+                Automatic GitHub release checks are enabled on launch, and downloaded updates install after restart.
+              </p>
+            </div>
+
+            <p id="update-status" class="status info compact-status">
+              Automatic updates are configured for GitHub Releases.
+            </p>
+          </div>
         </section>
       </section>
     </main>

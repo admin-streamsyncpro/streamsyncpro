@@ -31,14 +31,11 @@ contextBridge.exposeInMainWorld("desktopApp", {
   deleteTtsFile(filePath) {
     return ipcRenderer.invoke("tts:delete-file", { filePath });
   },
-  configureUpdates(config) {
-    return ipcRenderer.invoke("updates:configure", config);
+  getSoundAlertCatalog(refresh = false) {
+    return ipcRenderer.invoke("sound-alerts:get-catalog", { refresh });
   },
-  checkForUpdates() {
-    return ipcRenderer.invoke("updates:check");
-  },
-  installUpdate() {
-    return ipcRenderer.invoke("updates:install");
+  resolveSoundAlertAudio(soundId) {
+    return ipcRenderer.invoke("sound-alerts:resolve-audio", { soundId });
   },
   onChat(callback) {
     const handler = (_event, payload) => callback(payload);
