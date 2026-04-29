@@ -13,7 +13,132 @@
     <div id="connection-status" class="status-toast" aria-live="polite"></div>
 
     <main class="app-shell">
-      <section class="dashboard-shell">
+      <section id="auth-shell" class="auth-shell">
+        <section class="auth-card card">
+          <div class="card-header section-head">
+            <div>
+              <p class="eyebrow">Account Access</p>
+            </div>
+          </div>
+
+          <div class="card-body auth-card-body">
+            <div class="auth-brand">
+              <div class="auth-brand-left">
+                <img class="brand-logo auth-logo" src="./assets/SSP.png" alt="Stream Sync Pro logo" />
+                <div>
+                  <h1 class="auth-title">Stream Sync Pro LIVE</h1>
+                  <p class="auth-subtitle">Smarter Live Engagement Starts Here</p>
+                </div>
+              </div>
+              <span id="auth-version-pill" class="version-pill auth-version-pill">Version <span id="app-version-auth">Loading...</span></span>
+            </div>
+
+            <div class="auth-tabs" hidden>
+              <button type="button" id="signin-tab-button" class="sidebar-tab-button active" hidden>Sign In</button>
+              <button type="button" id="register-tab-button" class="sidebar-tab-button" hidden>Register</button>
+              <button type="button" id="verify-tab-button" class="sidebar-tab-button" hidden>Verify Email</button>
+              <button type="button" id="reset-tab-button" class="sidebar-tab-button" hidden>Reset Password</button>
+            </div>
+
+            <p id="auth-status" class="status info">Sign in to continue.</p>
+
+            <form id="signin-form" class="auth-form auth-form-panel active">
+              <label class="field">
+                <span>Email address</span>
+                <input id="signin-email" type="email" autocomplete="username" required />
+              </label>
+
+              <label class="field">
+                <span>Password</span>
+                <input id="signin-password" type="password" autocomplete="current-password" required />
+              </label>
+
+              <div class="toggle-row remember-me-row">
+                <input id="signin-remember-me" type="checkbox" />
+                <span>Remember me</span>
+              </div>
+
+              <div class="auth-actions-row">
+                <button type="submit" id="signin-button">Sign In</button>
+                <button type="button" id="show-forgot-password-button" class="ghost">Forgot password?</button>
+                <button type="button" id="show-register-button" class="ghost">Register</button>
+              </div>
+            </form>
+
+            <form id="register-form" class="auth-form auth-form-panel">
+              <label class="field">
+                <span>Display name</span>
+                <input id="register-display-name" type="text" autocomplete="name" required />
+              </label>
+
+              <label class="field">
+                <span>Email address</span>
+                <input id="register-email" type="email" autocomplete="email" required />
+              </label>
+
+              <label class="field">
+                <span>Password</span>
+                <input id="register-password" type="password" autocomplete="new-password" required />
+              </label>
+
+              <label class="field">
+                <span>Confirm password</span>
+                <input id="register-password-confirm" type="password" autocomplete="new-password" required />
+              </label>
+
+              <div class="auth-actions-row">
+                <button type="submit" id="register-button">Create Account</button>
+                <button type="button" id="register-back-button" class="ghost">Back to Sign In</button>
+              </div>
+            </form>
+
+            <form id="verify-form" class="auth-form auth-form-panel">
+              <label class="field">
+                <span>Email address</span>
+                <input id="verify-email" type="email" autocomplete="email" required />
+              </label>
+
+              <label class="field">
+                <span>Verification code</span>
+                <input id="verify-code" type="text" inputmode="numeric" maxlength="6" required />
+              </label>
+
+              <div class="auth-actions-row">
+                <button type="submit" id="verify-button">Verify Email</button>
+                <button type="button" id="verify-back-button" class="ghost">Back to Sign In</button>
+              </div>
+            </form>
+
+            <form id="reset-form" class="auth-form auth-form-panel">
+              <label class="field">
+                <span>Email address</span>
+                <input id="reset-email" type="email" autocomplete="email" required />
+              </label>
+
+              <div class="auth-actions-row">
+                <button type="button" id="request-reset-code-button" class="ghost">Send reset code</button>
+              </div>
+
+              <label class="field">
+                <span>Reset code</span>
+                <input id="reset-code" type="text" inputmode="numeric" maxlength="6" />
+              </label>
+
+              <label class="field">
+                <span>New password</span>
+                <input id="reset-password" type="password" autocomplete="new-password" />
+              </label>
+
+              <div class="auth-actions-row">
+                <button type="submit" id="reset-button">Update Password</button>
+                <button type="button" id="reset-back-button" class="ghost">Back to Sign In</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </section>
+
+      <section id="dashboard-shell" class="dashboard-shell" hidden>
         <!-- Header -->
         <header class="dashboard-header card">
           <section class="brand-block">
@@ -21,7 +146,7 @@
               <img class="brand-logo" src="./assets/SSP.png" alt="Stream Sync Pro logo" />
               <div class="brand-copy">
                 <h1>Stream Sync Pro LIVE</h1>
-                <p class="brand-tagline">Live chat, translation, and voice automation</p>
+                <p class="brand-tagline">Smarter Live Engagement Starts Here</p>
               </div>
             </div>
           </section>
@@ -34,6 +159,12 @@
                 <span id="tts-pill" class="status-pill muted">TTS Off</span>
               </div>
               <span id="app-version-pill" class="version-pill">Version <span id="app-version">Loading...</span></span>
+            </div>
+
+            <div class="account-actions-row">
+              <span id="signed-in-pill" class="status-pill accent">Signed in</span>
+              <span id="credits-pill" class="status-pill info">Credits: 0</span>
+              <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
             </div>
 
             <form id="connect-form" class="header-connect-form">
@@ -59,11 +190,32 @@
           </section>
         </header>
 
+        <!-- Welcome -->
+        <section class="welcome-card card">
+          <div class="card-header section-head">
+            <div>
+              <p class="eyebrow">Welcome</p>
+            </div>
+          </div>
+
+          <div class="card-body welcome-copy">
+            <p>
+              Welcome to the ultimate toolkit for taking your live streams to the next level.
+            </p>
+            <p>
+              Packed with powerful interactive features, this platform helps creators turn every stream into a high-energy, engaging experience. From fan-favorite tools like Text-to-Speech and custom sound alerts to smart automations, event triggers, and connected device integrations, everything is built to keep your audience entertained and involved.
+            </p>
+            <p>
+              Boost engagement, energize your community, and transform every live session into something unforgettable.
+            </p>
+          </div>
+        </section>
+
         <!-- Main Layout -->
         <section class="dashboard-grid">
           <!-- Chat Feed -->
           <section class="chat-panel card">
-            <div class="panel-heading">
+            <div class="card-header panel-heading">
               <div>
                 <p class="eyebrow">Live feed</p>
                 <h2>Incoming Chat</h2>
@@ -71,35 +223,37 @@
               <span id="chat-count" class="count-pill">0 messages</span>
             </div>
 
-            <div class="chat-toolbar">
-              <label class="field toolbar-search">
-                <span class="sr-only">Search chat</span>
-                <input
-                  id="chat-search"
-                  type="search"
-                  placeholder="Search messages or usernames"
-                  autocomplete="off"
-                />
-              </label>
+            <div class="card-body">
+              <div class="chat-toolbar">
+                <label class="field toolbar-search">
+                  <span class="sr-only">Search chat</span>
+                  <input
+                    id="chat-search"
+                    type="search"
+                    placeholder="Search messages or usernames"
+                    autocomplete="off"
+                  />
+                </label>
 
-              <div class="toolbar-actions">
-                <button type="button" id="pause-scroll-button" class="ghost toolbar-button">
-                  Pause Scroll
-                </button>
-                <button type="button" id="clear-chat-button" class="ghost toolbar-button">
-                  Clear
-                </button>
-                <button type="button" id="export-chat-button" class="ghost toolbar-button">
-                  Export
-                </button>
+                <div class="toolbar-actions">
+                  <button type="button" id="pause-scroll-button" class="ghost toolbar-button">
+                    Pause Scroll
+                  </button>
+                  <button type="button" id="clear-chat-button" class="ghost toolbar-button">
+                    Clear
+                  </button>
+                  <button type="button" id="export-chat-button" class="ghost toolbar-button">
+                    Export
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div class="chat-stage">
-              <div id="chat-empty" class="chat-empty">
-                Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
+              <div class="chat-stage">
+                <div id="chat-empty" class="chat-empty">
+                  Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
+                </div>
+                <div id="chat-list" class="chat-list" aria-live="polite"></div>
               </div>
-              <div id="chat-list" class="chat-list" aria-live="polite"></div>
             </div>
           </section>
 
@@ -113,205 +267,211 @@
             <div id="controls-tab-panel" class="sidebar-tab-panel active">
             <!-- Stream Status -->
             <section class="sidebar-card card">
-              <div class="section-head">
+              <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Overview</p>
                   <h3 class="section-title">Stream Status</h3>
                 </div>
               </div>
 
-              <div class="stats-grid">
-                <article class="stat-tile">
-                  <span class="stat-label">Viewers</span>
-                  <strong id="stat-viewers">--</strong>
-                </article>
-                <article class="stat-tile">
-                  <span class="stat-label">Messages/min</span>
-                  <strong id="stat-messages-per-minute">0</strong>
-                </article>
-                <article class="stat-tile">
-                  <span class="stat-label">Gifts</span>
-                  <strong id="stat-gifts">0</strong>
-                </article>
-                <article class="stat-tile">
-                  <span class="stat-label">New followers</span>
-                  <strong id="stat-followers">0</strong>
-                </article>
+              <div class="card-body">
+                <div class="stats-grid">
+                  <article class="stat-tile">
+                    <span class="stat-label">Viewers</span>
+                    <strong id="stat-viewers">--</strong>
+                  </article>
+                  <article class="stat-tile">
+                    <span class="stat-label">Messages/min</span>
+                    <strong id="stat-messages-per-minute">0</strong>
+                  </article>
+                  <article class="stat-tile">
+                    <span class="stat-label">Gifts</span>
+                    <strong id="stat-gifts">0</strong>
+                  </article>
+                  <article class="stat-tile">
+                    <span class="stat-label">New followers</span>
+                    <strong id="stat-followers">0</strong>
+                  </article>
+                </div>
               </div>
             </section>
 
             <!-- Translation -->
             <section class="sidebar-card card">
-              <div class="section-head">
+              <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Translation</p>
                   <h3 class="section-title">Auto Translate</h3>
                 </div>
               </div>
 
-              <div class="settings-grid">
-                <label class="toggle-switch">
-                  <input id="translation-enabled" type="checkbox" />
-                  <span class="switch-ui"></span>
-                  <span class="switch-copy">
-                    <strong>Automatically translate incoming chat</strong>
-                    <small>Translate new live chat messages as they arrive.</small>
-                  </span>
-                </label>
-
-                <label class="field">
-                  <span>Target language</span>
-                  <select id="translation-target-language">
-                    <option value="en">English</option>
-                    <option value="es">Spanish</option>
-                    <option value="fr">French</option>
-                    <option value="de">German</option>
-                    <option value="it">Italian</option>
-                    <option value="pt">Portuguese</option>
-                    <option value="nl">Dutch</option>
-                    <option value="pl">Polish</option>
-                    <option value="ru">Russian</option>
-                    <option value="ja">Japanese</option>
-                    <option value="ko">Korean</option>
-                    <option value="zh">Chinese</option>
-                    <option value="ar">Arabic</option>
-                    <option value="tr">Turkish</option>
-                    <option value="uk">Ukrainian</option>
-                    <option value="hi">Hindi</option>
-                  </select>
-                </label>
-
-                <div class="field-grid">
-                  <label class="field">
-                    <span>Translator provider</span>
-                    <input
-                      id="translation-provider-url"
-                      value="Google online translator"
-                      readonly
-                      autocomplete="off"
-                    />
+              <div class="card-body">
+                <div class="settings-grid">
+                  <label class="toggle-switch">
+                    <input id="translation-enabled" type="checkbox" />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Automatically translate incoming chat</strong>
+                      <small>Translate new live chat messages as they arrive.</small>
+                    </span>
                   </label>
 
                   <label class="field">
-                    <span>Access</span>
-                    <input
-                      id="translation-api-key"
-                      value="Free built-in mode"
-                      readonly
-                      autocomplete="off"
-                    />
+                    <span>Target language</span>
+                    <select id="translation-target-language">
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                      <option value="it">Italian</option>
+                      <option value="pt">Portuguese</option>
+                      <option value="nl">Dutch</option>
+                      <option value="pl">Polish</option>
+                      <option value="ru">Russian</option>
+                      <option value="ja">Japanese</option>
+                      <option value="ko">Korean</option>
+                      <option value="zh">Chinese</option>
+                      <option value="ar">Arabic</option>
+                      <option value="tr">Turkish</option>
+                      <option value="uk">Ukrainian</option>
+                      <option value="hi">Hindi</option>
+                    </select>
                   </label>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Translator provider</span>
+                      <input
+                        id="translation-provider-url"
+                        value="Google online translator"
+                        readonly
+                        autocomplete="off"
+                      />
+                    </label>
+
+                    <label class="field">
+                      <span>Access</span>
+                      <input
+                        id="translation-api-key"
+                        value="Free built-in mode"
+                        readonly
+                        autocomplete="off"
+                      />
+                    </label>
+                  </div>
+
+                  <p id="translation-status" class="status info">
+                    Translation is off.
+                  </p>
                 </div>
-
-                <p id="translation-status" class="status info">
-                  Translation is off.
-                </p>
               </div>
             </section>
 
             <!-- Text To Speech -->
             <section class="sidebar-card card">
-              <div class="section-head">
+              <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Voice</p>
                   <h3 class="section-title">Text to Speech</h3>
                 </div>
               </div>
 
-              <div class="settings-grid">
-                <label class="toggle-switch">
-                  <input id="tts-enabled" type="checkbox" />
-                  <span class="switch-ui"></span>
-                  <span class="switch-copy">
-                    <strong>Read incoming chat aloud</strong>
-                    <small>Speak live comments using your selected voice profile.</small>
-                  </span>
-                </label>
-
-                <label class="toggle-switch">
-                  <input id="tts-include-username" type="checkbox" checked />
-                  <span class="switch-ui"></span>
-                  <span class="switch-copy">
-                    <strong>Include username</strong>
-                    <small>Say the display name before each spoken message.</small>
-                  </span>
-                </label>
-
-                <label class="toggle-switch">
-                  <input id="tts-read-gifts" type="checkbox" />
-                  <span class="switch-ui"></span>
-                  <span class="switch-copy">
-                    <strong>Gift alerts</strong>
-                    <small>Read gifts aloud along with the sender name.</small>
-                  </span>
-                </label>
-
-                <div class="field-grid">
-                  <label class="field">
-                    <span>Voice</span>
-                    <select id="tts-voice"></select>
+              <div class="card-body">
+                <div class="settings-grid">
+                  <label class="toggle-switch">
+                    <input id="tts-enabled" type="checkbox" />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Read incoming chat aloud</strong>
+                      <small>Speak live comments using your selected voice profile.</small>
+                    </span>
                   </label>
 
-                  <label class="field">
-                    <span>Voice style</span>
-                    <select id="tts-style">
-                      <option value="natural">Natural</option>
-                      <option value="protocol">Protocol droid</option>
-                      <option value="dark">Dark commander</option>
-                      <option value="announcer">Arena announcer</option>
-                      <option value="tinybot">Tiny robot</option>
-                    </select>
+                  <label class="toggle-switch">
+                    <input id="tts-include-username" type="checkbox" checked />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Include username</strong>
+                      <small>Say the display name before each spoken message.</small>
+                    </span>
                   </label>
+
+                  <label class="toggle-switch">
+                    <input id="tts-read-gifts" type="checkbox" />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Gift alerts</strong>
+                      <small>Read gifts aloud along with the sender name.</small>
+                    </span>
+                  </label>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Voice</span>
+                      <select id="tts-voice"></select>
+                    </label>
+
+                    <label class="field">
+                      <span>Voice style</span>
+                      <select id="tts-style">
+                        <option value="natural">Natural</option>
+                        <option value="protocol">Protocol droid</option>
+                        <option value="dark">Dark commander</option>
+                        <option value="announcer">Arena announcer</option>
+                        <option value="tinybot">Tiny robot</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="slider-grid">
+                    <label class="field">
+                      <span>Speech rate</span>
+                      <input
+                        id="tts-rate"
+                        type="range"
+                        min="0.7"
+                        max="1.5"
+                        step="0.1"
+                        value="1"
+                      />
+                      <span id="tts-rate-value" class="field-hint">1.0x</span>
+                    </label>
+
+                    <label class="field">
+                      <span>Pitch</span>
+                      <input
+                        id="tts-pitch"
+                        type="range"
+                        min="0.5"
+                        max="1.8"
+                        step="0.1"
+                        value="1"
+                      />
+                      <span id="tts-pitch-value" class="field-hint">1.0x</span>
+                    </label>
+
+                    <label class="field">
+                      <span>Volume boost</span>
+                      <input
+                        id="tts-volume"
+                        type="range"
+                        min="0.2"
+                        max="3"
+                        step="0.1"
+                        value="1"
+                      />
+                      <span id="tts-volume-value" class="field-hint">100%</span>
+                    </label>
+                  </div>
+
+                  <div class="actions">
+                    <button type="button" id="tts-test-button" class="ghost">Test voice</button>
+                  </div>
+
+                  <p id="tts-status" class="status info">
+                    TTS is off.
+                  </p>
                 </div>
-
-                <div class="slider-grid">
-                  <label class="field">
-                    <span>Speech rate</span>
-                    <input
-                      id="tts-rate"
-                      type="range"
-                      min="0.7"
-                      max="1.5"
-                      step="0.1"
-                      value="1"
-                    />
-                    <span id="tts-rate-value" class="field-hint">1.0x</span>
-                  </label>
-
-                  <label class="field">
-                    <span>Pitch</span>
-                    <input
-                      id="tts-pitch"
-                      type="range"
-                      min="0.5"
-                      max="1.8"
-                      step="0.1"
-                      value="1"
-                    />
-                    <span id="tts-pitch-value" class="field-hint">1.0x</span>
-                  </label>
-
-                  <label class="field">
-                    <span>Volume boost</span>
-                    <input
-                      id="tts-volume"
-                      type="range"
-                      min="0.2"
-                      max="3"
-                      step="0.1"
-                      value="1"
-                    />
-                    <span id="tts-volume-value" class="field-hint">100%</span>
-                  </label>
-                </div>
-
-                <div class="actions">
-                  <button type="button" id="tts-test-button" class="ghost">Test voice</button>
-                </div>
-
-                <p id="tts-status" class="status info">
-                  TTS is off.
-                </p>
               </div>
             </section>
 
@@ -319,7 +479,7 @@
 
             <div id="event-actions-tab-panel" class="sidebar-tab-panel">
             <section class="sidebar-card card">
-              <div class="section-head">
+              <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Custom Automation</p>
                   <h3 class="section-title">Threshold Rules</h3>
@@ -329,75 +489,81 @@
                 </button>
               </div>
 
-              <p class="helper-text">
-                Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session.
-              </p>
+              <div class="card-body">
+                <p class="helper-text">
+                  Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session.
+                </p>
 
-              <div id="custom-rule-list" class="custom-rule-list"></div>
+                <div id="custom-rule-list" class="custom-rule-list"></div>
 
-              <p id="custom-rule-status" class="status info">
-                No custom trigger rules yet.
-              </p>
+                <p id="custom-rule-status" class="status info">
+                  No custom trigger rules yet.
+                </p>
+              </div>
             </section>
             </div>
 
             <!-- Audience Filters -->
             <section class="sidebar-card card">
-              <div class="section-head">
+              <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Audience</p>
                   <h3 class="section-title">Filters</h3>
                 </div>
               </div>
 
-              <div class="filter-grid">
-                <label class="filter-tile">
-                  <input id="tts-audience-all" type="checkbox" checked />
-                  <span>All viewers</span>
-                </label>
-                <label class="filter-tile">
-                  <input id="tts-audience-subscribers" type="checkbox" />
-                  <span>Subscribers</span>
-                </label>
-                <label class="filter-tile">
-                  <input id="tts-audience-moderators" type="checkbox" />
-                  <span>Moderators</span>
-                </label>
-                <label class="filter-tile disabled" aria-disabled="true">
-                  <input id="tts-audience-vips" type="checkbox" disabled />
-                  <span>VIPs</span>
-                </label>
-              </div>
+              <div class="card-body">
+                <div class="filter-grid">
+                  <label class="filter-tile">
+                    <input id="tts-audience-all" type="checkbox" checked />
+                    <span>All viewers</span>
+                  </label>
+                  <label class="filter-tile">
+                    <input id="tts-audience-subscribers" type="checkbox" />
+                    <span>Subscribers</span>
+                  </label>
+                  <label class="filter-tile">
+                    <input id="tts-audience-moderators" type="checkbox" />
+                    <span>Moderators</span>
+                  </label>
+                  <label class="filter-tile disabled" aria-disabled="true">
+                    <input id="tts-audience-vips" type="checkbox" disabled />
+                    <span>VIPs</span>
+                  </label>
+                </div>
 
-              <p class="helper-text">
-                VIP filtering is reserved for future role detection. Current live role filters continue to work as normal.
-              </p>
+                <p class="helper-text">
+                  VIP filtering is reserved for future role detection. Current live role filters continue to work as normal.
+                </p>
+              </div>
             </section>
           </aside>
         </section>
 
         <!-- Footer Status -->
         <section class="footer-card card">
-          <div class="section-head">
+          <div class="card-header section-head">
             <div>
               <p class="eyebrow">Build and Updates</p>
               <h3 class="section-title">Deployment Status</h3>
             </div>
           </div>
 
-          <div class="footer-grid">
-            <div class="footer-copy">
-              <p class="status-card-title">
-                Running version <span id="app-version-inline">Loading...</span>
-              </p>
-              <p class="status-card-copy">
-                Automatic GitHub release checks are enabled on launch, and downloaded updates install after restart.
+          <div class="card-body">
+            <div class="footer-grid">
+              <div class="footer-copy">
+                <p class="status-card-title">
+                  Running version <span id="app-version-inline">Loading...</span>
+                </p>
+                <p class="status-card-copy">
+                  Automatic GitHub release checks are enabled on launch, and downloaded updates install after restart.
+                </p>
+              </div>
+
+              <p id="update-status" class="status info compact-status">
+                Automatic updates are configured for GitHub Releases.
               </p>
             </div>
-
-            <p id="update-status" class="status info compact-status">
-              Automatic updates are configured for GitHub Releases.
-            </p>
           </div>
         </section>
       </section>

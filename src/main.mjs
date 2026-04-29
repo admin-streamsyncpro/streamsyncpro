@@ -37,6 +37,10 @@ const myInstantsAudioUrlCache = new Map();
 let settings = {
   githubOwner: DEFAULT_GITHUB_OWNER,
   githubRepo: DEFAULT_GITHUB_REPO,
+  authApiBaseUrl: "https://streamsyncpro.co.uk",
+  authUser: null,
+  authRememberMe: false,
+  authRememberedEmail: "",
   rememberedUsername: "",
   rememberUsername: false,
   translationEnabled: false,

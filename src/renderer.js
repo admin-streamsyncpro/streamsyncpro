@@ -1,11 +1,45 @@
 const app = window.desktopApp;
 
+// Auth shell
+const authShell = document.getElementById("auth-shell");
+const dashboardShell = document.getElementById("dashboard-shell");
+const authStatus = document.getElementById("auth-status");
+const signinTabButton = document.getElementById("signin-tab-button");
+const registerTabButton = document.getElementById("register-tab-button");
+const verifyTabButton = document.getElementById("verify-tab-button");
+const resetTabButton = document.getElementById("reset-tab-button");
+const signinForm = document.getElementById("signin-form");
+const registerForm = document.getElementById("register-form");
+const verifyForm = document.getElementById("verify-form");
+const resetForm = document.getElementById("reset-form");
+const signinEmailInput = document.getElementById("signin-email");
+const signinPasswordInput = document.getElementById("signin-password");
+const signinRememberMeInput = document.getElementById("signin-remember-me");
+const showRegisterButton = document.getElementById("show-register-button");
+const registerDisplayNameInput = document.getElementById("register-display-name");
+const registerEmailInput = document.getElementById("register-email");
+const registerPasswordInput = document.getElementById("register-password");
+const registerPasswordConfirmInput = document.getElementById("register-password-confirm");
+const registerBackButton = document.getElementById("register-back-button");
+const verifyEmailInput = document.getElementById("verify-email");
+const verifyCodeInput = document.getElementById("verify-code");
+const verifyBackButton = document.getElementById("verify-back-button");
+const resetEmailInput = document.getElementById("reset-email");
+const resetCodeInput = document.getElementById("reset-code");
+const resetPasswordInput = document.getElementById("reset-password");
+const resetBackButton = document.getElementById("reset-back-button");
+const showForgotPasswordButton = document.getElementById("show-forgot-password-button");
+const requestResetCodeButton = document.getElementById("request-reset-code-button");
+
 // Header and global status
 const connectionToast = document.getElementById("connection-status");
 const connectionPill = document.getElementById("connection-pill");
 const translationPill = document.getElementById("translation-pill");
 const ttsPill = document.getElementById("tts-pill");
+const signedInPill = document.getElementById("signed-in-pill");
+const creditsPill = document.getElementById("credits-pill");
 const appVersionLabel = document.getElementById("app-version");
+const appVersionAuth = document.getElementById("app-version-auth");
 const appVersionInline = document.getElementById("app-version-inline");
 const updateStatus = document.getElementById("update-status");
 
@@ -14,6 +48,7 @@ const connectForm = document.getElementById("connect-form");
 const usernameInput = document.getElementById("username");
 const connectButton = document.getElementById("connect-button");
 const rememberUsernameInput = document.getElementById("remember-username");
+const signoutButton = document.getElementById("signout-button");
 
 // Chat layout
 const chatCount = document.getElementById("chat-count");
@@ -76,6 +111,10 @@ const SAVE_DEBOUNCE_MS = 250;
 const state = {
   settings: null,
   appVersion: "",
+  authView: "signin",
+  authBusy: false,
+  authRememberMeChoice: false,
+  authenticatedUser: null,
   connected: false,
   connecting: false,
   username: "",
@@ -120,9 +159,17 @@ const state = {
 
 let toastTimer = null;
 let saveSettingsTimer = null;
+let headerEventsWired = false;
+let authEventsWired = false;
+let chatToolbarEventsWired = false;
+let tabEventsWired = false;
 
 function createDefaultSettings() {
   return {
+    authApiBaseUrl: "https://streamsyncpro.co.uk",
+    authUser: null,
+    authRememberMe: false,
+    authRememberedEmail: "",
     rememberedUsername: "",
     rememberUsername: false,
     translationEnabled: false,
@@ -159,6 +206,10 @@ function ensureSettingsShape(source = {}) {
       ? source.customEventRules.map(normalizeRule).filter(Boolean)
       : []
   };
+}
+
+function getAuthApiBaseUrl() {
+  return String(state.settings?.authApiBaseUrl || "https://streamsyncpro.co.uk").replace(/\/+$/, "");
 }
 
 function normalizeRule(rule, index = 0) {
@@ -237,6 +288,205 @@ function scheduleSettingsSave() {
       showToast(error.message || "Unable to save settings.", "error");
     });
   }, SAVE_DEBOUNCE_MS);
+}
+
+function setAuthStatus(level, message) {
+  setStatusMessage(authStatus, level, message);
+}
+
+function setAuthView(viewName) {
+  state.authView = viewName;
+  const entries = [
+    [signinTabButton, signinForm, "signin"],
+    [registerTabButton, registerForm, "register"],
+    [verifyTabButton, verifyForm, "verify"],
+    [resetTabButton, resetForm, "reset"]
+  ];
+
+  for (const [button, panel, name] of entries) {
+    const active = name === viewName;
+    if (button) {
+      button.classList.toggle("active", active);
+    }
+    panel.classList.toggle("active", active);
+  }
+}
+
+function setAuthBusy(nextBusy) {
+  state.authBusy = nextBusy;
+  const rememberMeChecked = state.authRememberMeChoice;
+  [
+    signinTabButton,
+    registerTabButton,
+    verifyTabButton,
+    resetTabButton,
+    ...authShell.querySelectorAll("button"),
+    ...authShell.querySelectorAll("input")
+  ].forEach((element) => {
+    if (element.id === "show-forgot-password-button") {
+      element.disabled = nextBusy;
+      return;
+    }
+
+    element.disabled = nextBusy;
+  });
+
+  signinRememberMeInput.checked = rememberMeChecked;
+}
+
+function scheduleAuthRememberSave() {
+  if (state.authBusy) {
+    return;
+  }
+
+  state.authRememberMeChoice = signinRememberMeInput.checked;
+  persistSettings({
+    authRememberMe: state.authRememberMeChoice,
+    authRememberedEmail: state.authRememberMeChoice ? signinEmailInput.value.trim() : ""
+  }).catch((error) => {
+    setAuthStatus("error", error.message || "Unable to save sign-in preferences.");
+  });
+}
+
+function showDashboardForUser(user) {
+  state.authenticatedUser = user;
+  signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+  authShell.hidden = true;
+  dashboardShell.hidden = false;
+  setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
+}
+
+function showAuthShell() {
+  state.authenticatedUser = null;
+  signedInPill.textContent = "Signed in";
+  creditsPill.textContent = "Credits: 0";
+  dashboardShell.hidden = true;
+  authShell.hidden = false;
+}
+
+async function signOutUser() {
+  if (state.connected) {
+    try {
+      await app.disconnect();
+    } catch {
+      // Ignore disconnect issues during sign-out; auth state still needs to clear.
+    }
+
+    state.connected = false;
+    state.connecting = false;
+    state.username = "";
+    state.roomId = null;
+    setConnectionUiState();
+    updateHeaderPills();
+  }
+
+  await persistSettings({
+    authUser: null,
+    authRememberMe: state.authRememberMeChoice,
+    authRememberedEmail: state.authRememberMeChoice ? signinEmailInput.value.trim() : ""
+  });
+  signinPasswordInput.value = "";
+  resetCodeInput.value = "";
+  resetPasswordInput.value = "";
+  signinRememberMeInput.checked = state.authRememberMeChoice;
+  setAuthView("signin");
+  showAuthShell();
+  setAuthStatus("info", "Signed out. Sign in to continue.");
+  showToast("Signed out successfully.", "info");
+}
+
+async function authRequest(path, payload) {
+  const response = await fetch(`${getAuthApiBaseUrl()}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result.error || result.message || "Authentication request failed.");
+  }
+
+  return result;
+}
+
+async function consumeConnectCredit() {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    throw new Error("Please sign in again before connecting.");
+  }
+
+  const result = await authRequest("/api/auth/consume-connect-credit", {
+    userId: user.id,
+    sessionToken: user.sessionToken
+  });
+
+  state.authenticatedUser = result.user;
+  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
+  await persistSettings({
+    authUser: state.settings?.authRememberMe ? result.user : null
+  });
+
+  return result;
+}
+
+async function checkConnectCredit() {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    throw new Error("Please sign in again before connecting.");
+  }
+
+  const result = await authRequest("/api/auth/check-connect-credit", {
+    userId: user.id,
+    sessionToken: user.sessionToken
+  });
+
+  state.authenticatedUser = result.user;
+  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
+  await persistSettings({
+    authUser: state.settings?.authRememberMe ? result.user : null
+  });
+
+  return result;
+}
+
+async function refreshAuthenticatedUser() {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    throw new Error("Please sign in again before connecting.");
+  }
+
+  const result = await authRequest("/api/auth/session", {
+    userId: user.id,
+    sessionToken: user.sessionToken
+  });
+
+  state.authenticatedUser = result.user;
+  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
+  await persistSettings({
+    authUser: state.settings?.authRememberMe ? result.user : null
+  });
+
+  return result.user;
+}
+
+async function refreshCreditsStatus() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    creditsPill.textContent = "Credits: 0";
+    return null;
+  }
+
+  try {
+    return await refreshAuthenticatedUser();
+  } catch {
+    return null;
+  }
 }
 
 function setConnectionUiState() {
@@ -329,6 +579,7 @@ function updateUpdateStatus() {
 
 function updateFooterVersion() {
   appVersionLabel.textContent = state.appVersion || "Unknown";
+  appVersionAuth.textContent = state.appVersion || "Unknown";
   appVersionInline.textContent = state.appVersion || "Unknown";
 }
 
@@ -1060,6 +1311,37 @@ function applySettingsToUi() {
   renderCustomRules();
 }
 
+async function initializeAuthShell() {
+  showAuthShell();
+  setAuthView("signin");
+  state.authRememberMeChoice = Boolean(state.settings?.authRememberMe);
+  signinRememberMeInput.checked = state.authRememberMeChoice;
+  signinEmailInput.value = String(state.settings?.authRememberedEmail || "");
+
+  if (state.settings?.authRememberMe && state.settings?.authUser) {
+    try {
+      state.authenticatedUser = state.settings.authUser;
+      await refreshAuthenticatedUser();
+      showDashboardForUser(state.authenticatedUser);
+      return;
+    } catch {
+      await persistSettings({ authUser: null });
+    }
+  }
+
+  try {
+    const response = await fetch(`${getAuthApiBaseUrl()}/api/health`);
+    if (response.ok) {
+      setAuthStatus("info", "Sign in to continue.");
+      return;
+    }
+  } catch {
+    // Fall through to friendly offline/auth server guidance.
+  }
+
+  setAuthStatus("error", "The website authentication service is offline right now. Please try again shortly.");
+}
+
 function exportChat() {
   if (!state.chatItems.length) {
     showToast("There is no chat to export yet.", "info");
@@ -1087,8 +1369,20 @@ function clearChat() {
 }
 
 function wireHeaderEvents() {
+  if (headerEventsWired) {
+    return;
+  }
+  headerEventsWired = true;
+
   connectForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    const liveConnectionState = await app.getConnectionState();
+    state.connected = Boolean(liveConnectionState?.connected);
+    state.username = liveConnectionState?.username ?? state.username;
+    state.roomId = liveConnectionState?.roomId ?? state.roomId;
+    updateHeaderPills();
+    setConnectionUiState();
 
     if (state.connected) {
       try {
@@ -1101,6 +1395,7 @@ function wireHeaderEvents() {
         resetSessionMetrics();
         updateHeaderPills();
         setConnectionUiState();
+        await refreshCreditsStatus();
         showToast("Disconnected from TikTok LIVE.", "info");
       } catch (error) {
         showToast(error.message || "Unable to disconnect.", "error");
@@ -1127,18 +1422,32 @@ function wireHeaderEvents() {
         rememberUsername: rememberUsernameInput.checked,
         rememberedUsername: rememberUsernameInput.checked ? username : ""
       });
+      await refreshCreditsStatus();
+      await checkConnectCredit();
       const result = await app.connect(username);
       state.connected = Boolean(result.connected);
       state.username = result.username ?? username;
       state.roomId = result.roomId ?? null;
       resetSessionMetrics();
       updateHeaderPills();
+      const creditResult = await consumeConnectCredit();
+      showToast(`${creditResult.message} Remaining credits: ${creditResult.user?.credits ?? 0}.`, "info");
       showToast(`Connected to @${state.username}.`, "success");
     } catch (error) {
+      if (state.connected) {
+        try {
+          await app.disconnect();
+        } catch {
+          // Ignore cleanup errors after a failed post-connect credit deduction.
+        }
+      }
       state.connected = false;
+      state.username = "";
+      state.roomId = null;
       updateHeaderPills();
       showToast(error.message || "Unable to connect.", "error");
     } finally {
+      await refreshCreditsStatus();
       state.connecting = false;
       setConnectionUiState();
       updateStats();
@@ -1156,7 +1465,202 @@ function wireHeaderEvents() {
   });
 }
 
+function wireAuthEvents() {
+  if (authEventsWired) {
+    return;
+  }
+  authEventsWired = true;
+
+  signinTabButton.addEventListener("click", () => setAuthView("signin"));
+  registerTabButton.addEventListener("click", () => setAuthView("register"));
+  verifyTabButton.addEventListener("click", () => setAuthView("verify"));
+  resetTabButton.addEventListener("click", () => setAuthView("reset"));
+
+  showForgotPasswordButton.addEventListener("click", () => {
+    resetEmailInput.value = signinEmailInput.value.trim();
+    setAuthView("reset");
+    setAuthStatus("info", "Request a reset code from your email, then enter it here with your new password.");
+  });
+
+  const syncRememberMeChoice = () => {
+    state.authRememberMeChoice = signinRememberMeInput.checked;
+    scheduleAuthRememberSave();
+  };
+
+  signinRememberMeInput.addEventListener("change", syncRememberMeChoice);
+  signinRememberMeInput.addEventListener("input", syncRememberMeChoice);
+  signinRememberMeInput.addEventListener("click", syncRememberMeChoice);
+  signinEmailInput.addEventListener("input", () => {
+    if (signinRememberMeInput.checked) {
+      scheduleAuthRememberSave();
+    }
+  });
+
+  showRegisterButton.addEventListener("click", () => {
+    registerEmailInput.value = signinEmailInput.value.trim();
+    setAuthView("register");
+    setAuthStatus("info", "Create your account to get started.");
+  });
+
+  registerBackButton.addEventListener("click", () => {
+    signinEmailInput.value = registerEmailInput.value.trim();
+    setAuthView("signin");
+    setAuthStatus("info", "Sign in to continue.");
+  });
+
+  verifyBackButton.addEventListener("click", () => {
+    signinEmailInput.value = verifyEmailInput.value.trim();
+    setAuthView("signin");
+    setAuthStatus("info", "Sign in once your email has been verified.");
+  });
+
+  resetBackButton.addEventListener("click", () => {
+    signinEmailInput.value = resetEmailInput.value.trim();
+    setAuthView("signin");
+    setAuthStatus("info", "Sign in with your updated password when you're ready.");
+  });
+
+  requestResetCodeButton.addEventListener("click", async () => {
+    try {
+      setAuthBusy(true);
+      const result = await authRequest("/api/auth/forgot-password", {
+        email: resetEmailInput.value.trim()
+      });
+      setAuthStatus(
+        result.deliveryMode === "console" ? "info" : "success",
+        result.deliveryMode === "console"
+          ? "Reset code generated. Email sending is in console-preview mode on the auth server, so use the code shown there."
+          : result.message
+      );
+    } catch (error) {
+      setAuthStatus("error", error.message || "Password reset request failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  signoutButton.addEventListener("click", async () => {
+    try {
+      await signOutUser();
+    } catch (error) {
+      setAuthStatus("error", error.message || "Unable to sign out right now.");
+    }
+  });
+
+  registerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (registerPasswordInput.value !== registerPasswordConfirmInput.value) {
+      setAuthStatus("error", "Password confirmation does not match.");
+      return;
+    }
+
+    try {
+      setAuthBusy(true);
+      const result = await authRequest("/api/auth/register", {
+        displayName: registerDisplayNameInput.value.trim(),
+        email: registerEmailInput.value.trim(),
+        password: registerPasswordInput.value
+      });
+
+      verifyEmailInput.value = registerEmailInput.value.trim();
+      setAuthView("verify");
+      setAuthStatus(
+        result.deliveryMode === "console" ? "info" : "success",
+        result.deliveryMode === "console"
+          ? "Registration succeeded. Email sending is in console-preview mode on the auth server, so use the code shown there."
+          : result.message
+      );
+      showToast("Registration created. Verify your email to continue.", "success");
+    } catch (error) {
+      setAuthStatus("error", error.message || "Registration failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  verifyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      setAuthBusy(true);
+      const result = await authRequest("/api/auth/verify-email", {
+        email: verifyEmailInput.value.trim(),
+        code: verifyCodeInput.value.trim()
+      });
+      setAuthView("signin");
+      signinEmailInput.value = verifyEmailInput.value.trim();
+      setAuthStatus("success", result.message || "Email verified. You can now sign in.");
+    } catch (error) {
+      setAuthStatus("error", error.message || "Email verification failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  resetForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+      try {
+        setAuthBusy(true);
+      if (!resetCodeInput.value.trim() || !resetPasswordInput.value) {
+        setAuthStatus("error", "Enter the reset code and your new password.");
+        return;
+      }
+
+      const result = await authRequest("/api/auth/reset-password", {
+        email: resetEmailInput.value.trim(),
+        code: resetCodeInput.value.trim(),
+        newPassword: resetPasswordInput.value
+      });
+      setAuthView("signin");
+      signinEmailInput.value = resetEmailInput.value.trim();
+      setAuthStatus("success", result.message || "Password updated. You can sign in now.");
+    } catch (error) {
+      setAuthStatus("error", error.message || "Password reset failed.");
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+
+  signinForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    try {
+      const rememberMeEnabled = Boolean(signinRememberMeInput.checked);
+      state.authRememberMeChoice = rememberMeEnabled;
+      signinRememberMeInput.checked = rememberMeEnabled;
+      setAuthBusy(true);
+      const result = await authRequest("/api/auth/login", {
+        email: signinEmailInput.value.trim(),
+        password: signinPasswordInput.value
+      });
+
+      await persistSettings({
+        authUser: rememberMeEnabled ? result.user : null,
+        authRememberMe: rememberMeEnabled,
+        authRememberedEmail: rememberMeEnabled ? signinEmailInput.value.trim() : ""
+      });
+      showDashboardForUser(result.user);
+      showToast(`Welcome back, ${result.user.displayName || result.user.email}.`, "success");
+    } catch (error) {
+      setAuthStatus("error", error.message || "Sign-in failed.");
+      if ((error.message || "").toLowerCase().includes("verify")) {
+        verifyEmailInput.value = signinEmailInput.value.trim();
+        setAuthView("verify");
+      }
+    } finally {
+      setAuthBusy(false);
+    }
+  });
+}
+
 function wireChatToolbarEvents() {
+  if (chatToolbarEventsWired) {
+    return;
+  }
+  chatToolbarEventsWired = true;
+
   chatSearchInput.addEventListener("input", () => {
     state.chatSearch = chatSearchInput.value;
     renderChatList();
@@ -1172,6 +1676,11 @@ function wireChatToolbarEvents() {
 }
 
 function wireTabEvents() {
+  if (tabEventsWired) {
+    return;
+  }
+  tabEventsWired = true;
+
   controlsTabButton.addEventListener("click", () => setActiveTab("controls"));
   eventActionsTabButton.addEventListener("click", () => setActiveTab("event-actions"));
 }
@@ -1358,6 +1867,7 @@ async function initializeApp() {
   updateFooterVersion();
   setConnectionUiState();
   updateStats();
+  await initializeAuthShell();
 
   if (!state.connected && state.settings.rememberUsername && state.settings.rememberedUsername) {
     usernameInput.value = state.settings.rememberedUsername;
@@ -1375,6 +1885,7 @@ async function initializeApp() {
 }
 
 wireHeaderEvents();
+wireAuthEvents();
 wireChatToolbarEvents();
 wireTabEvents();
 wireSettingsEvents();
