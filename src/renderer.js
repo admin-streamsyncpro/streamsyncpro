@@ -58,6 +58,12 @@ const clearChatButton = document.getElementById("clear-chat-button");
 const exportChatButton = document.getElementById("export-chat-button");
 const chatEmpty = document.getElementById("chat-empty");
 const chatList = document.getElementById("chat-list");
+const chatNotesPanel = document.getElementById("chat-notes-panel");
+const chatNotesTitle = document.getElementById("chat-notes-title");
+const chatNotesInput = document.getElementById("chat-notes-input");
+const chatNotesSaveButton = document.getElementById("chat-notes-save");
+const chatNotesDeleteButton = document.getElementById("chat-notes-delete");
+const chatNotesCloseButton = document.getElementById("chat-notes-close");
 
 // Sidebar tabs
 const controlsTabButton = document.getElementById("controls-tab-button");
@@ -70,6 +76,12 @@ const statViewers = document.getElementById("stat-viewers");
 const statMessagesPerMinute = document.getElementById("stat-messages-per-minute");
 const statGifts = document.getElementById("stat-gifts");
 const statFollowers = document.getElementById("stat-followers");
+const statQueue = document.getElementById("stat-queue");
+const queueCountPill = document.getElementById("queue-count-pill");
+const queueFilterSelect = document.getElementById("queue-filter");
+const queueClearFilteredButton = document.getElementById("queue-clear-filtered");
+const queueActionList = document.getElementById("queue-action-list");
+const queueActionStatus = document.getElementById("queue-action-status");
 
 // Translation controls
 const translationEnabledInput = document.getElementById("translation-enabled");
@@ -84,6 +96,7 @@ const ttsIncludeUsernameInput = document.getElementById("tts-include-username");
 const ttsReadGiftsInput = document.getElementById("tts-read-gifts");
 const ttsVoiceSelect = document.getElementById("tts-voice");
 const ttsStyleSelect = document.getElementById("tts-style");
+const ttsQueueSelect = document.getElementById("tts-queue");
 const ttsRateInput = document.getElementById("tts-rate");
 const ttsPitchInput = document.getElementById("tts-pitch");
 const ttsVolumeInput = document.getElementById("tts-volume");
@@ -123,6 +136,7 @@ const state = {
   updateLevel: "info",
   activeTab: "controls",
   chatItems: [],
+  activeChatNoteUser: "",
   chatSearch: "",
   pauseScroll: false,
   voices: [],
@@ -133,8 +147,9 @@ const state = {
   soundCatalogLoaded: false,
   soundCatalogError: "",
   activeCustomRuleId: null,
-  speechQueue: [],
-  speaking: false,
+  queueCount: 0,
+  queueFilter: "all",
+  playbackQueueItems: [],
   customRulePreviewAudio: null,
   customRuleTriggerCounts: new Map(),
   sessionMetrics: {
@@ -149,6 +164,7 @@ const state = {
     shares: new Map(),
     coins: new Map()
   },
+  sessionUserProfiles: new Map(),
   triggeredCustomRuleIds: new Set(),
   statState: {
     gifts: 0,
@@ -163,6 +179,8 @@ let headerEventsWired = false;
 let authEventsWired = false;
 let chatToolbarEventsWired = false;
 let tabEventsWired = false;
+const playbackQueues = new Map();
+let nextPlaybackQueueItemId = 1;
 
 function createDefaultSettings() {
   return {
@@ -179,6 +197,7 @@ function createDefaultSettings() {
     ttsEnabled: false,
     ttsVoice: "",
     ttsStyle: "natural",
+    ttsQueue: 1,
     ttsRate: 1,
     ttsPitch: 1,
     ttsVolume: 1,
@@ -189,6 +208,7 @@ function createDefaultSettings() {
       subscribers: false,
       moderators: false
     },
+    userNotes: {},
     customEventRules: []
   };
 }
@@ -198,6 +218,7 @@ function ensureSettingsShape(source = {}) {
   return {
     ...defaults,
     ...source,
+    userNotes: normalizeUserNotes(source?.userNotes),
     ttsAudience: {
       ...defaults.ttsAudience,
       ...(source?.ttsAudience ?? {})
@@ -217,28 +238,322 @@ function normalizeRule(rule, index = 0) {
     return null;
   }
 
-    return {
-      id: String(rule.id ?? `rule-${Date.now()}-${index}`),
-      enabled: rule.enabled !== false,
-      name: String(rule.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
-      metric: ["follows", "likes", "shares", "coins"].includes(rule.metric) ? rule.metric : "follows",
-      scope: ["total", "perUser"].includes(rule.scope) ? rule.scope : "total",
-      threshold: Math.max(1, Number(rule.threshold) || 1),
-      soundId: String(rule.soundId ?? "").trim()
-    };
-  }
+  return {
+    id: String(rule.id ?? `rule-${Date.now()}-${index}`),
+    enabled: rule.enabled !== false,
+    name: String(rule.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
+    metric: ["follows", "likes", "shares", "coins"].includes(rule.metric) ? rule.metric : "follows",
+    threshold: Math.max(1, Number(rule.threshold) || 1),
+    queueId: normalizeQueueId(rule.queueId, 1),
+    soundId: String(rule.soundId ?? "").trim(),
+    webhookUrl: String(rule.webhookUrl ?? "").trim(),
+    triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser"].includes(rule.triggerAudience)
+      ? rule.triggerAudience
+      : "everyone",
+    triggerUsername: String(rule.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase()
+  };
+}
 
 function createDraftRule() {
   return {
     id: `rule-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-      enabled: true,
-      name: `Custom rule ${state.settings.customEventRules.length + 1}`,
-      metric: "follows",
-      scope: "total",
-      threshold: 1,
-      soundId: ""
-    };
+    enabled: true,
+    name: `Custom rule ${state.settings.customEventRules.length + 1}`,
+    metric: "follows",
+    threshold: 1,
+    queueId: 1,
+    soundId: "",
+    webhookUrl: "",
+    triggerAudience: "everyone",
+    triggerUsername: ""
+  };
+}
+
+function normalizeQueueId(value, fallback = 1) {
+  return Math.min(10, Math.max(1, Number(value) || fallback));
+}
+
+function getQueueLabel(queueId) {
+  return `Queue ${normalizeQueueId(queueId, 1)}`;
+}
+
+function createQueueClearedError() {
+  const error = new Error("Queue item cleared.");
+  error.cleared = true;
+  return error;
+}
+
+function getPlaybackLane(queueId) {
+  const laneId = normalizeQueueId(queueId, 1);
+  if (!playbackQueues.has(laneId)) {
+    playbackQueues.set(laneId, {
+      laneId,
+      running: false,
+      items: []
+    });
   }
+
+  return playbackQueues.get(laneId);
+}
+
+function updateQueueIndicators() {
+  state.queueCount = state.playbackQueueItems.length;
+  const count = Math.max(0, state.queueCount);
+  statQueue.textContent = String(count);
+  queueCountPill.textContent = `${count} ${count === 1 ? "item" : "items"}`;
+  renderQueueActionList();
+}
+
+function getFilteredQueueItems() {
+  switch (state.queueFilter) {
+    case "waiting":
+      return state.playbackQueueItems.filter((item) => item.status === "queued");
+    case "playing":
+      return state.playbackQueueItems.filter((item) => item.status === "running");
+    case "tts":
+      return state.playbackQueueItems.filter((item) => item.kind === "tts");
+    case "action":
+      return state.playbackQueueItems.filter((item) => item.kind === "action");
+    default:
+      return state.playbackQueueItems;
+  }
+}
+
+function renderQueueActionList() {
+  const filteredItems = getFilteredQueueItems();
+  const clearableCount = filteredItems.filter((item) => item.status === "queued").length;
+  queueClearFilteredButton.disabled = clearableCount === 0;
+
+  if (!filteredItems.length) {
+    queueActionList.innerHTML = "";
+    setStatusMessage(
+      queueActionStatus,
+      "info",
+      state.playbackQueueItems.length ? "No queue items match the current filter." : "No queued actions."
+    );
+    return;
+  }
+
+  queueActionList.innerHTML = filteredItems
+    .map((item) => `
+      <article class="queue-action-row ${item.status === "running" ? "running" : ""}" data-queue-item-id="${escapeHtml(item.id)}">
+        <div class="queue-action-copy">
+          <strong>${escapeHtml(item.label)}</strong>
+          <span class="queue-action-meta">${escapeHtml(getQueueLabel(item.queueId))} · ${escapeHtml(item.kind === "tts" ? "TTS" : "Action")} · ${escapeHtml(item.status === "running" ? "Running" : "Waiting")}</span>
+        </div>
+        ${item.status === "queued"
+          ? `<button type="button" class="ghost compact-button queue-action-clear" data-queue-clear="${escapeHtml(item.id)}">Clear</button>`
+          : `<span class="status-pill accent">Playing</span>`}
+      </article>
+    `)
+    .join("");
+
+  setStatusMessage(
+    queueActionStatus,
+    "success",
+    `${filteredItems.length} visible item${filteredItems.length === 1 ? "" : "s"} · ${clearableCount} clearable`
+  );
+}
+
+function clearQueuedPlaybackItem(itemId) {
+  for (const lane of playbackQueues.values()) {
+    const itemIndex = lane.items.findIndex((entry) => entry.id === itemId);
+    if (itemIndex === -1) {
+      continue;
+    }
+
+    const [item] = lane.items.splice(itemIndex, 1);
+    state.playbackQueueItems = state.playbackQueueItems.filter((entry) => entry.id !== itemId);
+    updateQueueIndicators();
+    item.reject(createQueueClearedError());
+    showToast(`Cleared queued action: ${item.label}`, "info");
+    return true;
+  }
+
+  return false;
+}
+
+function clearFilteredPlaybackItems() {
+  const clearableIds = getFilteredQueueItems()
+    .filter((item) => item.status === "queued")
+    .map((item) => item.id);
+
+  if (!clearableIds.length) {
+    showToast("No waiting queue items match the current filter.", "info");
+    return;
+  }
+
+  for (const itemId of clearableIds) {
+    clearQueuedPlaybackItem(itemId);
+  }
+
+  showToast(`Cleared ${clearableIds.length} queued item${clearableIds.length === 1 ? "" : "s"}.`, "success");
+}
+
+async function processPlaybackLane(queueId) {
+  const lane = getPlaybackLane(queueId);
+  if (lane.running) {
+    return;
+  }
+
+  lane.running = true;
+
+  try {
+    while (lane.items.length) {
+      const item = lane.items[0];
+      item.status = "running";
+      updateQueueIndicators();
+
+      try {
+        const result = await item.execute();
+        item.resolve(result);
+      } catch (error) {
+        item.reject(error);
+      } finally {
+        lane.items.shift();
+        state.playbackQueueItems = state.playbackQueueItems.filter((entry) => entry.id !== item.id);
+        updateQueueIndicators();
+      }
+    }
+  } finally {
+    lane.running = false;
+    if (!lane.items.length) {
+      playbackQueues.delete(lane.laneId);
+    }
+  }
+}
+
+function enqueuePlaybackTask(queueId, task, meta = {}) {
+  const lane = getPlaybackLane(queueId);
+  const normalizedQueueId = normalizeQueueId(queueId, 1);
+
+  return new Promise((resolve, reject) => {
+    const entry = {
+      id: `queue-${nextPlaybackQueueItemId++}`,
+      queueId: normalizedQueueId,
+      label: String(meta.label ?? `Queued action on ${getQueueLabel(normalizedQueueId)}`),
+      kind: meta.kind === "tts" ? "tts" : "action",
+      status: "queued",
+      execute: task,
+      resolve,
+      reject
+    };
+
+    lane.items.push(entry);
+    state.playbackQueueItems.push(entry);
+    updateQueueIndicators();
+    void processPlaybackLane(normalizedQueueId);
+  });
+}
+
+function normalizeUserKey(value) {
+  return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
+}
+
+function normalizeUserNotes(source = {}) {
+  if (!source || typeof source !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(source)
+      .map(([key, value]) => [normalizeUserKey(key), String(value ?? "").trim()])
+      .filter(([key, value]) => key && value)
+  );
+}
+
+function getUserNote(userKey) {
+  return state.settings?.userNotes?.[normalizeUserKey(userKey)] ?? "";
+}
+
+function getSessionUserMetricValue(metric, userKey) {
+  const key = normalizeUserKey(userKey);
+  if (!key) {
+    return 0;
+  }
+
+  return Math.max(0, Number(state.sessionUserMetrics?.[metric]?.get(key) ?? 0));
+}
+
+function getTriggerAudienceLabel(rule) {
+  switch (rule.triggerAudience) {
+    case "follower":
+      return "any follower";
+    case "subscriber":
+      return "any subscriber";
+    case "moderator":
+      return "any moderator";
+    case "topGifter":
+      return "the top gifter";
+    case "specificUser":
+      return rule.triggerUsername ? `@${rule.triggerUsername}` : "a specific user";
+    default:
+      return "everyone";
+  }
+}
+
+function getMetricThresholdLabel(metric) {
+  switch (metric) {
+    case "likes":
+      return "Number of likes";
+    case "shares":
+      return "Number of shares";
+    case "follows":
+      return "Number of follows";
+    case "coins":
+      return "Minimum coins value";
+    default:
+      return "Threshold value";
+  }
+}
+
+function getAudienceQualifiedMetricValue(rule) {
+  const metric = rule?.metric;
+  if (!["follows", "likes", "shares", "coins"].includes(metric)) {
+    return 0;
+  }
+
+  switch (rule?.triggerAudience) {
+    case "follower": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.followedThisSession) {
+          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "subscriber": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isSubscriber) {
+          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "moderator": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isModerator) {
+          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "topGifter": {
+      const topGifterUserId = getTopGifterUserId();
+      return topGifterUserId ? Number(state.sessionUserMetrics[metric].get(topGifterUserId) ?? 0) : 0;
+    }
+    case "specificUser": {
+      const targetUser = normalizeUserKey(rule?.triggerUsername);
+      return targetUser ? Number(state.sessionUserMetrics[metric].get(targetUser) ?? 0) : 0;
+    }
+    case "everyone":
+    default:
+      return Number(state.sessionMetrics[metric] ?? 0);
+  }
+}
 
 function getSettingsPayload() {
   return {
@@ -251,6 +566,7 @@ function getSettingsPayload() {
     ttsEnabled: ttsEnabledInput.checked,
     ttsVoice: ttsVoiceSelect.value,
     ttsStyle: ttsStyleSelect.value,
+    ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
     ttsRate: Number(ttsRateInput.value),
     ttsPitch: Number(ttsPitchInput.value),
     ttsVolume: Number(ttsVolumeInput.value),
@@ -261,6 +577,7 @@ function getSettingsPayload() {
       subscribers: ttsAudienceSubscribersInput.checked,
       moderators: ttsAudienceModeratorsInput.checked
     },
+    userNotes: normalizeUserNotes(state.settings.userNotes),
     customEventRules: state.settings.customEventRules.map(normalizeRule).filter(Boolean)
   };
 }
@@ -365,10 +682,51 @@ function showAuthShell() {
   authShell.hidden = false;
 }
 
+async function syncAuthenticatedUser(user) {
+  state.authenticatedUser = user ?? null;
+  signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+  await persistSettings({
+    authUser: state.settings?.authRememberMe ? user ?? null : null
+  });
+}
+
+async function recordAuditEvent(eventType) {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    return null;
+  }
+
+  const result = await authRequest("/api/auth/audit-event", {
+    userId: user.id,
+    sessionToken: user.sessionToken,
+    eventType
+  });
+
+  if (result.user) {
+    await syncAuthenticatedUser(result.user);
+  }
+
+  return result;
+}
+
+async function logoutAuthenticatedUser() {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    return null;
+  }
+
+  return authRequest("/api/auth/logout", {
+    userId: user.id,
+    sessionToken: user.sessionToken
+  });
+}
+
 async function signOutUser() {
   if (state.connected) {
     try {
       await app.disconnect();
+      await recordAuditEvent("disconnect");
     } catch {
       // Ignore disconnect issues during sign-out; auth state still needs to clear.
     }
@@ -379,6 +737,12 @@ async function signOutUser() {
     state.roomId = null;
     setConnectionUiState();
     updateHeaderPills();
+  }
+
+  try {
+    await logoutAuthenticatedUser();
+  } catch {
+    // Local sign-out should still complete even if the server logout call fails.
   }
 
   await persistSettings({
@@ -424,12 +788,7 @@ async function consumeConnectCredit() {
     sessionToken: user.sessionToken
   });
 
-  state.authenticatedUser = result.user;
-  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
-  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
-  await persistSettings({
-    authUser: state.settings?.authRememberMe ? result.user : null
-  });
+  await syncAuthenticatedUser(result.user);
 
   return result;
 }
@@ -445,12 +804,7 @@ async function checkConnectCredit() {
     sessionToken: user.sessionToken
   });
 
-  state.authenticatedUser = result.user;
-  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
-  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
-  await persistSettings({
-    authUser: state.settings?.authRememberMe ? result.user : null
-  });
+  await syncAuthenticatedUser(result.user);
 
   return result;
 }
@@ -466,12 +820,7 @@ async function refreshAuthenticatedUser() {
     sessionToken: user.sessionToken
   });
 
-  state.authenticatedUser = result.user;
-  signedInPill.textContent = result.user ? `Signed in as ${result.user.displayName || result.user.email}` : "Signed in";
-  creditsPill.textContent = `Credits: ${Number(result.user?.credits ?? 0)}`;
-  await persistSettings({
-    authUser: state.settings?.authRememberMe ? result.user : null
-  });
+  await syncAuthenticatedUser(result.user);
 
   return result.user;
 }
@@ -570,7 +919,7 @@ function updateTtsStatus() {
   }
 
   const voiceLabel = ttsVoiceSelect.options[ttsVoiceSelect.selectedIndex]?.text ?? "Default voice";
-  setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel}.`);
+  setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
 }
 
 function updateUpdateStatus() {
@@ -652,6 +1001,9 @@ function renderChatList() {
 
   chatList.innerHTML = items
     .map((item) => {
+      const userKey = normalizeUserKey(item.user);
+      const note = getUserNote(userKey);
+      const likeTotal = getSessionUserMetricValue("likes", userKey);
       const bodyText = item.translatedText
         ? `${escapeHtml(item.message)}<br /><span class="chat-handle">${escapeHtml(item.translatedText)}</span>`
         : escapeHtml(item.message);
@@ -660,8 +1012,18 @@ function renderChatList() {
         <article class="chat-row ${escapeHtml(item.type)}" data-id="${escapeHtml(item.id)}">
           <div class="chat-card-head">
             <div class="chat-identity">
-              <strong>${escapeHtml(item.nickname || item.user || "Unknown user")}</strong>
-              <span class="chat-handle">@${escapeHtml(item.user || "unknown")}</span>
+              <button
+                type="button"
+                class="chat-user-button"
+                data-chat-user="${escapeHtml(userKey)}"
+                data-chat-user-label="${escapeHtml(item.nickname || item.user || "Unknown user")}"
+                title="${note ? escapeHtml(`Edit note for @${userKey}`) : escapeHtml(`Add note for @${userKey}`)}"
+              >
+                <strong>${escapeHtml(item.nickname || item.user || "Unknown user")}</strong>
+                <span class="chat-handle">@${escapeHtml(item.user || "unknown")}</span>
+                ${likeTotal > 0 ? `<span class="chat-like-pill">${escapeHtml(String(likeTotal))} likes</span>` : ""}
+                ${note ? `<span class="chat-note-pill">Note saved</span>` : ""}
+              </button>
             </div>
             <div class="chat-meta">
               <span>${escapeHtml(formatTimestamp(item.timestamp))}</span>
@@ -689,7 +1051,66 @@ function updateStats() {
   statViewers.textContent = state.connected ? "LIVE" : "--";
   statGifts.textContent = String(state.statState.gifts);
   statFollowers.textContent = String(state.statState.followers);
+  updateQueueIndicators();
   updateMessagesPerMinute();
+}
+
+function closeChatNotesPanel() {
+  state.activeChatNoteUser = "";
+  chatNotesPanel.hidden = true;
+  chatNotesInput.value = "";
+}
+
+function openChatNotesPanel(userKey, userLabel = "") {
+  const normalizedUser = normalizeUserKey(userKey);
+  if (!normalizedUser) {
+    return;
+  }
+
+  state.activeChatNoteUser = normalizedUser;
+  chatNotesTitle.textContent = userLabel ? `Notes for ${userLabel} (@${normalizedUser})` : `Notes for @${normalizedUser}`;
+  chatNotesInput.value = getUserNote(normalizedUser);
+  chatNotesDeleteButton.disabled = !getUserNote(normalizedUser);
+  chatNotesPanel.hidden = false;
+  chatNotesInput.focus();
+  chatNotesInput.setSelectionRange(chatNotesInput.value.length, chatNotesInput.value.length);
+}
+
+async function saveChatNote() {
+  const userKey = normalizeUserKey(state.activeChatNoteUser);
+  if (!userKey) {
+    return;
+  }
+
+  const nextNotes = {
+    ...normalizeUserNotes(state.settings.userNotes),
+    [userKey]: chatNotesInput.value.trim()
+  };
+
+  if (!nextNotes[userKey]) {
+    delete nextNotes[userKey];
+  }
+
+  await persistSettings({ userNotes: nextNotes });
+  chatNotesDeleteButton.disabled = !getUserNote(userKey);
+  renderChatList();
+  showToast(getUserNote(userKey) ? `Saved note for @${userKey}.` : `Cleared note for @${userKey}.`, "success");
+}
+
+async function deleteChatNote() {
+  const userKey = normalizeUserKey(state.activeChatNoteUser);
+  if (!userKey) {
+    return;
+  }
+
+  const nextNotes = {
+    ...normalizeUserNotes(state.settings.userNotes)
+  };
+  delete nextNotes[userKey];
+  await persistSettings({ userNotes: nextNotes });
+  renderChatList();
+  closeChatNotesPanel();
+  showToast(`Deleted note for @${userKey}.`, "info");
 }
 
 function resetSessionMetrics() {
@@ -705,6 +1126,7 @@ function resetSessionMetrics() {
     shares: new Map(),
     coins: new Map()
   };
+  state.sessionUserProfiles = new Map();
   state.triggeredCustomRuleIds = new Set();
   state.customRuleTriggerCounts = new Map();
   state.statState = {
@@ -787,36 +1209,144 @@ async function playAudioUrl(audioUrl, volume = Number(ttsVolumeInput.value) || 1
   });
 }
 
-async function previewCustomRuleSound(ruleId) {
+function getEffectiveCustomRule(ruleId) {
   const rule = state.settings.customEventRules.find((item) => item.id === ruleId);
-  const searchInput = document.querySelector(`[data-rule-sound-search="${ruleId}"]`);
-  const soundSelect = document.querySelector(`[data-rule-sound-select="${ruleId}"]`);
-  const soundId = soundSelect?.value ?? rule?.soundId ?? "";
+  if (!rule) {
+    return null;
+  }
 
-  if (!soundId) {
+  const nameInput = document.querySelector(`[data-rule-name="${ruleId}"]`);
+  const metricInput = document.querySelector(`input[data-rule-metric="${ruleId}"]:checked`);
+  const thresholdInput = document.querySelector(`[data-rule-threshold="${ruleId}"]`);
+  const enabledToggle = document.querySelector(`[data-rule-enabled-toggle="${ruleId}"]`);
+  const soundSelect = document.querySelector(`[data-rule-sound-select="${ruleId}"]`);
+  const queueSelect = document.querySelector(`[data-rule-queue="${ruleId}"]`);
+  const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${ruleId}"]`);
+  const triggerAudienceInput = document.querySelector(`input[data-rule-trigger-audience="${ruleId}"]:checked`);
+  const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${ruleId}"]`);
+
+  return normalizeRule({
+    ...rule,
+    name: nameInput?.value ?? rule.name,
+    metric: metricInput?.value ?? rule.metric,
+    threshold: Number(thresholdInput?.value ?? rule.threshold),
+    enabled: enabledToggle?.checked ?? rule.enabled,
+    queueId: normalizeQueueId(queueSelect?.value ?? rule.queueId, 1),
+    soundId: soundSelect?.value ?? rule.soundId,
+    webhookUrl: webhookUrlInput?.value?.trim() ?? rule.webhookUrl,
+    triggerAudience: triggerAudienceInput?.value ?? rule.triggerAudience,
+    triggerUsername: normalizeUserKey(triggerUsernameInput?.value ?? rule.triggerUsername)
+  });
+}
+
+async function previewCustomRuleAction(ruleId) {
+  const rule = getEffectiveCustomRule(ruleId);
+  const searchInput = document.querySelector(`[data-rule-sound-search="${ruleId}"]`);
+  const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${ruleId}"]`);
+
+  if (!rule) {
+    return;
+  }
+
+  if (!rule.soundId && !rule.webhookUrl) {
+    showToast("Choose a sound or enter a webhook URL to test this action.", "info");
+    searchInput?.focus();
+    return;
+  }
+
+  if (rule.webhookUrl) {
+    try {
+      new URL(rule.webhookUrl);
+    } catch {
+      showToast("Enter a valid webhook URL before testing this action.", "error");
+      webhookUrlInput?.focus();
+      return;
+    }
+  }
+
+  await triggerCustomRule(rule, { testMode: true });
+}
+
+async function previewCustomRuleSound(ruleId) {
+  const rule = getEffectiveCustomRule(ruleId);
+  const searchInput = document.querySelector(`[data-rule-sound-search="${ruleId}"]`);
+
+  if (!rule?.soundId) {
     showToast("Choose a sound to preview first.", "info");
     searchInput?.focus();
     return;
   }
 
   try {
-    const { audioUrl } = await app.resolveSoundAlertAudio(soundId);
-    await playAudioUrl(audioUrl, 1);
+    await enqueuePlaybackTask(rule.queueId, async () => {
+      const { audioUrl } = await app.resolveSoundAlertAudio(rule.soundId);
+      await playAudioUrl(audioUrl, 1);
+    }, { label: `Sound preview: ${rule.name}`, kind: "action" });
   } catch (error) {
+    if (error?.cleared) {
+      return;
+    }
     showToast(error.message || "Unable to preview that sound.", "error");
   }
 }
 
-async function triggerCustomRule(rule) {
-  if (!rule?.soundId) {
+async function triggerCustomRule(rule, options = {}) {
+  const { testMode = false } = options;
+  if (!rule?.soundId && !rule?.webhookUrl) {
     return;
   }
 
-  try {
-    const { audioUrl } = await app.resolveSoundAlertAudio(rule.soundId);
-    await playAudioUrl(audioUrl, 1);
-  } catch (error) {
-    showToast(error.message || `Unable to play the sound for "${rule.name}".`, "error");
+  await enqueuePlaybackTask(rule.queueId, async () => {
+    const triggerTasks = [];
+
+    if (rule.soundId) {
+      triggerTasks.push(
+        (async () => {
+          try {
+            const { audioUrl } = await app.resolveSoundAlertAudio(rule.soundId);
+            await playAudioUrl(audioUrl, 1);
+          } catch (error) {
+            showToast(error.message || `Unable to play the sound for "${rule.name}".`, "error");
+          }
+        })()
+      );
+    }
+
+    if (rule.webhookUrl) {
+      triggerTasks.push(
+        (async () => {
+          try {
+            const response = await fetch(rule.webhookUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                ruleId: rule.id,
+                ruleName: rule.name,
+                metric: rule.metric,
+                threshold: rule.threshold,
+                queueId: normalizeQueueId(rule.queueId, 1),
+                triggeredAt: new Date().toISOString(),
+                testMode
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error(`Webhook returned ${response.status}.`);
+            }
+          } catch (error) {
+            showToast(error.message || `Unable to trigger the webhook for "${rule.name}".`, "error");
+          }
+        })()
+      );
+    }
+
+    await Promise.allSettled(triggerTasks);
+  }, { label: `${testMode ? "Test action" : "Event action"}: ${rule.name}`, kind: "action" });
+
+  if (testMode) {
+    showToast(`Tested custom action: ${rule.name}`, "success");
   }
 }
 
@@ -844,13 +1374,20 @@ function renderCustomRules() {
     const selectedSound = rule.soundId ? state.soundCatalogById.get(rule.soundId) : null;
 
     if (!isEditing) {
+      const hasSound = Boolean(selectedSound);
+      const hasWebhook = Boolean(rule.webhookUrl);
+      const actionSummary = [
+        hasSound ? `sound: ${selectedSound?.title}` : "",
+        hasWebhook ? "webhook enabled" : "",
+        getQueueLabel(rule.queueId)
+      ].filter(Boolean).join(" and ");
       return `
         <article class="custom-rule-card" data-rule-id="${escapeHtml(rule.id)}">
           <div class="custom-rule-top">
             <div>
               <strong>${escapeHtml(rule.name)}</strong>
                 <p class="helper-text">
-                Trigger when ${escapeHtml(rule.scope === "perUser" ? "per-user" : "total")} ${escapeHtml(rule.metric)} reaches ${escapeHtml(String(rule.threshold))}${selectedSound ? ` using ${escapeHtml(selectedSound.title)}` : ""}.
+                Trigger when ${escapeHtml(rule.metric)} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}${actionSummary ? ` with ${escapeHtml(actionSummary)}.` : "."}
                 </p>
               </div>
               <div class="custom-rule-top-actions">
@@ -864,7 +1401,7 @@ function renderCustomRules() {
             </div>
             <div class="custom-rule-actions">
               <button type="button" class="ghost icon-button" data-custom-edit="${escapeHtml(rule.id)}" title="Edit rule" aria-label="Edit rule">&#9998;</button>
-              <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Preview sound" aria-label="Preview sound">&#9654;</button>
+              <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
               <button type="button" class="ghost icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
             </div>
           </article>
@@ -887,54 +1424,120 @@ function renderCustomRules() {
             <input data-rule-name="${escapeHtml(rule.id)}" value="${escapeHtml(rule.name)}" autocomplete="off" />
           </label>
 
-          <label class="field">
-            <span>Metric</span>
-            <select data-rule-metric="${escapeHtml(rule.id)}">
-              <option value="follows" ${rule.metric === "follows" ? "selected" : ""}>Follows</option>
-              <option value="likes" ${rule.metric === "likes" ? "selected" : ""}>Likes</option>
-              <option value="shares" ${rule.metric === "shares" ? "selected" : ""}>Shares</option>
-              <option value="coins" ${rule.metric === "coins" ? "selected" : ""}>Coins</option>
-            </select>
-          </label>
+          <fieldset class="field field-span-2 event-builder-group">
+            <div class="event-builder-label">
+              <span>Who is able to trigger the event?</span>
+            </div>
+            <div class="event-builder-options">
+              <div class="trigger-audience-options">
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="everyone" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "everyone" ? "checked" : ""} />
+                  <span>Everyone</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="follower" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "follower" ? "checked" : ""} />
+                  <span>Any Follower</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="subscriber" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "subscriber" ? "checked" : ""} />
+                  <span>Any Subscriber</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="moderator" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "moderator" ? "checked" : ""} />
+                  <span>Any Moderator</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="topGifter" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "topGifter" ? "checked" : ""} />
+                  <span>Top Gifter</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-audience-${escapeHtml(rule.id)}" value="specificUser" data-rule-trigger-audience="${escapeHtml(rule.id)}" ${rule.triggerAudience === "specificUser" ? "checked" : ""} />
+                  <span>A specific user</span>
+                </label>
+              </div>
+              <label class="field ${rule.triggerAudience === "specificUser" ? "" : "is-hidden"}" data-rule-trigger-username-wrapper="${escapeHtml(rule.id)}">
+                <span>Specific username</span>
+                <input
+                  data-rule-trigger-username="${escapeHtml(rule.id)}"
+                  type="text"
+                  placeholder="@username"
+                  value="${escapeHtml(rule.triggerUsername || "")}"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+          </fieldset>
 
-            <label class="field">
-              <span>Threshold</span>
-              <input data-rule-threshold="${escapeHtml(rule.id)}" type="number" min="1" step="1" value="${escapeHtml(String(rule.threshold))}" />
-            </label>
-
-            <label class="field">
-              <span>Scope</span>
-              <select data-rule-scope="${escapeHtml(rule.id)}">
-                <option value="total" ${rule.scope === "total" ? "selected" : ""}>Total for all users</option>
-                <option value="perUser" ${rule.scope === "perUser" ? "selected" : ""}>Per user</option>
-              </select>
-            </label>
-
-            <label class="toggle-switch compact-switch custom-edit-toggle">
-              <input data-rule-enabled-toggle="${escapeHtml(rule.id)}" type="checkbox" ${rule.enabled ? "checked" : ""} />
-              <span class="switch-ui"></span>
-              <span class="switch-copy">
-                <strong>Enabled</strong>
-                <small>Turn this rule on or off before saving.</small>
-              </span>
-            </label>
+          <fieldset class="field field-span-2 event-builder-group">
+            <div class="event-builder-label">
+              <span>By what will the event be triggered?</span>
+            </div>
+            <div class="event-builder-options">
+              <div class="event-trigger-options">
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="follows" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "follows" ? "checked" : ""} />
+                  <span>Follow</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="shares" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "shares" ? "checked" : ""} />
+                  <span>Share</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="likes" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "likes" ? "checked" : ""} />
+                  <span>Sending likes (taps)</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="coins" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "coins" ? "checked" : ""} />
+                  <span>Sending a gift with min. coins value</span>
+                </label>
+              </div>
+              <label class="field" data-rule-threshold-wrapper="${escapeHtml(rule.id)}">
+                <span data-rule-threshold-label="${escapeHtml(rule.id)}">${escapeHtml(getMetricThresholdLabel(rule.metric))}</span>
+                <input data-rule-threshold="${escapeHtml(rule.id)}" type="number" min="1" step="1" value="${escapeHtml(String(rule.threshold))}" />
+              </label>
+            </div>
+          </fieldset>
 
             <label class="field">
               <span>Search sounds</span>
               <input data-rule-sound-search="${escapeHtml(rule.id)}" placeholder="Search sound library" autocomplete="off" />
           </label>
 
-          <label class="field">
-            <span>Sound</span>
-            <select data-rule-sound-select="${escapeHtml(rule.id)}">
-              <option value="">Choose a sound</option>
-              ${optionsMarkup}
-            </select>
-          </label>
+            <label class="field">
+              <span>Sound</span>
+              <div class="inline-sound-picker">
+                <select data-rule-sound-select="${escapeHtml(rule.id)}">
+                  <option value="">Choose a sound</option>
+                ${optionsMarkup}
+                </select>
+                <button type="button" class="ghost icon-button inline-preview-button" data-custom-preview-sound="${escapeHtml(rule.id)}" title="Preview sound" aria-label="Preview sound">&#9654;</button>
+              </div>
+            </label>
+
+            <label class="field">
+              <span>Queue</span>
+              <select data-rule-queue="${escapeHtml(rule.id)}">
+                ${Array.from({ length: 10 }, (_, index) => {
+                  const queueId = index + 1;
+                  return `<option value="${queueId}" ${queueId === normalizeQueueId(rule.queueId, 1) ? "selected" : ""}>${getQueueLabel(queueId)}</option>`;
+                }).join("")}
+              </select>
+            </label>
+
+            <label class="field field-span-2">
+              <span>Webhook URL</span>
+              <input
+                data-rule-webhook-url="${escapeHtml(rule.id)}"
+                type="url"
+                placeholder="https://your-endpoint.example/webhook"
+                value="${escapeHtml(rule.webhookUrl || "")}"
+                autocomplete="off"
+              />
+            </label>
         </div>
 
           <div class="custom-rule-actions">
-            <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Preview sound" aria-label="Preview sound">&#9654;</button>
+            <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
             <button type="button" class="ghost icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
             <button type="button" class="icon-button save-icon-button" data-custom-save="${escapeHtml(rule.id)}" title="Save rule" aria-label="Save rule">&#10003;</button>
           </div>
@@ -971,6 +1574,24 @@ function refreshRuleSoundOptions(ruleId, searchText) {
   }
 }
 
+function updateTriggerAudienceVisibility(ruleId, triggerAudience) {
+  const wrapper = document.querySelector(`[data-rule-trigger-username-wrapper="${ruleId}"]`);
+  if (!wrapper) {
+    return;
+  }
+
+  wrapper.classList.toggle("is-hidden", triggerAudience !== "specificUser");
+}
+
+function updateMetricThresholdLabel(ruleId, metric) {
+  const label = document.querySelector(`[data-rule-threshold-label="${ruleId}"]`);
+  if (!label) {
+    return;
+  }
+
+  label.textContent = getMetricThresholdLabel(metric);
+}
+
 function focusCustomRuleEditor(ruleId) {
   window.requestAnimationFrame(() => {
     const card = document.querySelector(`[data-rule-id="${ruleId}"]`);
@@ -998,6 +1619,47 @@ function incrementUserMetric(metric, userId, amount) {
   const metricMap = state.sessionUserMetrics[normalizedMetric];
   const currentValue = metricMap.get(normalizedUserId) ?? 0;
   metricMap.set(normalizedUserId, currentValue + safeAmount);
+}
+
+function updateSessionUserProfile(item) {
+  const userId = normalizeUserKey(item?.user);
+  if (!userId) {
+    return null;
+  }
+
+  const existing = state.sessionUserProfiles.get(userId) ?? {
+    user: userId,
+    nickname: item?.nickname ?? userId,
+    isSubscriber: false,
+    isModerator: false,
+    followedThisSession: false
+  };
+
+  const nextProfile = {
+    ...existing,
+    nickname: item?.nickname ?? existing.nickname ?? userId,
+    isSubscriber: Boolean(item?.isSubscriber) || existing.isSubscriber,
+    isModerator: Boolean(item?.isModerator) || existing.isModerator,
+    followedThisSession: existing.followedThisSession || item?.type === "follow"
+  };
+
+  state.sessionUserProfiles.set(userId, nextProfile);
+  return nextProfile;
+}
+
+function getTopGifterUserId() {
+  let topUserId = "";
+  let topCoins = 0;
+
+  for (const [userId, coins] of state.sessionUserMetrics.coins.entries()) {
+    const numericCoins = Number(coins) || 0;
+    if (numericCoins > topCoins) {
+      topCoins = numericCoins;
+      topUserId = userId;
+    }
+  }
+
+  return topCoins > 0 ? topUserId : "";
 }
 
 function clearRuleTriggerState(ruleId) {
@@ -1092,20 +1754,9 @@ function enqueueSpeech(text) {
     return;
   }
 
-  state.speechQueue.push(text);
-  void processSpeechQueue();
-}
+  const previewText = text.length > 44 ? `${text.slice(0, 44)}...` : text;
 
-async function processSpeechQueue() {
-  if (state.speaking || !state.speechQueue.length) {
-    return;
-  }
-
-  state.speaking = true;
-
-  while (state.speechQueue.length) {
-    const text = state.speechQueue.shift();
-
+  void enqueuePlaybackTask(ttsQueueSelect.value, async () => {
     try {
       const result = await app.speakToFile({
         text,
@@ -1118,12 +1769,12 @@ async function processSpeechQueue() {
       await playAudioUrl(fileUrl, Number(ttsVolumeInput.value) || 1);
       await app.deleteTtsFile(result.filePath);
     } catch (error) {
+      if (error?.cleared) {
+        return;
+      }
       showToast(error.message || "Unable to play TTS audio.", "error");
-      break;
     }
-  }
-
-  state.speaking = false;
+  }, { label: `TTS: ${previewText}`, kind: "tts" });
 }
 
 async function translateChatItem(item) {
@@ -1155,6 +1806,8 @@ async function handleIncomingChat(payload) {
     translatedText: payload.translatedText ?? "",
     detectedLanguage: payload.detectedLanguage ?? null
   });
+
+  updateSessionUserProfile(item);
 
   if (item.type === "chat") {
     state.statState.chatTimestamps.push(Date.now());
@@ -1210,35 +1863,7 @@ function checkCustomRules() {
     }
 
     const threshold = Math.max(1, Number(rule.threshold) || 1);
-    const scope = rule.scope === "perUser" ? "perUser" : "total";
-
-    if (scope === "perUser") {
-      const metricMap = state.sessionUserMetrics[rule.metric];
-      for (const [userId, value] of metricMap.entries()) {
-        if (value < threshold) {
-          continue;
-        }
-
-        const triggerKey = `${rule.id}:${userId}`;
-        const previousCount = state.customRuleTriggerCounts.get(triggerKey) ?? 0;
-        const currentCount = Math.floor(value / threshold);
-
-        if (currentCount <= previousCount) {
-          continue;
-        }
-
-        state.customRuleTriggerCounts.set(triggerKey, currentCount);
-
-        for (let triggerIndex = previousCount; triggerIndex < currentCount; triggerIndex += 1) {
-          showToast(`Custom action triggered: ${rule.name} for @${userId}`, "success");
-          void triggerCustomRule(rule);
-        }
-      }
-
-      continue;
-    }
-
-    const value = Number(state.sessionMetrics[rule.metric] ?? 0);
+    const value = getAudienceQualifiedMetricValue(rule);
     if (value < threshold) {
       continue;
     }
@@ -1295,6 +1920,7 @@ function applySettingsToUi() {
   ttsIncludeUsernameInput.checked = settings.ttsIncludeUsername;
   ttsReadGiftsInput.checked = settings.ttsReadGifts;
   ttsStyleSelect.value = settings.ttsStyle;
+  ttsQueueSelect.value = String(normalizeQueueId(settings.ttsQueue, 1));
   ttsRateInput.value = String(settings.ttsRate);
   ttsPitchInput.value = String(settings.ttsPitch);
   ttsVolumeInput.value = String(settings.ttsVolume);
@@ -1389,6 +2015,7 @@ function wireHeaderEvents() {
         state.connecting = true;
         setConnectionUiState();
         await app.disconnect();
+        await recordAuditEvent("disconnect");
         state.connected = false;
         state.username = "";
         state.roomId = null;
@@ -1673,6 +2300,46 @@ function wireChatToolbarEvents() {
 
   clearChatButton.addEventListener("click", clearChat);
   exportChatButton.addEventListener("click", exportChat);
+
+  chatList.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-chat-user]");
+    if (!trigger) {
+      return;
+    }
+
+    openChatNotesPanel(trigger.dataset.chatUser, trigger.dataset.chatUserLabel || trigger.dataset.chatUser);
+  });
+
+  chatNotesCloseButton.addEventListener("click", closeChatNotesPanel);
+  chatNotesSaveButton.addEventListener("click", () => {
+    void saveChatNote();
+  });
+  chatNotesDeleteButton.addEventListener("click", () => {
+    void deleteChatNote();
+  });
+  chatNotesPanel.addEventListener("click", (event) => {
+    if (event.target === chatNotesPanel) {
+      closeChatNotesPanel();
+    }
+  });
+  queueActionList.addEventListener("click", (event) => {
+    const clearButton = event.target.closest("[data-queue-clear]");
+    if (!clearButton) {
+      return;
+    }
+
+    clearQueuedPlaybackItem(clearButton.dataset.queueClear);
+  });
+  queueFilterSelect.addEventListener("change", () => {
+    state.queueFilter = queueFilterSelect.value || "all";
+    renderQueueActionList();
+  });
+  queueClearFilteredButton.addEventListener("click", clearFilteredPlaybackItems);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !chatNotesPanel.hidden) {
+      closeChatNotesPanel();
+    }
+  });
 }
 
 function wireTabEvents() {
@@ -1694,6 +2361,7 @@ function wireSettingsEvents() {
     ttsReadGiftsInput,
     ttsVoiceSelect,
     ttsStyleSelect,
+    ttsQueueSelect,
     ttsRateInput,
     ttsPitchInput,
     ttsVolumeInput,
@@ -1754,7 +2422,14 @@ function wireCustomRuleEvents() {
     const previewId = target.dataset.customPreview;
     if (previewId) {
       await ensureSoundCatalog();
-      await previewCustomRuleSound(previewId);
+      await previewCustomRuleAction(previewId);
+      return;
+    }
+
+    const previewSoundId = target.dataset.customPreviewSound;
+    if (previewSoundId) {
+      await ensureSoundCatalog();
+      await previewCustomRuleSound(previewSoundId);
       return;
     }
 
@@ -1778,20 +2453,44 @@ function wireCustomRuleEvents() {
       }
 
       const nameInput = document.querySelector(`[data-rule-name="${saveId}"]`);
-      const metricSelect = document.querySelector(`[data-rule-metric="${saveId}"]`);
+      const metricInput = document.querySelector(`input[data-rule-metric="${saveId}"]:checked`);
       const thresholdInput = document.querySelector(`[data-rule-threshold="${saveId}"]`);
-      const scopeSelect = document.querySelector(`[data-rule-scope="${saveId}"]`);
-      const enabledToggle = document.querySelector(`[data-rule-enabled-toggle="${saveId}"]`);
       const soundSelect = document.querySelector(`[data-rule-sound-select="${saveId}"]`);
+      const queueSelect = document.querySelector(`[data-rule-queue="${saveId}"]`);
+      const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${saveId}"]`);
+      const triggerAudienceInput = document.querySelector(`input[data-rule-trigger-audience="${saveId}"]:checked`);
+      const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${saveId}"]`);
+      const webhookUrl = webhookUrlInput?.value?.trim() ?? "";
+      const triggerAudience = triggerAudienceInput?.value ?? "everyone";
+      const triggerUsername = normalizeUserKey(triggerUsernameInput?.value ?? "");
+
+      if (webhookUrl) {
+        try {
+          new URL(webhookUrl);
+        } catch {
+          showToast("Enter a valid webhook URL before saving this rule.", "error");
+          webhookUrlInput?.focus();
+          return;
+        }
+      }
+
+      if (triggerAudience === "specificUser" && !triggerUsername) {
+        showToast("Enter a username for the specific-user trigger option.", "error");
+        triggerUsernameInput?.focus();
+        return;
+      }
 
       const updatedRule = normalizeRule({
         ...state.settings.customEventRules[ruleIndex],
         name: nameInput?.value ?? "",
-        metric: metricSelect?.value ?? "follows",
-        scope: scopeSelect?.value ?? "total",
+        metric: metricInput?.value ?? "follows",
         threshold: Number(thresholdInput?.value ?? 1),
-        enabled: Boolean(enabledToggle?.checked),
-        soundId: soundSelect?.value ?? ""
+        enabled: state.settings.customEventRules[ruleIndex]?.enabled !== false,
+        queueId: normalizeQueueId(queueSelect?.value ?? 1, 1),
+        soundId: soundSelect?.value ?? "",
+        webhookUrl,
+        triggerAudience,
+        triggerUsername
       });
 
       state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
@@ -1814,6 +2513,18 @@ function wireCustomRuleEvents() {
   });
 
   customRuleList.addEventListener("change", async (event) => {
+    const triggerAudienceRuleId = event.target.dataset.ruleTriggerAudience;
+    if (triggerAudienceRuleId) {
+      updateTriggerAudienceVisibility(triggerAudienceRuleId, event.target.value);
+      return;
+    }
+
+    const metricRuleId = event.target.dataset.ruleMetric;
+    if (metricRuleId) {
+      updateMetricThresholdLabel(metricRuleId, event.target.value);
+      return;
+    }
+
     const toggleId = event.target.dataset.customToggle;
     if (!toggleId) {
       return;

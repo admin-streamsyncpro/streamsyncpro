@@ -27,6 +27,39 @@ Run:
 
 The installer will be written to `dist/`.
 
+## Windows code signing
+
+To reduce SmartScreen warnings, build your installer with a real Windows code-signing certificate.
+
+1. Export your certificate as a `.pfx` file.
+2. In PowerShell, set one of these supported variable pairs:
+
+   `CSC_LINK` and `CSC_KEY_PASSWORD`
+
+   or
+
+   `WIN_CSC_LINK` and `WIN_CSC_KEY_PASSWORD`
+
+3. Example:
+
+   ` $env:CSC_LINK="C:\certs\streamsyncpro.pfx" `
+
+   ` $env:CSC_KEY_PASSWORD="your_certificate_password" `
+
+4. Build a signed installer:
+
+   `npm run dist:signed`
+
+5. Build and publish a signed installer to GitHub Releases:
+
+   `npm run dist:signed:publish`
+
+Notes:
+
+- The certificate password is not stored in this repo.
+- SmartScreen reputation usually improves after you consistently ship signed releases.
+- EV code-signing certificates typically build trust faster than standard certificates.
+
 ## GitHub releases
 
 1. Replace the placeholder GitHub owner and repo values in `package.json`.

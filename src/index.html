@@ -253,6 +253,7 @@
                   Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
                 </div>
                 <div id="chat-list" class="chat-list" aria-live="polite"></div>
+
               </div>
             </div>
           </section>
@@ -292,7 +293,39 @@
                     <span class="stat-label">New followers</span>
                     <strong id="stat-followers">0</strong>
                   </article>
+                  <article class="stat-tile">
+                    <span class="stat-label">Queued actions</span>
+                    <strong id="stat-queue">0</strong>
+                  </article>
                 </div>
+              </div>
+            </section>
+
+            <section class="sidebar-card card">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Playback</p>
+                  <h3 class="section-title">Queued Actions</h3>
+                </div>
+                <span id="queue-count-pill" class="count-pill">0 items</span>
+              </div>
+
+              <div class="card-body">
+                <div class="queue-toolbar">
+                  <label class="field queue-filter-field">
+                    <span>Filter queue</span>
+                    <select id="queue-filter">
+                      <option value="all">All items</option>
+                      <option value="waiting">Waiting only</option>
+                      <option value="playing">Playing only</option>
+                      <option value="tts">TTS only</option>
+                      <option value="action">Actions only</option>
+                    </select>
+                  </label>
+                  <button type="button" id="queue-clear-filtered" class="ghost compact-button">Clear filtered</button>
+                </div>
+                <div id="queue-action-list" class="queue-action-list"></div>
+                <p id="queue-action-status" class="status info">No queued actions.</p>
               </div>
             </section>
 
@@ -421,6 +454,22 @@
                         <option value="tinybot">Tiny robot</option>
                       </select>
                     </label>
+
+                    <label class="field">
+                      <span>TTS queue</span>
+                      <select id="tts-queue">
+                        <option value="1">Queue 1</option>
+                        <option value="2">Queue 2</option>
+                        <option value="3">Queue 3</option>
+                        <option value="4">Queue 4</option>
+                        <option value="5">Queue 5</option>
+                        <option value="6">Queue 6</option>
+                        <option value="7">Queue 7</option>
+                        <option value="8">Queue 8</option>
+                        <option value="9">Queue 9</option>
+                        <option value="10">Queue 10</option>
+                      </select>
+                    </label>
                   </div>
 
                   <div class="slider-grid">
@@ -482,7 +531,7 @@
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Custom Automation</p>
-                  <h3 class="section-title">Threshold Rules</h3>
+                  <h3 class="section-title">Event Actions</h3>
                 </div>
                 <button type="button" id="add-custom-rule-button" class="ghost compact-button">
                   New Rule
@@ -491,7 +540,7 @@
 
               <div class="card-body">
                 <p class="helper-text">
-                  Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session.
+                  Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session, then fire a sound, a webhook, or both.
                 </p>
 
                 <div id="custom-rule-list" class="custom-rule-list"></div>
@@ -566,6 +615,32 @@
             </div>
           </div>
         </section>
+
+        <div id="chat-notes-panel" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel" role="dialog" aria-modal="true" aria-labelledby="chat-notes-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">Viewer Notes</p>
+                <h3 id="chat-notes-title" class="section-title">Notes for @username</h3>
+              </div>
+              <button type="button" id="chat-notes-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <label class="field">
+              <span>Private note</span>
+              <textarea
+                id="chat-notes-input"
+                rows="5"
+                placeholder="Add a saved note for this viewer"
+              ></textarea>
+            </label>
+
+            <div class="chat-notes-actions">
+              <button type="button" id="chat-notes-save">Save note</button>
+              <button type="button" id="chat-notes-delete" class="ghost">Delete note</button>
+            </div>
+          </section>
+        </div>
       </section>
     </main>
 

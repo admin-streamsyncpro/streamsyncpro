@@ -82,6 +82,8 @@ Locked accounts will receive this app-facing message on login:
 
 Each user account now has a `credits` balance.
 
+New accounts created through app registration now start with `5` credits automatically.
+
 The desktop app deducts:
 
 - `1 credit` only after TikTok LIVE connects successfully

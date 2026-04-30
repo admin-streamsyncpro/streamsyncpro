@@ -53,6 +53,7 @@ let settings = {
   ttsRate: 1,
   ttsPitch: 1,
   ttsVolume: 1,
+  ttsQueue: 1,
   ttsIncludeUsername: true,
   ttsReadGifts: false,
   ttsAudience: {
@@ -60,6 +61,7 @@ let settings = {
     subscribers: false,
     moderators: false
   },
+  userNotes: {},
   customEventRules: DEFAULT_CUSTOM_EVENT_RULES
 };
 
@@ -107,9 +109,14 @@ function normalizeCustomEventRules(source = []) {
         enabled: rule?.enabled !== false,
         name: String(rule?.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
         metric: ["follows", "likes", "shares", "coins"].includes(rule?.metric) ? rule.metric : "follows",
-        scope: ["total", "perUser"].includes(rule?.scope) ? rule.scope : "total",
         threshold: Math.max(1, Number(rule?.threshold) || 1),
-        soundId: String(rule?.soundId ?? "").trim()
+        soundId: String(rule?.soundId ?? "").trim(),
+        webhookUrl: String(rule?.webhookUrl ?? "").trim(),
+        queueId: Math.min(10, Math.max(1, Number(rule?.queueId) || 1)),
+        triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser"].includes(rule?.triggerAudience)
+          ? rule.triggerAudience
+          : "everyone",
+        triggerUsername: String(rule?.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase()
       }))
       .slice(0, 50);
   }

@@ -1,6 +1,6 @@
 {
   "name": "ssp-live",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Stream Sync Pro LIVE desktop app for TikTok chat monitoring, TTS, and remote updates.",
   "main": "src/main.mjs",
   "type": "module",
@@ -14,7 +14,9 @@
     "start": "electron .",
     "auth:start": "node server/auth-server.mjs",
     "dist": "electron-builder --win nsis",
+    "dist:signed": "node build/run-signed-build.mjs",
     "dist:publish": "electron-builder --win nsis --publish always",
+    "dist:signed:publish": "node build/run-signed-build.mjs --publish",
     "pack": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -52,6 +54,7 @@
     "asar": true,
     "win": {
       "icon": "build/SSP.ico",
+      "signAndEditExecutable": true,
       "target": [
         {
           "target": "nsis",

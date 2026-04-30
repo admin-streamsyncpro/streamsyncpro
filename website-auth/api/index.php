@@ -69,8 +69,14 @@ function routeRequest(PDO $pdo, array $config): void
         case '/auth/login':
             handleLogin($pdo, $input);
             return;
+        case '/auth/logout':
+            handleLogout($pdo, $input);
+            return;
         case '/auth/session':
             handleSession($pdo, $input);
+            return;
+        case '/auth/audit-event':
+            handleAuditEvent($pdo, $input);
             return;
         case '/auth/check-connect-credit':
             handleCheckConnectCredit($pdo, $input);
@@ -131,6 +137,21 @@ function ensureSchema(PDO $pdo): void
             password_reset_expires_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS auth_user_audit_logs (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NOT NULL,
+            event_type VARCHAR(80) NOT NULL,
+            event_description VARCHAR(255) NOT NULL,
+            remaining_credits INT NULL,
+            metadata_json TEXT NULL,
+            ip_address VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_audit_user_created (user_id, created_at),
+            CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
@@ -210,6 +231,7 @@ function handleRegister(PDO $pdo, array $config, array $input): void
             'UPDATE auth_users
              SET display_name = :display_name,
                  password_hash = :password_hash,
+                 credits = :credits,
                  verification_code_hash = :verification_code_hash,
                  verification_code_expires_at = :verification_code_expires_at
              WHERE id = :id'
@@ -217,6 +239,7 @@ function handleRegister(PDO $pdo, array $config, array $input): void
         $statement->execute([
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
+            ':credits' => 5,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
             ':id' => (int) $existingUser['id'],
@@ -227,12 +250,14 @@ function handleRegister(PDO $pdo, array $config, array $input): void
                 email,
                 display_name,
                 password_hash,
+                credits,
                 verification_code_hash,
                 verification_code_expires_at
              ) VALUES (
                 :email,
                 :display_name,
                 :password_hash,
+                :credits,
                 :verification_code_hash,
                 :verification_code_expires_at
              )'
@@ -241,6 +266,7 @@ function handleRegister(PDO $pdo, array $config, array $input): void
             ':email' => $email,
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
+            ':credits' => 5,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
         ]);
@@ -317,7 +343,18 @@ function handleLogin(PDO $pdo, array $input): void
 
     $user = findUserByEmail($pdo, $email);
 
-    if (!$user || !verifyPassword($password, (string) $user['password_hash'])) {
+    if (!$user) {
+        jsonResponse(401, ['ok' => false, 'error' => 'Email or password is incorrect.']);
+    }
+
+    if (!verifyPassword($password, (string) $user['password_hash'])) {
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'sign_in_failed',
+            'Failed sign-in attempt due to an incorrect password.',
+            (int) ($user['credits'] ?? 0)
+        );
         jsonResponse(401, ['ok' => false, 'error' => 'Email or password is incorrect.']);
     }
 
@@ -352,10 +389,43 @@ function handleLogin(PDO $pdo, array $input): void
 
     $user['session_token_hash'] = $sessionTokenHash;
     $user['session_token_expires_at'] = $sessionTokenExpiresAt;
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'sign_in',
+        'User signed in.',
+        (int) ($user['credits'] ?? 0)
+    );
 
     jsonResponse(200, [
         'ok' => true,
         'user' => sanitizeUser($user, $sessionToken),
+    ]);
+}
+
+function handleLogout(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+
+    $statement = $pdo->prepare(
+        'UPDATE auth_users
+         SET session_token_hash = NULL,
+             session_token_expires_at = NULL
+         WHERE id = :id'
+    );
+    $statement->execute([':id' => (int) $user['id']]);
+
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'sign_out',
+        'User signed out.',
+        (int) ($user['credits'] ?? 0)
+    );
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Signed out successfully.',
     ]);
 }
 
@@ -380,6 +450,13 @@ function handleConsumeConnectCredit(PDO $pdo, array $input): void
     }
 
     $updatedUser = findUserById($pdo, (int) $user['id']);
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'connect',
+        'Connected to TikTok LIVE.',
+        (int) ($updatedUser['credits'] ?? 0)
+    );
 
     jsonResponse(200, [
         'ok' => true,
@@ -410,6 +487,34 @@ function handleSession(PDO $pdo, array $input): void
 
     jsonResponse(200, [
         'ok' => true,
+        'user' => sanitizeUser($user, $sessionToken),
+    ]);
+}
+
+function handleAuditEvent(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $eventType = trim((string) ($input['eventType'] ?? ''));
+
+    $allowedEvents = [
+        'disconnect' => 'Disconnected from TikTok LIVE.',
+    ];
+
+    if (!isset($allowedEvents[$eventType])) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Unsupported audit event type.']);
+    }
+
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        $eventType,
+        $allowedEvents[$eventType],
+        (int) ($user['credits'] ?? 0)
+    );
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Audit event recorded.',
         'user' => sanitizeUser($user, $sessionToken),
     ]);
 }
@@ -478,6 +583,13 @@ function handleForgotPassword(PDO $pdo, array $config, array $input): void
             ':password_reset_expires_at' => $expiresAt,
             ':id' => (int) $user['id'],
         ]);
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'password_reset_requested',
+            'Password reset requested.',
+            (int) ($user['credits'] ?? 0)
+        );
 
         sendCodeEmail(
             $config,
@@ -537,6 +649,13 @@ function handleResetPassword(PDO $pdo, array $input): void
         ':password_hash' => password_hash($newPassword, PASSWORD_DEFAULT),
         ':id' => (int) $user['id'],
     ]);
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'password_reset_completed',
+        'Password reset completed.',
+        (int) ($user['credits'] ?? 0)
+    );
 
     jsonResponse(200, [
         'ok' => true,
@@ -624,6 +743,60 @@ function sanitizeUser(array $user, ?string $sessionToken = null): array
     }
 
     return $payload;
+}
+
+function logAuditEvent(
+    PDO $pdo,
+    int $userId,
+    string $eventType,
+    string $eventDescription,
+    ?int $remainingCredits = null,
+    array $metadata = []
+): void {
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_audit_logs (
+            user_id,
+            event_type,
+            event_description,
+            remaining_credits,
+            metadata_json,
+            ip_address
+         ) VALUES (
+            :user_id,
+            :event_type,
+            :event_description,
+            :remaining_credits,
+            :metadata_json,
+            :ip_address
+         )'
+    );
+    $statement->execute([
+        ':user_id' => $userId,
+        ':event_type' => $eventType,
+        ':event_description' => $eventDescription,
+        ':remaining_credits' => $remainingCredits,
+        ':metadata_json' => $metadata ? json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
+        ':ip_address' => resolveClientIp(),
+    ]);
+}
+
+function resolveClientIp(): ?string
+{
+    foreach (['HTTP_CF_CONNECTING_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR'] as $key) {
+        $value = trim((string) ($_SERVER[$key] ?? ''));
+        if ($value === '') {
+            continue;
+        }
+
+        if ($key === 'HTTP_X_FORWARDED_FOR') {
+            $parts = array_map('trim', explode(',', $value));
+            return $parts[0] !== '' ? $parts[0] : null;
+        }
+
+        return $value;
+    }
+
+    return null;
 }
 
 function sendCodeEmail(array $config, string $recipient, string $subject, string $intro, string $code): void

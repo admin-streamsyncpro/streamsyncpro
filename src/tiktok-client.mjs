@@ -52,6 +52,19 @@ function getGiftCoinValue(data) {
   return Number.isFinite(unitValue) && unitValue > 0 ? unitValue : 0;
 }
 
+function getRoleFlags(data) {
+  const userIdentity = data.userIdentity ?? {};
+
+  return {
+    isSubscriber: Boolean(
+      userIdentity.isSubscriberOfAnchor ?? data.user?.isSubscriberOfAnchor
+    ),
+    isModerator: Boolean(
+      userIdentity.isModeratorOfAnchor ?? data.user?.isModeratorOfAnchor
+    )
+  };
+}
+
 export async function disconnectFromLive() {
   if (currentConnection) {
     currentConnection.disconnect();
@@ -105,26 +118,21 @@ function formatConnectionError(error, username) {
 
 function bindConnectionEvents(connection, normalizedUsername, listeners) {
   connection.on(WebcastEvent.CHAT, (data) => {
-    const userIdentity = data.userIdentity ?? {};
+    const roleFlags = getRoleFlags(data);
 
     listeners.onChat({
       id: data.commentId ?? randomUUID(),
       type: "chat",
       user: data.user?.uniqueId ?? "unknown",
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
-      isSubscriber: Boolean(
-        userIdentity.isSubscriberOfAnchor ?? data.user?.isSubscriberOfAnchor
-      ),
-      isModerator: Boolean(
-        userIdentity.isModeratorOfAnchor ?? data.user?.isModeratorOfAnchor
-      ),
+      ...roleFlags,
       message: data.comment ?? "",
       timestamp: new Date().toISOString()
     });
   });
 
   connection.on(WebcastEvent.GIFT, (data) => {
-    const userIdentity = data.userIdentity ?? {};
+    const roleFlags = getRoleFlags(data);
     const isStreakableGift = Number(
       data.giftType ??
       data.giftDetails?.giftType ??
@@ -145,12 +153,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       type: "gift",
       user: data.user?.uniqueId ?? "unknown",
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
-      isSubscriber: Boolean(
-        userIdentity.isSubscriberOfAnchor ?? data.user?.isSubscriberOfAnchor
-      ),
-      isModerator: Boolean(
-        userIdentity.isModeratorOfAnchor ?? data.user?.isModeratorOfAnchor
-      ),
+      ...roleFlags,
       message: `sent ${giftName}${countSuffix}`,
       giftName,
       giftCount,
@@ -161,6 +164,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
   });
 
   connection.on(WebcastEvent.FOLLOW, (data) => {
+    const roleFlags = getRoleFlags(data);
     listeners.onChat({
       id: data.msgId ?? randomUUID(),
       type: "follow",
@@ -171,12 +175,14 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      ...roleFlags,
       message: "followed the stream",
       timestamp: new Date().toISOString()
     });
   });
 
   connection.on(WebcastEvent.SHARE, (data) => {
+    const roleFlags = getRoleFlags(data);
     listeners.onChat({
       id: data.msgId ?? randomUUID(),
       type: "share",
@@ -187,12 +193,14 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      ...roleFlags,
       message: "shared the stream",
       timestamp: new Date().toISOString()
     });
   });
 
   connection.on(WebcastEvent.LIKE, (data) => {
+    const roleFlags = getRoleFlags(data);
     const likeCount = Number(data.likeCount ?? 0);
     const totalLikeCount = Number(data.totalLikeCount ?? 0);
 
@@ -206,6 +214,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      ...roleFlags,
       message:
         likeCount > 0
           ? `sent ${likeCount} like${likeCount === 1 ? "" : "s"}`
