@@ -13,6 +13,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getAppVersion() {
     return ipcRenderer.invoke("app:get-version");
   },
+  quitApp() {
+    return ipcRenderer.invoke("app:quit");
+  },
   getSettings() {
     return ipcRenderer.invoke("app:get-settings");
   },
@@ -22,8 +25,8 @@ contextBridge.exposeInMainWorld("desktopApp", {
   translateText(payload) {
     return ipcRenderer.invoke("translation:translate", payload);
   },
-  getTtsVoices() {
-    return ipcRenderer.invoke("tts:get-voices");
+  getTtsVoices(payload) {
+    return ipcRenderer.invoke("tts:get-voices", payload);
   },
   speakToFile(payload) {
     return ipcRenderer.invoke("tts:speak-to-file", payload);

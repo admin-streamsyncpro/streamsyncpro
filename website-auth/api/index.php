@@ -75,6 +75,12 @@ function routeRequest(PDO $pdo, array $config): void
         case '/auth/session':
             handleSession($pdo, $input);
             return;
+        case '/auth/self-check':
+            handleSelfCheck($pdo, $input);
+            return;
+        case '/auth/claim-active-connection':
+            handleClaimActiveConnection($pdo, $input);
+            return;
         case '/auth/audit-event':
             handleAuditEvent($pdo, $input);
             return;
@@ -131,6 +137,10 @@ function ensureSchema(PDO $pdo): void
             locked_reason VARCHAR(255) NULL,
             session_token_hash VARCHAR(255) NULL,
             session_token_expires_at DATETIME NULL,
+            active_connection_token_hash VARCHAR(255) NULL,
+            active_connection_started_at DATETIME NULL,
+            forced_logout_token_hash VARCHAR(255) NULL,
+            forced_logout_at DATETIME NULL,
             verification_code_hash VARCHAR(255) NULL,
             verification_code_expires_at DATETIME NULL,
             password_reset_code_hash VARCHAR(255) NULL,
@@ -160,6 +170,10 @@ function ensureSchema(PDO $pdo): void
     ensureColumn($pdo, 'auth_users', 'locked_reason', 'ALTER TABLE auth_users ADD COLUMN locked_reason VARCHAR(255) NULL AFTER is_locked');
     ensureColumn($pdo, 'auth_users', 'session_token_hash', 'ALTER TABLE auth_users ADD COLUMN session_token_hash VARCHAR(255) NULL AFTER locked_reason');
     ensureColumn($pdo, 'auth_users', 'session_token_expires_at', 'ALTER TABLE auth_users ADD COLUMN session_token_expires_at DATETIME NULL AFTER session_token_hash');
+    ensureColumn($pdo, 'auth_users', 'active_connection_token_hash', 'ALTER TABLE auth_users ADD COLUMN active_connection_token_hash VARCHAR(255) NULL AFTER session_token_expires_at');
+    ensureColumn($pdo, 'auth_users', 'active_connection_started_at', 'ALTER TABLE auth_users ADD COLUMN active_connection_started_at DATETIME NULL AFTER active_connection_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_token_hash', 'ALTER TABLE auth_users ADD COLUMN forced_logout_token_hash VARCHAR(255) NULL AFTER active_connection_started_at');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_token_hash');
 }
 
 function ensureColumn(PDO $pdo, string $table, string $column, string $sql): void
@@ -378,7 +392,9 @@ function handleLogin(PDO $pdo, array $input): void
     $statement = $pdo->prepare(
         'UPDATE auth_users
          SET session_token_hash = :session_token_hash,
-             session_token_expires_at = :session_token_expires_at
+             session_token_expires_at = :session_token_expires_at,
+             forced_logout_token_hash = NULL,
+             forced_logout_at = NULL
          WHERE id = :id'
     );
     $statement->execute([
@@ -410,7 +426,9 @@ function handleLogout(PDO $pdo, array $input): void
     $statement = $pdo->prepare(
         'UPDATE auth_users
          SET session_token_hash = NULL,
-             session_token_expires_at = NULL
+             session_token_expires_at = NULL,
+             active_connection_token_hash = NULL,
+             active_connection_started_at = NULL
          WHERE id = :id'
     );
     $statement->execute([':id' => (int) $user['id']]);
@@ -432,6 +450,11 @@ function handleLogout(PDO $pdo, array $input): void
 function handleConsumeConnectCredit(PDO $pdo, array $input): void
 {
     [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $sessionTokenHash = hash('sha256', $sessionToken);
+
+    if (hasAnotherActiveConnection($user, $sessionTokenHash)) {
+        jsonResponse(409, ['ok' => false, 'error' => 'This account is already connected on another device or session.']);
+    }
 
     $currentCredits = (int) ($user['credits'] ?? 0);
     if ($currentCredits < 1) {
@@ -440,10 +463,16 @@ function handleConsumeConnectCredit(PDO $pdo, array $input): void
 
     $statement = $pdo->prepare(
         'UPDATE auth_users
-         SET credits = credits - 1
+         SET credits = credits - 1,
+             active_connection_token_hash = :active_connection_token_hash,
+             active_connection_started_at = :active_connection_started_at
          WHERE id = :id AND credits >= 1'
     );
-    $statement->execute([':id' => (int) $user['id']]);
+    $statement->execute([
+        ':active_connection_token_hash' => $sessionTokenHash,
+        ':active_connection_started_at' => gmdate('Y-m-d H:i:s'),
+        ':id' => (int) $user['id'],
+    ]);
 
     if ($statement->rowCount() !== 1) {
         jsonResponse(402, ['ok' => false, 'error' => 'You do not have enough credits to connect after recheck. Please contact admin.']);
@@ -468,6 +497,11 @@ function handleConsumeConnectCredit(PDO $pdo, array $input): void
 function handleCheckConnectCredit(PDO $pdo, array $input): void
 {
     [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $sessionTokenHash = hash('sha256', $sessionToken);
+
+    if (hasAnotherActiveConnection($user, $sessionTokenHash)) {
+        jsonResponse(409, ['ok' => false, 'error' => 'This account is already connected on another device or session.']);
+    }
 
     $currentCredits = (int) ($user['credits'] ?? 0);
     if ($currentCredits < 1) {
@@ -491,6 +525,112 @@ function handleSession(PDO $pdo, array $input): void
     ]);
 }
 
+function handleSelfCheck(PDO $pdo, array $input): void
+{
+    $sessionToken = trim((string) ($input['sessionToken'] ?? ''));
+    $userId = max(0, (int) ($input['userId'] ?? 0));
+
+    if ($sessionToken === '') {
+        jsonResponse(200, [
+            'ok' => true,
+            'active' => false,
+            'code' => 'missing_session',
+            'message' => 'No active session token was provided.',
+        ]);
+    }
+
+    $sessionTokenHash = hash('sha256', $sessionToken);
+    $user = findUserBySessionTokenHash($pdo, $sessionTokenHash);
+
+    if ($user) {
+        if ((int) ($user['is_locked'] ?? 0) === 1) {
+            $reason = trim((string) ($user['locked_reason'] ?? ''));
+            $message = 'This account has been locked. Please contact admin.';
+            if ($reason !== '') {
+                $message .= ' Reason: ' . $reason;
+            }
+            jsonResponse(200, [
+                'ok' => true,
+                'active' => false,
+                'code' => 'account_locked',
+                'message' => $message,
+            ]);
+        }
+
+        $expectedExpiry = (string) ($user['session_token_expires_at'] ?? '');
+        if ($expectedExpiry !== '' && strtotime($expectedExpiry) !== false && strtotime($expectedExpiry) < time()) {
+            jsonResponse(200, [
+                'ok' => true,
+                'active' => false,
+                'code' => 'session_expired',
+                'message' => 'Your session has expired. Please sign in again.',
+            ]);
+        }
+
+        jsonResponse(200, [
+            'ok' => true,
+            'active' => true,
+            'code' => 'session_active',
+            'message' => 'Session is active.',
+            'user' => sanitizeUser($user, $sessionToken),
+        ]);
+    }
+
+    $forcedLogoutUser = findUserByForcedLogoutTokenHash($pdo, $sessionTokenHash, $userId);
+    if ($forcedLogoutUser) {
+        jsonResponse(200, [
+            'ok' => true,
+            'active' => false,
+            'code' => 'admin_forced_sign_out',
+            'message' => 'Your session was ended by an administrator. The app will close now.',
+        ]);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'active' => false,
+        'code' => 'session_invalid',
+        'message' => 'Your session is invalid. Please sign in again.',
+    ]);
+}
+
+function handleClaimActiveConnection(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $sessionTokenHash = hash('sha256', $sessionToken);
+    $claimed = false;
+
+    if (hasAnotherActiveConnection($user, $sessionTokenHash)) {
+        $statement = $pdo->prepare(
+            'UPDATE auth_users
+             SET active_connection_token_hash = NULL,
+                 active_connection_started_at = NULL
+             WHERE id = :id'
+        );
+        $statement->execute([':id' => (int) $user['id']]);
+
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'session_takeover',
+            'A newer app session signed out the previous active connection.',
+            (int) ($user['credits'] ?? 0)
+        );
+
+        $claimed = true;
+        $user = findUserById($pdo, (int) $user['id']) ?? $user;
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'claimed' => $claimed,
+        'message' => $claimed
+            ? 'Any previous active connection has been signed out.'
+            : 'No previous active connection needed to be signed out.',
+        'user' => sanitizeUser($user, $sessionToken),
+    ]);
+}
+
 function handleAuditEvent(PDO $pdo, array $input): void
 {
     [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
@@ -502,6 +642,16 @@ function handleAuditEvent(PDO $pdo, array $input): void
 
     if (!isset($allowedEvents[$eventType])) {
         jsonResponse(400, ['ok' => false, 'error' => 'Unsupported audit event type.']);
+    }
+
+    if ($eventType === 'disconnect') {
+        $statement = $pdo->prepare(
+            'UPDATE auth_users
+             SET active_connection_token_hash = NULL,
+                 active_connection_started_at = NULL
+             WHERE id = :id'
+        );
+        $statement->execute([':id' => (int) $user['id']]);
     }
 
     logAuditEvent(
@@ -522,6 +672,7 @@ function handleAuditEvent(PDO $pdo, array $input): void
 function requireValidConnectSession(PDO $pdo, array $input): array
 {
     $sessionToken = trim((string) ($input['sessionToken'] ?? ''));
+    $userId = max(0, (int) ($input['userId'] ?? 0));
 
     if ($sessionToken === '') {
         jsonResponse(401, ['ok' => false, 'error' => 'Please sign in again before connecting.']);
@@ -531,6 +682,14 @@ function requireValidConnectSession(PDO $pdo, array $input): array
     $user = findUserBySessionTokenHash($pdo, $sessionTokenHash);
 
     if (!$user) {
+        $forcedLogoutUser = findUserByForcedLogoutTokenHash($pdo, $sessionTokenHash, $userId);
+        if ($forcedLogoutUser) {
+            jsonResponse(401, [
+                'ok' => false,
+                'code' => 'admin_forced_sign_out',
+                'error' => 'Your session was ended by an administrator. The app will close now.',
+            ]);
+        }
         jsonResponse(401, ['ok' => false, 'error' => 'Your session is invalid. Please sign in again.']);
     }
 
@@ -555,6 +714,16 @@ function requireValidConnectSession(PDO $pdo, array $input): array
     }
 
     return [$user, $sessionToken];
+}
+
+function hasAnotherActiveConnection(array $user, string $sessionTokenHash): bool
+{
+    $activeConnectionTokenHash = (string) ($user['active_connection_token_hash'] ?? '');
+    if ($activeConnectionTokenHash === '') {
+        return false;
+    }
+
+    return !hash_equals($activeConnectionTokenHash, $sessionTokenHash);
 }
 
 function handleForgotPassword(PDO $pdo, array $config, array $input): void
@@ -685,6 +854,35 @@ function findUserBySessionTokenHash(PDO $pdo, string $sessionTokenHash): ?array
 {
     $statement = $pdo->prepare('SELECT * FROM auth_users WHERE session_token_hash = :session_token_hash LIMIT 1');
     $statement->execute([':session_token_hash' => $sessionTokenHash]);
+    $user = $statement->fetch();
+
+    return $user ?: null;
+}
+
+function findUserByForcedLogoutTokenHash(PDO $pdo, string $sessionTokenHash, int $userId = 0): ?array
+{
+    if ($userId > 0) {
+        $statement = $pdo->prepare(
+            'SELECT * FROM auth_users
+             WHERE id = :id AND forced_logout_token_hash = :forced_logout_token_hash
+             LIMIT 1'
+        );
+        $statement->execute([
+            ':id' => $userId,
+            ':forced_logout_token_hash' => $sessionTokenHash,
+        ]);
+        $user = $statement->fetch();
+        if ($user) {
+            return $user;
+        }
+    }
+
+    $statement = $pdo->prepare(
+        'SELECT * FROM auth_users
+         WHERE forced_logout_token_hash = :forced_logout_token_hash
+         LIMIT 1'
+    );
+    $statement->execute([':forced_logout_token_hash' => $sessionTokenHash]);
     $user = $statement->fetch();
 
     return $user ?: null;

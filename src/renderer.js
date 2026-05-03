@@ -49,6 +49,7 @@ const usernameInput = document.getElementById("username");
 const connectButton = document.getElementById("connect-button");
 const rememberUsernameInput = document.getElementById("remember-username");
 const signoutButton = document.getElementById("signout-button");
+const sessionCheckPill = document.getElementById("session-check-pill");
 
 // Chat layout
 const chatCount = document.getElementById("chat-count");
@@ -94,8 +95,15 @@ const translationStatus = document.getElementById("translation-status");
 const ttsEnabledInput = document.getElementById("tts-enabled");
 const ttsIncludeUsernameInput = document.getElementById("tts-include-username");
 const ttsReadGiftsInput = document.getElementById("tts-read-gifts");
+const ttsGiftMinCoinsInput = document.getElementById("tts-gift-min-coins");
+const ttsProviderSelect = document.getElementById("tts-provider");
+const ttsElevenModeField = document.getElementById("tts-eleven-mode-field");
+const ttsElevenModeSelect = document.getElementById("tts-eleven-mode");
+const ttsElevenApiKeyField = document.getElementById("tts-eleven-api-key-field");
+const ttsElevenApiKeyInput = document.getElementById("tts-eleven-api-key");
+const ttsElevenModelField = document.getElementById("tts-eleven-model-field");
+const ttsElevenModelSelect = document.getElementById("tts-eleven-model");
 const ttsVoiceSelect = document.getElementById("tts-voice");
-const ttsStyleSelect = document.getElementById("tts-style");
 const ttsQueueSelect = document.getElementById("tts-queue");
 const ttsRateInput = document.getElementById("tts-rate");
 const ttsPitchInput = document.getElementById("tts-pitch");
@@ -120,6 +128,33 @@ const customRuleStatus = document.getElementById("custom-rule-status");
 const MAX_CHAT_MESSAGES = 400;
 const SEARCH_PREVIEW_LIMIT = 50;
 const SAVE_DEBOUNCE_MS = 250;
+const TTS_STYLE_PROFILES = {
+  natural: {
+    rateOffset: 0,
+    pitchOffset: 0,
+    volumeMultiplier: 1
+  },
+  protocol: {
+    rateOffset: 0.14,
+    pitchOffset: 0.26,
+    volumeMultiplier: 0.94
+  },
+  dark: {
+    rateOffset: -0.16,
+    pitchOffset: -0.28,
+    volumeMultiplier: 1.08
+  },
+  announcer: {
+    rateOffset: 0.22,
+    pitchOffset: 0.12,
+    volumeMultiplier: 1.16
+  },
+  tinybot: {
+    rateOffset: 0.28,
+    pitchOffset: 0.45,
+    volumeMultiplier: 0.86
+  }
+};
 
 const state = {
   settings: null,
@@ -144,9 +179,11 @@ const state = {
   currentGainNode: null,
   soundCatalog: [],
   soundCatalogById: new Map(),
-  soundCatalogLoaded: false,
-  soundCatalogError: "",
-  activeCustomRuleId: null,
+    soundCatalogLoaded: false,
+    soundCatalogError: "",
+    activeCustomRuleId: null,
+    forceClosing: false,
+    authSessionCheckStatus: "waiting",
   queueCount: 0,
   queueFilter: "all",
   playbackQueueItems: [],
@@ -195,6 +232,7 @@ function createDefaultSettings() {
     translationProviderUrl: "",
     translationApiKey: "",
     ttsEnabled: false,
+    ttsProvider: "builtin",
     ttsVoice: "",
     ttsStyle: "natural",
     ttsQueue: 1,
@@ -203,6 +241,10 @@ function createDefaultSettings() {
     ttsVolume: 1,
     ttsIncludeUsername: true,
     ttsReadGifts: false,
+    ttsGiftMinCoins: 0,
+    ttsElevenMode: "free",
+    ttsElevenApiKey: "",
+    ttsElevenModel: "eleven_flash_v2_5",
     ttsAudience: {
       allViewers: true,
       subscribers: false,
@@ -212,6 +254,9 @@ function createDefaultSettings() {
     customEventRules: []
   };
 }
+
+let authSessionMonitorTimer = null;
+const AUTH_SESSION_MONITOR_MS = 10000;
 
 function ensureSettingsShape(source = {}) {
   const defaults = createDefaultSettings();
@@ -563,16 +608,21 @@ function getSettingsPayload() {
     translationTargetLanguage: translationTargetLanguageSelect.value,
     translationProviderUrl: state.settings.translationProviderUrl ?? "",
     translationApiKey: state.settings.translationApiKey ?? "",
-    ttsEnabled: ttsEnabledInput.checked,
-    ttsVoice: ttsVoiceSelect.value,
-    ttsStyle: ttsStyleSelect.value,
+      ttsEnabled: ttsEnabledInput.checked,
+      ttsProvider: ttsProviderSelect.value,
+      ttsVoice: ttsVoiceSelect.value,
+      ttsStyle: "natural",
     ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
     ttsRate: Number(ttsRateInput.value),
-    ttsPitch: Number(ttsPitchInput.value),
-    ttsVolume: Number(ttsVolumeInput.value),
-    ttsIncludeUsername: ttsIncludeUsernameInput.checked,
-    ttsReadGifts: ttsReadGiftsInput.checked,
-    ttsAudience: {
+      ttsPitch: Number(ttsPitchInput.value),
+      ttsVolume: Number(ttsVolumeInput.value),
+      ttsIncludeUsername: ttsIncludeUsernameInput.checked,
+        ttsReadGifts: ttsReadGiftsInput.checked,
+        ttsGiftMinCoins: Math.max(0, Number(ttsGiftMinCoinsInput.value) || 0),
+        ttsElevenMode: ttsElevenModeSelect.value,
+        ttsElevenApiKey: ttsElevenApiKeyInput.value.trim(),
+        ttsElevenModel: ttsElevenModelSelect.value,
+        ttsAudience: {
       allViewers: ttsAudienceAllInput.checked,
       subscribers: ttsAudienceSubscribersInput.checked,
       moderators: ttsAudienceModeratorsInput.checked
@@ -666,20 +716,135 @@ function scheduleAuthRememberSave() {
 }
 
 function showDashboardForUser(user) {
-  state.authenticatedUser = user;
-  signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
-  creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
-  authShell.hidden = true;
-  dashboardShell.hidden = false;
-  setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
+    state.authenticatedUser = user;
+    signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
+    creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+    authShell.hidden = true;
+    dashboardShell.hidden = false;
+    setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
+    setAuthSessionCheckStatus("checking", "Session check: Checking");
+  startAuthSessionMonitor();
 }
 
 function showAuthShell() {
-  state.authenticatedUser = null;
+    state.authenticatedUser = null;
   signedInPill.textContent = "Signed in";
   creditsPill.textContent = "Credits: 0";
-  dashboardShell.hidden = true;
-  authShell.hidden = false;
+    dashboardShell.hidden = true;
+    authShell.hidden = false;
+  stopAuthSessionMonitor();
+  setAuthSessionCheckStatus("waiting", "Session check: Waiting");
+}
+
+function setAuthSessionCheckStatus(level, message) {
+  state.authSessionCheckStatus = level;
+  if (!sessionCheckPill) {
+    return;
+  }
+
+  const classLevel = level === "active"
+    ? "success"
+    : level === "checking"
+      ? "accent"
+      : level === "error" || level === "forced"
+        ? "error"
+        : "muted";
+  sessionCheckPill.textContent = message;
+  sessionCheckPill.className = `status-pill ${classLevel}`;
+}
+
+function stopAuthSessionMonitor() {
+  if (authSessionMonitorTimer) {
+    window.clearInterval(authSessionMonitorTimer);
+    authSessionMonitorTimer = null;
+  }
+}
+
+function startAuthSessionMonitor() {
+  stopAuthSessionMonitor();
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void verifyAuthenticatedSession();
+
+  authSessionMonitorTimer = window.setInterval(() => {
+    void verifyAuthenticatedSession();
+  }, AUTH_SESSION_MONITOR_MS);
+}
+
+function shouldDeferAuthSessionCheck() {
+  if (state.authBusy || state.forceClosing) {
+    return true;
+  }
+
+  if (state.activeCustomRuleId) {
+    return true;
+  }
+
+  if (chatNotesPanel && !chatNotesPanel.hidden) {
+    return true;
+  }
+
+  const activeElement = document.activeElement;
+  if (activeElement instanceof HTMLElement) {
+    if (customRuleList?.contains(activeElement)) {
+      return true;
+    }
+
+    if (chatNotesPanel?.contains(activeElement)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function applySessionCheckUserSnapshot(user) {
+  if (!user || !state.authenticatedUser) {
+    return;
+  }
+
+  state.authenticatedUser = {
+    ...state.authenticatedUser,
+    ...user,
+    sessionToken: state.authenticatedUser.sessionToken
+  };
+  signedInPill.textContent = `Signed in as ${state.authenticatedUser.displayName || state.authenticatedUser.email}`;
+  creditsPill.textContent = `Credits: ${Number(state.authenticatedUser?.credits ?? 0)}`;
+}
+
+async function handleForcedAdminSignOut(message) {
+  if (state.forceClosing) {
+    return;
+  }
+
+  state.forceClosing = true;
+  stopAuthSessionMonitor();
+  setAuthSessionCheckStatus("forced", "Session check: Forced sign out");
+  setAuthStatus("error", message);
+  showToast(message, "error");
+
+  try {
+    if (state.connected) {
+      await app.disconnect();
+    }
+  } catch {
+    // Best-effort disconnect before shutdown.
+  }
+
+  state.connected = false;
+  state.connecting = false;
+  state.username = "";
+  state.roomId = null;
+  updateHeaderPills();
+  setConnectionUiState();
+
+  await persistSettings({ authUser: null });
+
+  window.setTimeout(() => {
+    void app.quitApp();
+  }, 900);
 }
 
 async function syncAuthenticatedUser(user) {
@@ -761,20 +926,67 @@ async function signOutUser() {
 }
 
 async function authRequest(path, payload) {
-  const response = await fetch(`${getAuthApiBaseUrl()}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+    const response = await fetch(`${getAuthApiBaseUrl()}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
   });
 
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(result.error || result.message || "Authentication request failed.");
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error = new Error(result.error || result.message || "Authentication request failed.");
+      error.authCode = result.code || "";
+      if (error.authCode === "admin_forced_sign_out") {
+        await handleForcedAdminSignOut(error.message || "Your session was ended by an administrator. The app will close now.");
+      }
+      throw error;
+    }
+
+    return result;
   }
 
-  return result;
+async function verifyAuthenticatedSession() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken || state.forceClosing) {
+    return null;
+  }
+
+  if (shouldDeferAuthSessionCheck()) {
+    setAuthSessionCheckStatus("checking", "Session check: Paused while editing");
+    return state.authenticatedUser;
+  }
+
+  try {
+    setAuthSessionCheckStatus("checking", "Session check: Checking");
+    const result = await authRequest("/api/auth/self-check", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken
+    });
+
+    if (result.user) {
+      applySessionCheckUserSnapshot(result.user);
+    }
+
+    if (result.active) {
+      setAuthSessionCheckStatus("active", "Session check: Active");
+      return result.user ?? state.authenticatedUser;
+    }
+
+    if (result.code === "admin_forced_sign_out") {
+      await handleForcedAdminSignOut(result.message || "Your session was ended by an administrator. The app will close now.");
+      return null;
+    }
+
+    setAuthSessionCheckStatus("error", `Session check: ${result.message || "Inactive"}`);
+    return null;
+  } catch (error) {
+    if (error?.authCode === "admin_forced_sign_out") {
+      return null;
+    }
+    setAuthSessionCheckStatus("error", "Session check: Unavailable");
+    return null;
+  }
 }
 
 async function consumeConnectCredit() {
@@ -823,6 +1035,29 @@ async function refreshAuthenticatedUser() {
   await syncAuthenticatedUser(result.user);
 
   return result.user;
+}
+
+async function claimActiveConnectionSession(options = {}) {
+  const { silent = false } = options;
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    return null;
+  }
+
+  const result = await authRequest("/api/auth/claim-active-connection", {
+    userId: user.id,
+    sessionToken: user.sessionToken
+  });
+
+  if (result.user) {
+    await syncAuthenticatedUser(result.user);
+  }
+
+  if (!silent && result.claimed) {
+    showToast("A previous active session was signed out for this account.", "info");
+  }
+
+  return result;
 }
 
 async function refreshCreditsStatus() {
@@ -893,6 +1128,10 @@ function formatCount(value, singular, plural = `${singular}s`) {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
 function updateRatePitchVolumeLabels() {
   ttsRateValue.textContent = `${Number(ttsRateInput.value).toFixed(1)}x`;
   ttsPitchValue.textContent = `${Number(ttsPitchInput.value).toFixed(1)}x`;
@@ -919,7 +1158,24 @@ function updateTtsStatus() {
   }
 
   const voiceLabel = ttsVoiceSelect.options[ttsVoiceSelect.selectedIndex]?.text ?? "Default voice";
-  setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
+  const providerLabel = ttsProviderSelect.value === "elevenlabs" ? "ElevenLabs" : "Built-in";
+  const elevenModelLabel =
+    ttsProviderSelect.value === "elevenlabs"
+      ? ttsElevenModelSelect.options[ttsElevenModelSelect.selectedIndex]?.text ?? "selected model"
+      : "";
+  if (ttsProviderSelect.value === "elevenlabs" && !ttsElevenApiKeyInput.value.trim()) {
+    setStatusMessage(ttsStatus, "info", `ElevenLabs is selected with ${voiceLabel}. Add your API key to generate speech on ${getQueueLabel(ttsQueueSelect.value)}.`);
+    return;
+  }
+  if (ttsProviderSelect.value === "elevenlabs" && ttsElevenModeSelect.value === "paid" && !state.voices.length) {
+    setStatusMessage(ttsStatus, "info", "Paid mode needs one of your own compatible ElevenLabs account voices.");
+    return;
+  }
+  if (ttsProviderSelect.value === "elevenlabs") {
+    setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} via ${providerLabel} with ${elevenModelLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
+    return;
+  }
+  setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} via ${providerLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
 }
 
 function updateUpdateStatus() {
@@ -1679,7 +1935,13 @@ function shouldSpeakChatItem(item) {
   }
 
   if (item.type === "gift") {
-    return ttsReadGiftsInput.checked;
+    if (!ttsReadGiftsInput.checked) {
+      return false;
+    }
+
+    const minimumCoins = Math.max(0, Number(ttsGiftMinCoinsInput.value) || 0);
+    const totalCoins = Math.max(0, Number(item.totalCoins) || 0);
+    return totalCoins >= minimumCoins;
   }
 
   if (item.type !== "chat") {
@@ -1718,35 +1980,29 @@ function buildSpeechText(item) {
 }
 
 function getStyleAdjustedPitch() {
+  const styleProfile = TTS_STYLE_PROFILES.natural;
   const basePitch = Number(ttsPitchInput.value) || 1;
-  switch (ttsStyleSelect.value) {
-    case "protocol":
-      return Math.min(1.8, basePitch + 0.2);
-    case "dark":
-      return Math.max(0.5, basePitch - 0.2);
-    case "announcer":
-      return Math.min(1.8, basePitch + 0.1);
-    case "tinybot":
-      return Math.min(1.8, basePitch + 0.35);
-    default:
-      return basePitch;
-  }
+  return clamp(basePitch + styleProfile.pitchOffset, 0.5, 1.8);
 }
 
 function getStyleAdjustedRate() {
+  const styleProfile = TTS_STYLE_PROFILES.natural;
   const baseRate = Number(ttsRateInput.value) || 1;
-  switch (ttsStyleSelect.value) {
-    case "protocol":
-      return Math.min(1.5, baseRate + 0.1);
-    case "dark":
-      return Math.max(0.7, baseRate - 0.1);
-    case "announcer":
-      return Math.min(1.5, baseRate + 0.15);
-    case "tinybot":
-      return Math.min(1.5, baseRate + 0.2);
-    default:
-      return baseRate;
-  }
+  return clamp(baseRate + styleProfile.rateOffset, 0.7, 1.5);
+}
+
+function getStyleAdjustedVolume() {
+  const styleProfile = TTS_STYLE_PROFILES.natural;
+  const baseVolume = Number(ttsVolumeInput.value) || 1;
+  return clamp(baseVolume * styleProfile.volumeMultiplier, 0.2, 3);
+}
+
+function updateTtsProviderVisibility() {
+  const isElevenLabs = ttsProviderSelect.value === "elevenlabs";
+
+  ttsElevenModeField.classList.toggle("is-hidden", !isElevenLabs);
+  ttsElevenApiKeyField.classList.toggle("is-hidden", !isElevenLabs);
+  ttsElevenModelField.classList.toggle("is-hidden", !isElevenLabs);
 }
 
 function enqueueSpeech(text) {
@@ -1758,16 +2014,22 @@ function enqueueSpeech(text) {
 
   void enqueuePlaybackTask(ttsQueueSelect.value, async () => {
     try {
-      const result = await app.speakToFile({
-        text,
-        voiceName: ttsVoiceSelect.value,
-        rate: getStyleAdjustedRate(),
-        pitch: getStyleAdjustedPitch()
-      });
+        const result = await app.speakToFile({
+          text,
+          provider: ttsProviderSelect.value,
+          voiceName: ttsVoiceSelect.value,
+          voiceId: ttsVoiceSelect.value,
+          mode: ttsElevenModeSelect.value,
+          apiKey: ttsElevenApiKeyInput.value.trim(),
+          modelId: ttsElevenModelSelect.value,
+          style: "natural",
+          rate: getStyleAdjustedRate(),
+          pitch: getStyleAdjustedPitch()
+        });
 
       const fileUrl = new URL(`file://${result.filePath.replaceAll("\\", "/")}`).toString();
-      await playAudioUrl(fileUrl, Number(ttsVolumeInput.value) || 1);
-      await app.deleteTtsFile(result.filePath);
+        await playAudioUrl(fileUrl, getStyleAdjustedVolume());
+        await app.deleteTtsFile(result.filePath);
     } catch (error) {
       if (error?.cleared) {
         return;
@@ -1886,7 +2148,11 @@ function checkCustomRules() {
 
 async function loadVoices() {
   try {
-    const voices = await app.getTtsVoices();
+    const voices = await app.getTtsVoices({
+      provider: ttsProviderSelect.value,
+      mode: ttsElevenModeSelect.value,
+      apiKey: ttsElevenApiKeyInput.value.trim()
+    });
     state.voices = Array.isArray(voices) ? voices : [];
   } catch (error) {
     state.voices = [];
@@ -1895,13 +2161,23 @@ async function loadVoices() {
 
   const selectedVoice = state.settings.ttsVoice;
   const options = state.voices.map((voice) => {
-    const label = `${voice.name}${voice.culture ? ` (${voice.culture})` : ""}`;
-    return `<option value="${escapeHtml(voice.name)}">${escapeHtml(label)}</option>`;
+    const value = ttsProviderSelect.value === "elevenlabs" ? voice.id : voice.name;
+    const label = ttsProviderSelect.value === "elevenlabs"
+      ? `${voice.name}${voice.category ? ` (${voice.category})` : ""}`
+      : `${voice.name}${voice.culture ? ` (${voice.culture})` : ""}`;
+    return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
   });
 
-  ttsVoiceSelect.innerHTML = `<option value="">Default system voice</option>${options.join("")}`;
-  if (selectedVoice && state.voices.some((voice) => voice.name === selectedVoice)) {
+  ttsVoiceSelect.innerHTML = `<option value="">${ttsProviderSelect.value === "elevenlabs" ? "Select an ElevenLabs voice" : "Default system voice"}</option>${options.join("")}`;
+  const hasSelectedVoice = state.voices.some((voice) => (ttsProviderSelect.value === "elevenlabs" ? voice.id : voice.name) === selectedVoice);
+  if (selectedVoice && hasSelectedVoice) {
     ttsVoiceSelect.value = selectedVoice;
+  } else {
+    ttsVoiceSelect.value = "";
+  }
+
+  if (ttsProviderSelect.value === "elevenlabs" && ttsElevenModeSelect.value === "paid" && !state.voices.length) {
+    setStatusMessage(ttsStatus, "info", "No compatible ElevenLabs account voices were found for Paid mode. Create or save an eligible voice in ElevenLabs, or switch to Free mode.");
   }
 }
 
@@ -1917,9 +2193,13 @@ function applySettingsToUi() {
   translationApiKeyInput.value = "Free built-in mode";
 
   ttsEnabledInput.checked = settings.ttsEnabled;
+  ttsProviderSelect.value = settings.ttsProvider || "builtin";
   ttsIncludeUsernameInput.checked = settings.ttsIncludeUsername;
   ttsReadGiftsInput.checked = settings.ttsReadGifts;
-  ttsStyleSelect.value = settings.ttsStyle;
+  ttsGiftMinCoinsInput.value = String(Math.max(0, Number(settings.ttsGiftMinCoins) || 0));
+  ttsElevenModeSelect.value = settings.ttsElevenMode || "free";
+  ttsElevenApiKeyInput.value = settings.ttsElevenApiKey || "";
+  ttsElevenModelSelect.value = settings.ttsElevenModel || "eleven_flash_v2_5";
   ttsQueueSelect.value = String(normalizeQueueId(settings.ttsQueue, 1));
   ttsRateInput.value = String(settings.ttsRate);
   ttsPitchInput.value = String(settings.ttsPitch);
@@ -1929,6 +2209,7 @@ function applySettingsToUi() {
   ttsAudienceSubscribersInput.checked = settings.ttsAudience.subscribers;
   ttsAudienceModeratorsInput.checked = settings.ttsAudience.moderators;
   ttsAudienceVipsInput.checked = false;
+  updateTtsProviderVisibility();
 
   updateRatePitchVolumeLabels();
   updateTranslationStatus();
@@ -1948,6 +2229,7 @@ async function initializeAuthShell() {
     try {
       state.authenticatedUser = state.settings.authUser;
       await refreshAuthenticatedUser();
+      await claimActiveConnectionSession({ silent: true });
       showDashboardForUser(state.authenticatedUser);
       return;
     } catch {
@@ -2028,6 +2310,7 @@ function wireHeaderEvents() {
         showToast(error.message || "Unable to disconnect.", "error");
       } finally {
         state.connecting = false;
+        updateHeaderPills();
         setConnectionUiState();
       }
       return;
@@ -2076,6 +2359,7 @@ function wireHeaderEvents() {
     } finally {
       await refreshCreditsStatus();
       state.connecting = false;
+      updateHeaderPills();
       setConnectionUiState();
       updateStats();
     }
@@ -2268,6 +2552,8 @@ function wireAuthEvents() {
         authRememberMe: rememberMeEnabled,
         authRememberedEmail: rememberMeEnabled ? signinEmailInput.value.trim() : ""
       });
+      state.authenticatedUser = result.user;
+      await claimActiveConnectionSession({ silent: false });
       showDashboardForUser(result.user);
       showToast(`Welcome back, ${result.user.displayName || result.user.email}.`, "success");
     } catch (error) {
@@ -2354,13 +2640,17 @@ function wireTabEvents() {
 
 function wireSettingsEvents() {
   [
-    translationEnabledInput,
-    translationTargetLanguageSelect,
-    ttsEnabledInput,
-    ttsIncludeUsernameInput,
-    ttsReadGiftsInput,
-    ttsVoiceSelect,
-    ttsStyleSelect,
+      translationEnabledInput,
+      translationTargetLanguageSelect,
+        ttsEnabledInput,
+        ttsProviderSelect,
+        ttsElevenModeSelect,
+        ttsElevenApiKeyInput,
+        ttsElevenModelSelect,
+        ttsIncludeUsernameInput,
+        ttsReadGiftsInput,
+        ttsGiftMinCoinsInput,
+      ttsVoiceSelect,
     ttsQueueSelect,
     ttsRateInput,
     ttsPitchInput,
@@ -2369,21 +2659,31 @@ function wireSettingsEvents() {
     ttsAudienceSubscribersInput,
     ttsAudienceModeratorsInput
   ].forEach((element) => {
-    element.addEventListener("change", () => {
-      updateRatePitchVolumeLabels();
-      updateTranslationStatus();
-      updateTtsStatus();
-      updateHeaderPills();
-      scheduleSettingsSave();
+      element.addEventListener("change", () => {
+        updateTtsProviderVisibility();
+        updateRatePitchVolumeLabels();
+        updateTranslationStatus();
+        updateTtsStatus();
+        updateHeaderPills();
+        scheduleSettingsSave();
+      });
     });
-  });
+
+    [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput].forEach((element) => {
+      element.addEventListener("change", () => {
+        void loadVoices();
+      });
+    });
 
   ttsRateInput.addEventListener("input", updateRatePitchVolumeLabels);
   ttsPitchInput.addEventListener("input", updateRatePitchVolumeLabels);
   ttsVolumeInput.addEventListener("input", updateRatePitchVolumeLabels);
 
   ttsTestButton.addEventListener("click", () => {
-    enqueueSpeech("Stream Sync Pro LIVE voice test.");
+    const testPhrase = ttsProviderSelect.value === "elevenlabs"
+      ? "Stream Sync Pro LIVE model comparison. This voice should sound consistent, clear, and expressive across a longer test phrase."
+      : "Stream Sync Pro LIVE voice test.";
+    enqueueSpeech(testPhrase);
   });
 }
 

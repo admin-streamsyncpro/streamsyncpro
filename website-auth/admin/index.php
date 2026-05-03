@@ -82,6 +82,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $message = 'User credits updated successfully.';
             $messageType = 'success';
+        } elseif ($action === 'force-signout-user') {
+            $id = (int) ($_POST['user_id'] ?? 0);
+            $user = findUserById($pdo, $id);
+
+            if (!$user) {
+                $message = 'User account could not be found.';
+                $messageType = 'error';
+            } else {
+                $currentSessionTokenHash = trim((string) ($user['session_token_hash'] ?? ''));
+                $statement = $pdo->prepare(
+                    'UPDATE auth_users
+                     SET forced_logout_token_hash = :forced_logout_token_hash,
+                         forced_logout_at = :forced_logout_at,
+                         session_token_hash = NULL,
+                         session_token_expires_at = NULL,
+                         active_connection_token_hash = NULL,
+                         active_connection_started_at = NULL
+                     WHERE id = :id'
+                );
+                $statement->execute([
+                    ':forced_logout_token_hash' => $currentSessionTokenHash !== '' ? $currentSessionTokenHash : null,
+                    ':forced_logout_at' => gmdate('Y-m-d H:i:s'),
+                    ':id' => $id,
+                ]);
+
+                if ($currentSessionTokenHash !== '') {
+                    logAuditEvent(
+                        $pdo,
+                        $id,
+                        'forced_sign_out',
+                        'Administrator forcibly signed out this account and closed the active app session.',
+                        (int) ($user['credits'] ?? 0)
+                    );
+                    $message = 'User was forcibly signed out. The app will close on its next session check.';
+                } else {
+                    $message = 'User had no active signed-in session to terminate.';
+                }
+                $messageType = 'success';
+            }
         } elseif ($action === 'change-admin-password') {
             $currentPassword = (string) ($_POST['current_password'] ?? '');
             $newPassword = (string) ($_POST['new_password'] ?? '');
@@ -208,6 +247,10 @@ function ensureSchema(PDO $pdo): void
     ensureColumn($pdo, 'auth_users', 'locked_reason', 'ALTER TABLE auth_users ADD COLUMN locked_reason VARCHAR(255) NULL AFTER is_locked');
     ensureColumn($pdo, 'auth_users', 'session_token_hash', 'ALTER TABLE auth_users ADD COLUMN session_token_hash VARCHAR(255) NULL AFTER locked_reason');
     ensureColumn($pdo, 'auth_users', 'session_token_expires_at', 'ALTER TABLE auth_users ADD COLUMN session_token_expires_at DATETIME NULL AFTER session_token_hash');
+    ensureColumn($pdo, 'auth_users', 'active_connection_token_hash', 'ALTER TABLE auth_users ADD COLUMN active_connection_token_hash VARCHAR(255) NULL AFTER session_token_expires_at');
+    ensureColumn($pdo, 'auth_users', 'active_connection_started_at', 'ALTER TABLE auth_users ADD COLUMN active_connection_started_at DATETIME NULL AFTER active_connection_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_token_hash', 'ALTER TABLE auth_users ADD COLUMN forced_logout_token_hash VARCHAR(255) NULL AFTER active_connection_started_at');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_token_hash');
 }
 
 function ensureColumn(PDO $pdo, string $table, string $column, string $sql): void
@@ -247,7 +290,10 @@ function fetchUsers(PDO $pdo, string $searchQuery, string $statusFilter): array
     }
 
     $sql =
-        'SELECT id, email, display_name, is_verified, is_locked, credits, locked_reason, created_at, updated_at
+        'SELECT id, email, display_name, is_verified, is_locked, credits, locked_reason,
+                session_token_hash, session_token_expires_at,
+                active_connection_token_hash, active_connection_started_at,
+                created_at, updated_at
          FROM auth_users';
 
     if ($conditions) {
@@ -265,7 +311,11 @@ function fetchUsers(PDO $pdo, string $searchQuery, string $statusFilter): array
 function findUserById(PDO $pdo, int $userId): ?array
 {
     $statement = $pdo->prepare(
-        'SELECT id, email, display_name, is_verified, is_locked, credits, locked_reason, created_at, updated_at
+        'SELECT id, email, display_name, is_verified, is_locked, credits, locked_reason,
+                session_token_hash, session_token_expires_at,
+                active_connection_token_hash, active_connection_started_at,
+                forced_logout_token_hash, forced_logout_at,
+                created_at, updated_at
          FROM auth_users
          WHERE id = :id
          LIMIT 1'
@@ -274,6 +324,28 @@ function findUserById(PDO $pdo, int $userId): ?array
     $user = $statement->fetch();
 
     return $user ?: null;
+}
+
+function hasActiveSignedInSession(array $user): bool
+{
+    $tokenHash = trim((string) ($user['session_token_hash'] ?? ''));
+    $expiresAt = trim((string) ($user['session_token_expires_at'] ?? ''));
+
+    if ($tokenHash === '' || $expiresAt === '') {
+        return false;
+    }
+
+    $expiryTime = strtotime($expiresAt);
+    if ($expiryTime === false) {
+        return false;
+    }
+
+    return $expiryTime >= time();
+}
+
+function hasActiveLiveConnection(array $user): bool
+{
+    return trim((string) ($user['active_connection_token_hash'] ?? '')) !== '';
 }
 
 function fetchAuditLogs(PDO $pdo, int $userId, string $auditFrom, string $auditTo, string $auditType, string $auditSort): array
@@ -307,6 +379,40 @@ function fetchAuditLogs(PDO $pdo, int $userId, string $auditFrom, string $auditT
     $statement->execute($params);
 
     return $statement->fetchAll();
+}
+
+function logAuditEvent(
+    PDO $pdo,
+    int $userId,
+    string $eventType,
+    string $eventDescription,
+    ?int $remainingCredits = null
+): void {
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_audit_logs (
+            user_id,
+            event_type,
+            event_description,
+            remaining_credits,
+            metadata_json,
+            ip_address
+         ) VALUES (
+            :user_id,
+            :event_type,
+            :event_description,
+            :remaining_credits,
+            :metadata_json,
+            :ip_address
+         )'
+    );
+    $statement->execute([
+        ':user_id' => $userId,
+        ':event_type' => $eventType,
+        ':event_description' => $eventDescription,
+        ':remaining_credits' => $remainingCredits,
+        ':metadata_json' => null,
+        ':ip_address' => $_SERVER['REMOTE_ADDR'] ?? null,
+    ]);
 }
 
 function updateAdminPasswordHash(string $configPath, string $passwordHash): void
@@ -432,6 +538,8 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .pill.ok{background:rgba(97,243,164,.12);color:#9cf0b7}
     .pill.off{background:rgba(255,255,255,.08);color:#c4d4ea}
     .pill.locked{background:rgba(255,88,125,.14);color:#ffb7c7}
+    .pill.live{background:rgba(77,231,255,.14);color:#9cedff}
+    .pill.session{background:rgba(144,104,255,.16);color:#d2c4ff}
     .actions{display:flex;align-items:center;gap:8px;flex-wrap:nowrap}
     .action-form{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;margin:0}
     .action-form input{height:38px;min-width:0}
@@ -538,6 +646,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
             <th>Email</th>
             <th>Verified</th>
             <th>Locked</th>
+            <th>Active Session</th>
             <th>Credits</th>
             <th>Created</th>
             <th>Actions</th>
@@ -560,6 +669,21 @@ function renderDashboard(array $users, string $message, string $messageType, str
                   <div style="margin-top:8px;color:#ffcfda;font-size:13px;"><?php echo htmlspecialchars((string) $user['locked_reason'], ENT_QUOTES, 'UTF-8'); ?></div>
                 <?php endif; ?>
               </td>
+              <td>
+                <?php if (hasActiveLiveConnection($user)): ?>
+                  <span class="pill live">LIVE Connected</span>
+                  <?php if (!empty($user['active_connection_started_at'])): ?>
+                    <div class="muted" style="margin-top:8px;font-size:12px;"><?php echo htmlspecialchars((string) $user['active_connection_started_at'], ENT_QUOTES, 'UTF-8'); ?></div>
+                  <?php endif; ?>
+                <?php elseif (hasActiveSignedInSession($user)): ?>
+                  <span class="pill session">Signed In</span>
+                  <?php if (!empty($user['session_token_expires_at'])): ?>
+                    <div class="muted" style="margin-top:8px;font-size:12px;">Expires <?php echo htmlspecialchars((string) $user['session_token_expires_at'], ENT_QUOTES, 'UTF-8'); ?></div>
+                  <?php endif; ?>
+                <?php else: ?>
+                  <span class="pill off">Offline</span>
+                <?php endif; ?>
+              </td>
               <td><strong><?php echo (int) ($user['credits'] ?? 0); ?></strong></td>
               <td><?php echo htmlspecialchars((string) $user['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td>
@@ -576,12 +700,17 @@ function renderDashboard(array $users, string $message, string $messageType, str
                     title="View audit log"
                     aria-label="View audit log"
                     style="text-decoration:none;"
-                  >&#128196;</a>
-                  <?php if ((int) $user['is_locked'] === 1): ?>
-                    <form class="action-form" method="post">
-                      <input type="hidden" name="action" value="unlock-user" />
+                    >&#128196;</a>
+                    <form class="action-form" method="post" onsubmit="return confirm('Force sign out this user and close their active app session?');">
+                      <input type="hidden" name="action" value="force-signout-user" />
                       <input type="hidden" name="user_id" value="<?php echo (int) $user['id']; ?>" />
-                      <div class="row"><button class="unlock icon-btn" type="submit" title="Unlock account" aria-label="Unlock account">&#128275;</button></div>
+                      <div class="row"><button class="delete icon-btn" type="submit" title="Force sign out user" aria-label="Force sign out user">&#10162;</button></div>
+                    </form>
+                    <?php if ((int) $user['is_locked'] === 1): ?>
+                      <form class="action-form" method="post">
+                        <input type="hidden" name="action" value="unlock-user" />
+                        <input type="hidden" name="user_id" value="<?php echo (int) $user['id']; ?>" />
+                        <div class="row"><button class="unlock icon-btn" type="submit" title="Unlock account" aria-label="Unlock account">&#128275;</button></div>
                     </form>
                   <?php else: ?>
                     <form class="action-form" method="post">
@@ -631,6 +760,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
                 <option value="sign_in" <?php echo $auditType === 'sign_in' ? 'selected' : ''; ?>>Sign in</option>
                 <option value="sign_in_failed" <?php echo $auditType === 'sign_in_failed' ? 'selected' : ''; ?>>Bad password</option>
                 <option value="sign_out" <?php echo $auditType === 'sign_out' ? 'selected' : ''; ?>>Sign out</option>
+                <option value="forced_sign_out" <?php echo $auditType === 'forced_sign_out' ? 'selected' : ''; ?>>Forced sign out</option>
                 <option value="connect" <?php echo $auditType === 'connect' ? 'selected' : ''; ?>>Connect</option>
                 <option value="disconnect" <?php echo $auditType === 'disconnect' ? 'selected' : ''; ?>>Disconnect</option>
                 <option value="password_reset_requested" <?php echo $auditType === 'password_reset_requested' ? 'selected' : ''; ?>>Password reset requested</option>

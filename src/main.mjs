@@ -24,6 +24,13 @@ const MYINSTANTS_CATEGORY_URL = "https://www.myinstants.com/en/categories/sound%
 const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MYINSTANTS_MAX_PAGES = 50;
 const DEFAULT_CUSTOM_EVENT_RULES = [];
+const ELEVENLABS_FREE_VOICE_OPTIONS = [
+  { id: "JBFqnCBsd6RMkjVDRZzb", name: "George", category: "default" },
+  { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", category: "default" },
+  { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", category: "default" },
+  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", category: "default" },
+  { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", category: "default" }
+];
 
 let mainWindow = null;
 let updateConfig = null;
@@ -48,6 +55,7 @@ let settings = {
   translationProviderUrl: "",
   translationApiKey: "",
   ttsEnabled: false,
+  ttsProvider: "builtin",
   ttsVoice: "",
   ttsStyle: "natural",
   ttsRate: 1,
@@ -56,6 +64,10 @@ let settings = {
   ttsQueue: 1,
   ttsIncludeUsername: true,
   ttsReadGifts: false,
+  ttsGiftMinCoins: 0,
+  ttsElevenMode: "free",
+  ttsElevenApiKey: "",
+  ttsElevenModel: "eleven_flash_v2_5",
   ttsAudience: {
     allViewers: true,
     subscribers: false,
@@ -474,7 +486,152 @@ async function listWindowsTtsVoices() {
   return Array.isArray(parsed) ? parsed : [parsed];
 }
 
-async function synthesizeSpeechToFile({ text, voiceName, rate, pitch }) {
+function getElevenLabsHeaders(payload = {}) {
+  const headers = {
+    Accept: "application/json"
+  };
+
+  if (payload?.apiKey) {
+    headers["xi-api-key"] = String(payload.apiKey).trim();
+  }
+
+  return headers;
+}
+
+function getElevenLabsVoiceSettings(style = "natural", rate = 1) {
+  const speed = Math.max(0.7, Math.min(1.2, Number(rate) || 1));
+
+  switch (style) {
+    case "protocol":
+      return { stability: 0.55, similarity_boost: 0.72, style: 0.18, speed: Math.min(1.2, speed + 0.08), use_speaker_boost: true };
+    case "dark":
+      return { stability: 0.72, similarity_boost: 0.82, style: 0.28, speed: Math.max(0.7, speed - 0.1), use_speaker_boost: true };
+    case "announcer":
+      return { stability: 0.48, similarity_boost: 0.75, style: 0.42, speed: Math.min(1.2, speed + 0.12), use_speaker_boost: true };
+    case "tinybot":
+      return { stability: 0.4, similarity_boost: 0.62, style: 0.08, speed: Math.min(1.2, speed + 0.15), use_speaker_boost: false };
+    default:
+      return { stability: 0.65, similarity_boost: 0.8, style: 0.16, speed, use_speaker_boost: true };
+  }
+}
+
+function dedupeElevenLabsVoices(voices = []) {
+  const seenIds = new Set();
+  const deduped = [];
+
+  for (const voice of voices) {
+    const voiceId = String(voice?.id ?? "").trim();
+    if (!voiceId || seenIds.has(voiceId)) {
+      continue;
+    }
+
+    seenIds.add(voiceId);
+    deduped.push({
+      ...voice,
+      id: voiceId
+    });
+  }
+
+  return deduped;
+}
+
+function formatElevenLabsErrorMessage(rawErrorText = "") {
+  const fallbackMessage = "Unable to synthesize speech with ElevenLabs.";
+  if (!rawErrorText?.trim()) {
+    return fallbackMessage;
+  }
+
+  let parsedError = null;
+
+  try {
+    parsedError = JSON.parse(rawErrorText);
+  } catch {
+    parsedError = null;
+  }
+
+  const detail = parsedError?.detail;
+  const detailMessage =
+    typeof detail === "string"
+      ? detail
+      : detail?.message
+        ? String(detail.message)
+        : parsedError?.message
+          ? String(parsedError.message)
+          : "";
+  const detailCode = String(detail?.code ?? parsedError?.code ?? "").trim().toLowerCase();
+  const detailType = String(detail?.type ?? parsedError?.type ?? "").trim().toLowerCase();
+  const detailStatus = String(detail?.status ?? parsedError?.status ?? "").trim().toLowerCase();
+  const normalizedMessage = detailMessage.toLowerCase();
+
+  if (
+    detailCode === "paid_plan_required" ||
+    detailType === "payment_required" ||
+    detailStatus === "payment_required" ||
+    normalizedMessage.includes("library voices via the api") ||
+    normalizedMessage.includes("upgrade your subscription to use this voice")
+  ) {
+    return "This ElevenLabs voice needs higher plan or library voice access. In Paid mode, choose one of your own account voices instead.";
+  }
+
+  return detailMessage || rawErrorText || fallbackMessage;
+}
+
+async function listElevenLabsVoices(payload = {}) {
+  const normalizedMode = payload?.mode === "paid" ? "paid" : "free";
+  const apiKey = String(payload?.apiKey ?? "").trim();
+
+  if (!apiKey) {
+    return ELEVENLABS_FREE_VOICE_OPTIONS;
+  }
+
+  async function fetchVoicesByType(voiceType) {
+    const searchParams = new URLSearchParams({
+      page_size: "50",
+      voice_type: voiceType,
+      sort: "name",
+      sort_direction: "asc"
+    });
+
+    const response = await fetch(`https://api.elevenlabs.io/v2/voices?${searchParams.toString()}`, {
+      headers: getElevenLabsHeaders(payload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(errorText || "Unable to load ElevenLabs voices.");
+    }
+
+    const result = await response.json();
+    const voices = Array.isArray(result?.voices) ? result.voices : [];
+
+    return voices
+      .map((voice) => ({
+        id: String(voice.voice_id ?? ""),
+        name: String(voice.name ?? "Unnamed voice"),
+        category: String(voice.category ?? ""),
+        previewUrl: voice.preview_url ? String(voice.preview_url) : ""
+      }))
+      .filter((voice) => voice.id);
+  }
+
+  if (normalizedMode === "paid") {
+    const savedVoices = await fetchVoicesByType("saved");
+    if (savedVoices.length > 0) {
+      return dedupeElevenLabsVoices(savedVoices);
+    }
+
+    const defaultVoices = await fetchVoicesByType("default");
+    return dedupeElevenLabsVoices(defaultVoices);
+  }
+
+  const defaultVoices = await fetchVoicesByType("default");
+  return dedupeElevenLabsVoices([
+    ...defaultVoices,
+    ...ELEVENLABS_FREE_VOICE_OPTIONS
+  ]);
+}
+
+async function synthesizeWindowsSpeechToFile({ text, voiceName, rate, pitch }) {
   await ensureTtsScript();
 
   const outputPath = path.join(
@@ -503,6 +660,52 @@ async function synthesizeSpeechToFile({ text, voiceName, rate, pitch }) {
   ]);
 
   return outputPath;
+}
+
+async function synthesizeElevenLabsSpeechToFile({ text, voiceId, modelId, style, rate, apiKey, mode }) {
+  const outputPath = path.join(
+    os.tmpdir(),
+    `stream-sync-pro-elevenlabs-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
+  );
+
+  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+    method: "POST",
+    headers: {
+      ...getElevenLabsHeaders({ apiKey, mode }),
+      Accept: "audio/mpeg",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      text,
+      model_id: modelId || "eleven_flash_v2_5",
+      voice_settings: getElevenLabsVoiceSettings(style, rate)
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(formatElevenLabsErrorMessage(errorText));
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  await fs.writeFile(outputPath, bytes);
+  return outputPath;
+}
+
+async function synthesizeSpeechToFile(payload = {}) {
+  if (payload?.provider === "elevenlabs") {
+    if (!payload?.voiceId) {
+      throw new Error("Choose an ElevenLabs voice first.");
+    }
+
+    if (!String(payload?.apiKey ?? "").trim()) {
+      throw new Error("Enter your ElevenLabs API key to use ElevenLabs voices.");
+    }
+
+    return synthesizeElevenLabsSpeechToFile(payload);
+  }
+
+  return synthesizeWindowsSpeechToFile(payload);
 }
 
 function getUpdater() {
@@ -687,6 +890,17 @@ ipcMain.handle("app:get-version", async () => {
   return app.getVersion();
 });
 
+ipcMain.handle("app:quit", async () => {
+  try {
+    await disconnectFromLive();
+  } catch (error) {
+    log.warn("Failed to disconnect before quitting", error);
+  }
+
+  app.quit();
+  return { ok: true };
+});
+
 ipcMain.handle("app:save-settings", async (_event, payload) => {
   await saveSettings(payload ?? {});
   return settings;
@@ -696,11 +910,15 @@ ipcMain.handle("translation:translate", async (_event, payload) => {
   return translateText(payload ?? {});
 });
 
-ipcMain.handle("tts:get-voices", async () => {
+ipcMain.handle("tts:get-voices", async (_event, payload) => {
+    if (payload?.provider === "elevenlabs") {
+      return listElevenLabsVoices(payload ?? {});
+    }
+
   return listWindowsTtsVoices();
 });
 
-ipcMain.handle("tts:speak-to-file", async (_event, payload) => {
+ ipcMain.handle("tts:speak-to-file", async (_event, payload) => {
   return {
     filePath: await synthesizeSpeechToFile(payload)
   };

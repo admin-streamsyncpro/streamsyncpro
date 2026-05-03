@@ -164,6 +164,7 @@
             <div class="account-actions-row">
               <span id="signed-in-pill" class="status-pill accent">Signed in</span>
               <span id="credits-pill" class="status-pill info">Credits: 0</span>
+              <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
               <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
             </div>
 
@@ -429,31 +430,69 @@
                     </span>
                   </label>
 
-                  <label class="toggle-switch">
-                    <input id="tts-read-gifts" type="checkbox" />
-                    <span class="switch-ui"></span>
-                    <span class="switch-copy">
-                      <strong>Gift alerts</strong>
-                      <small>Read gifts aloud along with the sender name.</small>
-                    </span>
-                  </label>
-
-                  <div class="field-grid">
-                    <label class="field">
-                      <span>Voice</span>
-                      <select id="tts-voice"></select>
+                    <label class="toggle-switch">
+                      <input id="tts-read-gifts" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Gift alerts</strong>
+                        <small>Read gifts aloud along with the sender name.</small>
+                      </span>
                     </label>
 
                     <label class="field">
-                      <span>Voice style</span>
-                      <select id="tts-style">
-                        <option value="natural">Natural</option>
-                        <option value="protocol">Protocol droid</option>
-                        <option value="dark">Dark commander</option>
-                        <option value="announcer">Arena announcer</option>
-                        <option value="tinybot">Tiny robot</option>
-                      </select>
+                      <span>Gift alert minimum coins</span>
+                      <input
+                        id="tts-gift-min-coins"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value="0"
+                      />
+                      <small class="field-hint">Only read gifts aloud when total coin value meets or exceeds this amount.</small>
                     </label>
+
+                    <div class="field-grid">
+                      <label class="field">
+                        <span>TTS provider</span>
+                        <select id="tts-provider">
+                          <option value="builtin">Built-in</option>
+                          <option value="elevenlabs">ElevenLabs</option>
+                        </select>
+                      </label>
+
+                      <label class="field tts-elevenlabs-only is-hidden" id="tts-eleven-mode-field">
+                        <span>ElevenLabs mode</span>
+                        <select id="tts-eleven-mode">
+                          <option value="free">Free mode</option>
+                          <option value="paid">Paid mode</option>
+                        </select>
+                      </label>
+
+                      <label class="field tts-elevenlabs-only is-hidden field-span-2" id="tts-eleven-api-key-field">
+                        <span>ElevenLabs API key</span>
+                        <input
+                          id="tts-eleven-api-key"
+                          type="password"
+                          autocomplete="off"
+                          placeholder="Enter your ElevenLabs API key"
+                        />
+                        <small class="field-hint">An API key is required to generate speech with ElevenLabs in both modes. Paid mode also loads your saved account voices.</small>
+                      </label>
+
+                      <label class="field tts-elevenlabs-only is-hidden" id="tts-eleven-model-field">
+                        <span>Speech model</span>
+                        <select id="tts-eleven-model">
+                          <option value="eleven_flash_v2_5">Flash v2.5</option>
+                          <option value="eleven_multilingual_v2">Multilingual v2</option>
+                          <option value="eleven_v3">Eleven v3</option>
+                        </select>
+                        <small class="field-hint">This changes how ElevenLabs generates speech, not which voices appear in the Voice list. Differences can be subtle on the same voice, especially with very short test phrases.</small>
+                      </label>
+
+                      <label class="field">
+                        <span>Voice</span>
+                        <select id="tts-voice"></select>
+                      </label>
 
                     <label class="field">
                       <span>TTS queue</span>
