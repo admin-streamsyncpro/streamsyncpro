@@ -13,6 +13,21 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getAppVersion() {
     return ipcRenderer.invoke("app:get-version");
   },
+  getQueueOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-queue-info");
+  },
+  updateQueueOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-queue-state", payload);
+  },
+  getCommandFeedbackOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-command-feedback-info");
+  },
+  updateCommandFeedbackOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-command-feedback-state", payload);
+  },
+  openExternal(url) {
+    return ipcRenderer.invoke("app:open-external", { url });
+  },
   quitApp() {
     return ipcRenderer.invoke("app:quit");
   },

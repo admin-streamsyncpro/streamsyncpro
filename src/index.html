@@ -165,6 +165,7 @@
               <span id="signed-in-pill" class="status-pill accent">Signed in</span>
               <span id="credits-pill" class="status-pill info">Credits: 0</span>
               <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
+              <button type="button" id="topup-credits-button" class="ghost compact-button">Top up credits</button>
               <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
             </div>
 
@@ -302,11 +303,11 @@
               </div>
             </section>
 
-            <section class="sidebar-card card">
-              <div class="card-header section-head">
-                <div>
-                  <p class="eyebrow">Playback</p>
-                  <h3 class="section-title">Queued Actions</h3>
+              <section class="sidebar-card card">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Playback</p>
+                    <h3 class="section-title">Queued Actions</h3>
                 </div>
                 <span id="queue-count-pill" class="count-pill">0 items</span>
               </div>
@@ -325,13 +326,57 @@
                   </label>
                   <button type="button" id="queue-clear-filtered" class="ghost compact-button">Clear filtered</button>
                 </div>
-                <div id="queue-action-list" class="queue-action-list"></div>
-                <p id="queue-action-status" class="status info">No queued actions.</p>
-              </div>
-            </section>
+                  <div id="queue-action-list" class="queue-action-list"></div>
+                  <p id="queue-action-status" class="status info">No queued actions.</p>
+                </div>
+              </section>
 
-            <!-- Translation -->
-            <section class="sidebar-card card">
+              <section class="sidebar-card card">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Queue Overlay</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                    <p class="section-copy">Use this hosted browser-source URL in TikTok, OBS, or your preferred overlay tool to show viewers what is playing and what is queued next.</p>
+                    <label class="field">
+                      <span>Overlay queue</span>
+                      <select id="queue-overlay-queue">
+                      <option value="1">Queue 1</option>
+                      <option value="2">Queue 2</option>
+                      <option value="3">Queue 3</option>
+                      <option value="4">Queue 4</option>
+                      <option value="5">Queue 5</option>
+                      <option value="6">Queue 6</option>
+                      <option value="7">Queue 7</option>
+                      <option value="8">Queue 8</option>
+                      <option value="9">Queue 9</option>
+                        <option value="10">Queue 10</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Overlay mode</span>
+                      <select id="queue-overlay-mode">
+                        <option value="full">Full queue</option>
+                        <option value="compact">Compact now playing</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Overlay URL</span>
+                      <input id="queue-overlay-url" type="text" readonly value="Loading..." />
+                    </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="queue-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="queue-overlay-open" class="ghost compact-button">Open Overlay</button>
+                  </div>
+                  <p id="queue-overlay-status" class="status info">Preparing queue overlay...</p>
+                </div>
+              </section>
+
+              <!-- Translation -->
+              <section class="sidebar-card card">
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Translation</p>
@@ -492,7 +537,17 @@
                       <label class="field">
                         <span>Voice</span>
                         <select id="tts-voice"></select>
+                        <small class="field-hint">Users can assign themselves a numbered voice with <code>!myttsvoice 3</code> in chat.</small>
                       </label>
+
+                    <label class="toggle-switch">
+                      <input id="tts-random-voice" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Random voice per message</strong>
+                        <small>Use a random available TTS voice for each spoken message unless that user picked their own.</small>
+                      </span>
+                    </label>
 
                     <label class="field">
                       <span>TTS queue</span>
@@ -552,13 +607,55 @@
                     </label>
                   </div>
 
-                  <div class="actions">
-                    <button type="button" id="tts-test-button" class="ghost">Test voice</button>
-                  </div>
+                    <div class="actions">
+                      <button type="button" id="tts-test-button" class="ghost">Test voice</button>
+                      <button type="button" id="tts-manage-user-voices-button" class="ghost">Manage user voices</button>
+                    </div>
 
-                  <p id="tts-status" class="status info">
-                    TTS is off.
-                  </p>
+                    <div class="command-feedback-panel">
+                      <div class="panel-inline-head">
+                        <div>
+                          <p class="eyebrow">Viewer Feedback</p>
+                          <h4 class="section-title section-title-small">Command Feedback Overlay</h4>
+                        </div>
+                      </div>
+
+                      <p class="helper-text">Show a simple browser-source feedback card when supported chat commands are used, and customise the response wording below.</p>
+
+                      <div class="settings-grid">
+                        <label class="field">
+                          <span>Overlay duration (ms)</span>
+                          <input id="command-feedback-duration" type="number" min="1000" step="500" value="6000" />
+                        </label>
+                        <label class="field">
+                          <span>Overlay URL</span>
+                          <input id="command-feedback-overlay-url" type="text" readonly value="Loading..." />
+                        </label>
+                      </div>
+
+                      <div class="queue-overlay-actions">
+                        <button type="button" id="command-feedback-overlay-copy" class="ghost compact-button">Copy URL</button>
+                        <button type="button" id="command-feedback-overlay-open" class="ghost compact-button">Open Overlay</button>
+                      </div>
+
+                      <label class="field">
+                        <span>`!myttsvoice` feedback</span>
+                        <textarea id="command-feedback-template-myttsvoice" rows="3" placeholder="{user} has selected {voiceLabel} for their personalised TTS voice."></textarea>
+                        <small class="field-hint">Available tokens: <code>{user}</code>, <code>{voiceLabel}</code>, <code>{voiceNumber}</code></small>
+                      </label>
+
+                      <label class="field">
+                        <span>`!listcomands` feedback</span>
+                        <textarea id="command-feedback-template-listcommands" rows="3" placeholder="{user}, available chat commands: {commandList}"></textarea>
+                        <small class="field-hint">Available tokens: <code>{user}</code>, <code>{commandList}</code></small>
+                      </label>
+
+                      <p id="command-feedback-status" class="status info">Preparing command feedback overlay...</p>
+                    </div>
+
+                    <p id="tts-status" class="status info">
+                      TTS is off.
+                    </p>
                 </div>
               </div>
             </section>
@@ -678,6 +775,44 @@
               <button type="button" id="chat-notes-save">Save note</button>
               <button type="button" id="chat-notes-delete" class="ghost">Delete note</button>
             </div>
+          </section>
+        </div>
+
+        <div id="tts-voice-manager-modal" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel tts-voice-manager-modal" role="dialog" aria-modal="true" aria-labelledby="tts-voice-manager-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">TTS Voice Manager</p>
+                <h3 id="tts-voice-manager-title" class="section-title">Custom TTS voices</h3>
+              </div>
+              <button type="button" id="tts-voice-manager-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <div class="tts-voice-manager-summary">
+              <p id="tts-voice-manager-provider" class="helper-text">Manage saved voice assignments for the current provider.</p>
+              <p id="tts-voice-manager-status" class="status info">No custom user voice assignments yet.</p>
+              <label class="field">
+                <span>Search users</span>
+                <input id="tts-voice-manager-search" type="search" placeholder="Search by username" autocomplete="off" />
+              </label>
+            </div>
+
+            <div class="tts-voice-manager-add">
+                <label class="field">
+                  <span>Username</span>
+                <input id="tts-voice-manager-username" type="text" placeholder="@viewername" autocomplete="off" list="tts-voice-manager-user-suggestions" />
+                </label>
+                <label class="field">
+                  <span>Voice</span>
+                  <select id="tts-voice-manager-voice"></select>
+                </label>
+              <div class="actions">
+                <button type="button" id="tts-voice-manager-add-button" class="ghost">Add assignment</button>
+              </div>
+            </div>
+
+            <div id="tts-voice-manager-list" class="tts-voice-manager-list"></div>
+            <datalist id="tts-voice-manager-user-suggestions"></datalist>
           </section>
         </div>
       </section>

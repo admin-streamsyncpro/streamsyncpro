@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stream Sync Pro LIVE Queue Overlay</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: rgba(4, 9, 20, 0.84);
+        --panel: rgba(10, 18, 34, 0.88);
+        --panel-strong: rgba(5, 11, 22, 0.94);
+        --line: rgba(84, 208, 255, 0.4);
+        --line-soft: rgba(84, 208, 255, 0.16);
+        --text: #eef6ff;
+        --muted: #9fb8d6;
+        --accent: #53dcff;
+        --accent-2: #a35dff;
+        --success: #6cf3ab;
+        --warn: #ffcf6a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: transparent;
+        color: var(--text);
+        font-family: "Segoe UI", system-ui, sans-serif;
+      }
+
+      body {
+        padding: 18px;
+      }
+
+      body.mode-compact {
+        padding: 10px;
+      }
+
+      .overlay-shell {
+        width: min(460px, 100%);
+        border-radius: 24px;
+        position: relative;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(7, 15, 30, 0.96) 0%, rgba(7, 13, 24, 0.92) 100%);
+        border: 1px solid var(--line-soft);
+        box-shadow:
+          0 20px 60px rgba(0, 0, 0, 0.45),
+          0 0 0 1px rgba(163, 93, 255, 0.12),
+          0 0 36px rgba(83, 220, 255, 0.12);
+      }
+
+      body.mode-compact .overlay-shell {
+        width: min(760px, 100%);
+        border-radius: 28px;
+      }
+
+      .overlay-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        padding: 1px;
+        border-radius: inherit;
+        background: conic-gradient(
+          from var(--border-angle, 0deg),
+          rgba(83, 220, 255, 0.95),
+          rgba(163, 93, 255, 0.9),
+          rgba(83, 220, 255, 0.95)
+        );
+        -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        animation: border-travel 9s linear infinite;
+      }
+
+      .overlay-head {
+        position: relative;
+        z-index: 1;
+        padding: 14px 18px 13px;
+        border-bottom: 1px solid var(--line-soft);
+        background: linear-gradient(180deg, rgba(5, 9, 17, 0.98) 0%, rgba(15, 22, 37, 0.96) 100%);
+      }
+
+      body.mode-compact .overlay-head {
+        padding: 16px 20px 14px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        font-size: 11px;
+        line-height: 1;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #e070ff;
+        font-weight: 700;
+      }
+
+      .overlay-topline {
+        margin-top: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .overlay-title {
+        font-size: 24px;
+        line-height: 1.08;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: -0.03em;
+      }
+
+      body.mode-compact .overlay-title {
+        font-size: 34px;
+      }
+
+      .overlay-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+
+      .status-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 999px;
+        background: var(--warn);
+        box-shadow: 0 0 18px rgba(255, 207, 106, 0.45);
+      }
+
+      .status-dot.live {
+        background: var(--success);
+        box-shadow: 0 0 18px rgba(108, 243, 171, 0.45);
+      }
+
+      .overlay-body {
+        position: relative;
+        z-index: 1;
+        padding: 16px 18px 18px;
+        display: grid;
+        gap: 14px;
+      }
+
+      body.mode-compact .overlay-body {
+        gap: 12px;
+        padding: 14px 20px 18px;
+      }
+
+      .overlay-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      body.mode-compact .overlay-summary {
+        grid-template-columns: 1.2fr 0.8fr;
+      }
+
+      .summary-card {
+        padding: 14px 15px;
+        border-radius: 18px;
+        background: rgba(7, 13, 26, 0.72);
+        border: 1px solid rgba(84, 208, 255, 0.12);
+      }
+
+      .summary-label {
+        display: block;
+        font-size: 11px;
+        line-height: 1;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 9px;
+      }
+
+      .summary-value {
+        font-size: 28px;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+      }
+
+      .summary-subtle {
+        font-size: 14px;
+        line-height: 1.35;
+        font-weight: 700;
+      }
+
+      .queue-panel {
+        padding: 16px;
+        border-radius: 20px;
+        background: rgba(7, 13, 26, 0.8);
+        border: 1px solid rgba(84, 208, 255, 0.12);
+      }
+
+      body.mode-compact .queue-panel {
+        padding: 18px;
+      }
+
+      .queue-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .queue-panel-title {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.2;
+        font-weight: 800;
+      }
+
+      .queue-tag {
+        font-size: 11px;
+        line-height: 1;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+      }
+
+      .queue-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .queue-item {
+        display: grid;
+        gap: 7px;
+        padding: 12px 13px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(84, 208, 255, 0.08);
+      }
+
+      .queue-item.running {
+        background: linear-gradient(180deg, rgba(26, 49, 83, 0.48) 0%, rgba(15, 27, 47, 0.72) 100%);
+        border-color: rgba(84, 208, 255, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(84, 208, 255, 0.08);
+      }
+
+      .queue-item-title {
+        font-size: 15px;
+        line-height: 1.4;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      body.mode-compact .queue-item-title {
+        font-size: 22px;
+        line-height: 1.25;
+      }
+
+      .queue-item-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .meta-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        line-height: 1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+      }
+
+      .meta-pill.kind-tts {
+        color: var(--accent);
+      }
+
+      .meta-pill.kind-action {
+        color: #ffb56d;
+      }
+
+      .meta-pill.status-running {
+        color: var(--success);
+      }
+
+      .empty-state {
+        padding: 18px 14px;
+        border-radius: 16px;
+        text-align: center;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px dashed rgba(84, 208, 255, 0.14);
+      }
+
+      .overlay-foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      body.mode-compact .overlay-foot {
+        font-size: 13px;
+      }
+
+      .compact-now-playing {
+        padding: 18px 18px 16px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(8, 17, 33, 0.88) 0%, rgba(10, 18, 34, 0.78) 100%);
+        border: 1px solid rgba(84, 208, 255, 0.16);
+        display: grid;
+        gap: 12px;
+      }
+
+      .compact-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .compact-heading strong {
+        font-size: 14px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .compact-main {
+        font-size: 30px;
+        line-height: 1.16;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--text);
+      }
+
+      .compact-sub {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .compact-empty {
+        font-size: 24px;
+        line-height: 1.2;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      @keyframes border-travel {
+        from {
+          --border-angle: 0deg;
+        }
+        to {
+          --border-angle: 360deg;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="overlay-shell">
+      <header class="overlay-head">
+        <p class="eyebrow">Queue Overlay</p>
+        <div class="overlay-topline">
+          <h1 class="overlay-title">Live Action Queue</h1>
+          <div class="overlay-status">
+            <span id="status-dot" class="status-dot"></span>
+            <span id="status-text">Waiting for live</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="overlay-body">
+        <div class="overlay-summary">
+          <article class="summary-card">
+            <span class="summary-label">Connected Live</span>
+            <div id="live-username" class="summary-subtle">Not connected</div>
+          </article>
+          <article class="summary-card">
+            <span class="summary-label">Items In Queue</span>
+            <div id="queue-count" class="summary-value">0</div>
+          </article>
+        </div>
+
+        <section class="queue-panel">
+          <div class="queue-panel-head">
+            <h2 class="queue-panel-title">Now Playing / Up Next</h2>
+            <span id="queue-tag" class="queue-tag">Idle</span>
+          </div>
+          <div id="queue-list" class="queue-list">
+            <div class="empty-state">No queued actions right now.</div>
+          </div>
+        </section>
+
+        <footer class="overlay-foot">
+          <span>Stream Sync Pro LIVE</span>
+          <span id="updated-at">Waiting for updates</span>
+        </footer>
+      </div>
+    </section>
+
+    <script>
+      const statusDot = document.getElementById("status-dot");
+      const statusText = document.getElementById("status-text");
+      const liveUsername = document.getElementById("live-username");
+      const queueCount = document.getElementById("queue-count");
+      const queueTag = document.getElementById("queue-tag");
+      const queueList = document.getElementById("queue-list");
+      const updatedAt = document.getElementById("updated-at");
+      const overlayTitle = document.querySelector(".overlay-title");
+      const queueLane = Math.min(10, Math.max(1, Number(new URLSearchParams(window.location.search).get("queue")) || 1));
+      const overlayMode = new URLSearchParams(window.location.search).get("mode") === "compact" ? "compact" : "full";
+
+      if (overlayMode === "compact") {
+        document.body.classList.add("mode-compact");
+      }
+
+      overlayTitle.textContent = overlayMode === "compact" ? `Queue ${queueLane} Now Playing` : `Live Action Queue ${queueLane}`;
+
+      function formatUpdatedAt(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return "Waiting for updates";
+        }
+
+        return `Updated ${date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit"
+        })}`;
+      }
+
+      function renderQueueState(state) {
+        const connected = Boolean(state?.connected);
+        const username = String(state?.username ?? "").trim();
+        const items = Array.isArray(state?.items)
+          ? state.items.filter((item) => Number(item?.queueId) === queueLane)
+          : [];
+        const runningCount = items.filter((item) => item.status === "running").length;
+        const totalCount = items.length;
+
+        statusDot.classList.toggle("live", connected);
+        statusText.textContent = connected ? "Live connected" : "Waiting for live";
+        liveUsername.textContent = connected && username ? `@${username}` : "Not connected";
+        queueCount.textContent = String(totalCount);
+        queueTag.textContent = runningCount > 0
+          ? `${runningCount} playing`
+          : totalCount > 0
+            ? `${totalCount} waiting`
+            : "Idle";
+        updatedAt.textContent = formatUpdatedAt(state?.updatedAt);
+
+        if (!items.length) {
+          queueList.innerHTML = overlayMode === "compact"
+            ? `<div class="compact-now-playing"><div class="compact-empty">${connected ? `Queue ${queueLane} is clear right now.` : "Connect to a live stream to start showing queue activity."}</div></div>`
+            : `<div class="empty-state">${connected ? `No queued actions on Queue ${queueLane} right now.` : "Connect to a live stream to start showing queue activity."}</div>`;
+          return;
+        }
+
+        if (overlayMode === "compact") {
+          const currentItem = items.find((item) => item.status === "running") || items[0];
+          const remainingCount = Math.max(0, items.length - 1);
+          const kindLabel = currentItem.kind === "tts" ? "TTS" : "Action";
+          const statusLabel = currentItem.status === "running" ? "Playing now" : "Up next";
+
+          queueList.innerHTML = `
+            <div class="compact-now-playing">
+              <div class="compact-heading">
+                <strong>${escapeHtml(statusLabel)}</strong>
+                <span class="meta-pill kind-${escapeHtml(currentItem.kind)}">${escapeHtml(kindLabel)}</span>
+              </div>
+              <div class="compact-main">${escapeHtml(currentItem.label)}</div>
+              <div class="compact-sub">
+                <span class="meta-pill">Queue ${escapeHtml(String(currentItem.queueId))}</span>
+                <span class="meta-pill status-${escapeHtml(currentItem.status)}">${escapeHtml(currentItem.status === "running" ? "Playing" : "Waiting")}</span>
+                ${remainingCount > 0 ? `<span class="meta-pill">${escapeHtml(String(remainingCount))} more waiting</span>` : ""}
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        queueList.innerHTML = items.map((item) => {
+          const kindLabel = item.kind === "tts" ? "TTS" : "Action";
+          const statusLabel = item.status === "running" ? "Playing" : "Waiting";
+          return `
+            <article class="queue-item ${item.status === "running" ? "running" : ""}">
+              <div class="queue-item-title">${escapeHtml(item.label)}</div>
+              <div class="queue-item-meta">
+                <span class="meta-pill kind-${escapeHtml(item.kind)}">${escapeHtml(kindLabel)}</span>
+                <span class="meta-pill">Queue ${escapeHtml(String(item.queueId))}</span>
+                <span class="meta-pill status-${escapeHtml(item.status)}">${escapeHtml(statusLabel)}</span>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      async function loadQueueState() {
+        try {
+          const response = await fetch("/api/queue-overlay-state", { cache: "no-store" });
+          const result = await response.json();
+          renderQueueState(result?.state ?? {});
+        } catch {
+          renderQueueState({
+            connected: false,
+            username: "",
+            queueCount: 0,
+            items: [],
+            updatedAt: null
+          });
+          updatedAt.textContent = "Overlay temporarily unavailable";
+        }
+      }
+
+      loadQueueState();
+      window.setInterval(loadQueueState, 1000);
+    </script>
+  </body>
+</html>

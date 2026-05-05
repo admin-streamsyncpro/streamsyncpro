@@ -10,6 +10,15 @@ It provides these endpoints:
 - `POST /api/auth/login`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
+- `POST /api/auth/create-topup-session`
+- `POST /api/auth/create-queue-overlay-session`
+- `POST /api/auth/create-command-feedback-overlay-session`
+- `POST /api/billing/create-paypal-order`
+- `POST /api/billing/capture-paypal-order`
+- `POST /api/overlay/update-queue-state`
+- `POST /api/overlay/update-command-feedback-state`
+- `GET /api/overlay/queue-state?token=...`
+- `GET /api/overlay/command-feedback-state?token=...`
 
 These paths match the Electron desktop app's existing auth flow.
 
@@ -27,6 +36,11 @@ public_html/
     config.php
   admin/
     index.php
+  billing/
+    index.php
+  overlay/
+    queue.php
+    command-feedback.php
 ```
 
 ### Setup steps
@@ -34,15 +48,22 @@ public_html/
 1. Copy `config.sample.php` to `config.php`.
 2. Fill in your real database settings in `config.php`.
 3. Set your sender email address in `config.php`.
-4. Upload the `api` folder and `admin/index.php` to your website root.
-5. Visit `https://your-domain.com/api/health`
-6. If it returns JSON with `"ok": true`, the API is live.
+4. Add your PayPal settings in `config.php`:
+   - `paypal.client_id`
+   - `paypal.client_secret`
+   - `paypal.environment`
+5. Upload the `api` folder, `admin/index.php`, `billing/index.php`, `overlay/queue.php`, and `overlay/command-feedback.php` to your website root.
+6. Visit `https://your-domain.com/api/health`
+7. If it returns JSON with `"ok": true`, the API is live.
 
 ### Admin dashboard
 
 Upload:
 
 - `website-auth/admin/index.php`
+- `website-auth/billing/index.php`
+- `website-auth/overlay/queue.php`
+- `website-auth/overlay/command-feedback.php`
 
 Then open:
 
@@ -62,11 +83,16 @@ The admin dashboard lets you:
 - view registered users
 - search by email or display name
 - filter by active, locked, verified, or pending users
+- enable or disable per-user debug logging
 - update the admin password from the dashboard
 - update user credit balances
+- change the live credit pricing settings used by the billing page
+- create, activate, deactivate, and delete promo codes
 - lock accounts
 - unlock accounts
 - delete accounts
+
+When per-user debug logging is enabled, the desktop app can push deeper timing traces into that user's audit trail. This is useful for diagnosing issues like delayed TTS playback, queue backlog, or provider-specific synthesis slowdowns without capturing verbose diagnostics for every user all the time.
 
 For the in-dashboard admin password update to work, `api/config.php` must be writable by your hosting PHP process.
 
@@ -91,6 +117,51 @@ The desktop app deducts:
 Before the connection starts, the website auth API checks that the account has at least `1` credit available.
 
 If the account has no credits left, the app will show a message telling the user they do not have enough credits and should contact admin.
+
+### PayPal credit top-up
+
+The app can now open a secure website billing page where a signed-in user chooses how many credits to buy.
+
+The current default billing rate is:
+
+- `10 credits = £1.00`
+- `20 credits = £2.00`
+- `1 credit = £0.10`
+
+The website calculates the GBP total from the requested credit amount, creates a PayPal order on the server, captures the payment, and only then adds credits to the user account.
+
+Promo codes can now also be created in the admin dashboard and applied on the billing page.
+
+The top-up page uses a short-lived billing token generated from the app, so the user's main auth session token does not have to be exposed in the browser URL.
+
+### Hosted queue overlay
+
+The app can now create a per-user hosted queue overlay URL on your website instead of relying on a local IP address.
+
+How it works:
+
+- the signed-in app requests a short-lived queue overlay token
+- the app keeps publishing that user's queue state back to the website auth API
+- the overlay page reads that hosted state through `https://your-domain.com/overlay/queue.php?token=...`
+- you can still add `queue=<1-10>` and `mode=full` or `mode=compact` to the URL for queue-specific views
+
+Example:
+
+- `https://streamsyncpro.co.uk/overlay/queue.php?token=...&queue=2&mode=compact`
+
+### Hosted command feedback overlay
+
+The app can also create a per-user hosted command feedback overlay URL on your website.
+
+How it works:
+
+- the signed-in app requests a short-lived command-feedback overlay token
+- when a supported chat command is used, the app publishes the latest feedback card state back to the website auth API
+- the overlay page reads that hosted state through `https://your-domain.com/overlay/command-feedback.php?token=...`
+
+Example:
+
+- `https://streamsyncpro.co.uk/overlay/command-feedback.php?token=...`
 
 ### Email delivery
 

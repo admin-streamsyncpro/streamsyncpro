@@ -58,7 +58,10 @@ Notes:
 
 - The certificate password is not stored in this repo.
 - SmartScreen reputation usually improves after you consistently ship signed releases.
-- EV code-signing certificates typically build trust faster than standard certificates.
+- Microsoft no longer gives new EV-signed files an automatic SmartScreen pass. OV, EV, and Trusted Signing still need reputation to build on each new file hash.
+- For non-Store distribution, keep the signing identity consistent across releases and sign every public build.
+- If Microsoft Defender or SmartScreen flags a clean release, submit the exact installer as a software developer for analysis at `https://www.microsoft.com/en-us/wdsi/filesubmission`.
+- If you want the smoothest Windows trust path, consider either Microsoft Store distribution or Microsoft Trusted Signing / Azure Trusted Signing for future signed releases.
 
 ## GitHub releases
 

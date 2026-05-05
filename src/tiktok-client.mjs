@@ -117,6 +117,8 @@ function formatConnectionError(error, username) {
 }
 
 function bindConnectionEvents(connection, normalizedUsername, listeners) {
+  let streamEndedDisconnecting = false;
+
   connection.on(WebcastEvent.CHAT, (data) => {
     const roleFlags = getRoleFlags(data);
 
@@ -239,16 +241,27 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       roomId: null
     };
 
+    if (streamEndedDisconnecting) {
+      streamEndedDisconnecting = false;
+      return;
+    }
+
     listeners.onStatus({
       level: "info",
-      message: "Disconnected from TikTok LIVE."
+      message: "Disconnected from TikTok LIVE.",
+      connectionState: { ...connectionState }
     });
   });
 
-  connection.on(WebcastEvent.STREAM_END, () => {
+  connection.on(WebcastEvent.STREAM_END, async () => {
+    streamEndedDisconnecting = true;
+    await disconnectFromLive();
+
     listeners.onStatus({
       level: "info",
-      message: "The live stream has ended."
+      message: "The live stream has ended. Disconnected from TikTok LIVE.",
+      connectionState: { ...connectionState },
+      streamEnded: true
     });
   });
 
@@ -296,14 +309,26 @@ export async function connectToLive(username, listeners) {
 
     bindConnectionEvents(connection, normalizedUsername, listeners);
 
-    try {
-      const state = await connection.connect();
-      currentConnection = connection;
-      connectionState = {
-        connected: true,
-        username: normalizedUsername,
-        roomId: state.roomId ?? null
-      };
+      try {
+        const state = await connection.connect();
+        const resolvedRoomId = state.roomId ?? null;
+
+        if (!resolvedRoomId) {
+          try {
+            await connection.disconnect();
+          } catch {
+            // Ignore cleanup errors after a failed connect attempt.
+          }
+
+          throw new Error(`TikTok did not return a valid room ID for @${normalizedUsername}. The live may not be active yet, so please try again when the stream is fully live.`);
+        }
+
+        currentConnection = connection;
+        connectionState = {
+          connected: true,
+          username: normalizedUsername,
+          roomId: resolvedRoomId
+        };
 
       return connectionState;
     } catch (error) {

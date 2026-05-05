@@ -42,6 +42,7 @@ const appVersionLabel = document.getElementById("app-version");
 const appVersionAuth = document.getElementById("app-version-auth");
 const appVersionInline = document.getElementById("app-version-inline");
 const updateStatus = document.getElementById("update-status");
+const topupCreditsButton = document.getElementById("topup-credits-button");
 
 // Connection controls
 const connectForm = document.getElementById("connect-form");
@@ -65,6 +66,16 @@ const chatNotesInput = document.getElementById("chat-notes-input");
 const chatNotesSaveButton = document.getElementById("chat-notes-save");
 const chatNotesDeleteButton = document.getElementById("chat-notes-delete");
 const chatNotesCloseButton = document.getElementById("chat-notes-close");
+const ttsVoiceManagerModal = document.getElementById("tts-voice-manager-modal");
+const ttsVoiceManagerCloseButton = document.getElementById("tts-voice-manager-close");
+const ttsVoiceManagerProvider = document.getElementById("tts-voice-manager-provider");
+const ttsVoiceManagerStatus = document.getElementById("tts-voice-manager-status");
+const ttsVoiceManagerSearchInput = document.getElementById("tts-voice-manager-search");
+const ttsVoiceManagerUsernameInput = document.getElementById("tts-voice-manager-username");
+const ttsVoiceManagerVoiceSelect = document.getElementById("tts-voice-manager-voice");
+const ttsVoiceManagerAddButton = document.getElementById("tts-voice-manager-add-button");
+const ttsVoiceManagerList = document.getElementById("tts-voice-manager-list");
+const ttsVoiceManagerUserSuggestions = document.getElementById("tts-voice-manager-user-suggestions");
 
 // Sidebar tabs
 const controlsTabButton = document.getElementById("controls-tab-button");
@@ -83,6 +94,12 @@ const queueFilterSelect = document.getElementById("queue-filter");
 const queueClearFilteredButton = document.getElementById("queue-clear-filtered");
 const queueActionList = document.getElementById("queue-action-list");
 const queueActionStatus = document.getElementById("queue-action-status");
+const queueOverlayQueueSelect = document.getElementById("queue-overlay-queue");
+const queueOverlayModeSelect = document.getElementById("queue-overlay-mode");
+const queueOverlayUrlInput = document.getElementById("queue-overlay-url");
+const queueOverlayCopyButton = document.getElementById("queue-overlay-copy");
+const queueOverlayOpenButton = document.getElementById("queue-overlay-open");
+const queueOverlayStatus = document.getElementById("queue-overlay-status");
 
 // Translation controls
 const translationEnabledInput = document.getElementById("translation-enabled");
@@ -97,6 +114,7 @@ const ttsIncludeUsernameInput = document.getElementById("tts-include-username");
 const ttsReadGiftsInput = document.getElementById("tts-read-gifts");
 const ttsGiftMinCoinsInput = document.getElementById("tts-gift-min-coins");
 const ttsProviderSelect = document.getElementById("tts-provider");
+const ttsRandomVoiceInput = document.getElementById("tts-random-voice");
 const ttsElevenModeField = document.getElementById("tts-eleven-mode-field");
 const ttsElevenModeSelect = document.getElementById("tts-eleven-mode");
 const ttsElevenApiKeyField = document.getElementById("tts-eleven-api-key-field");
@@ -112,6 +130,14 @@ const ttsRateValue = document.getElementById("tts-rate-value");
 const ttsPitchValue = document.getElementById("tts-pitch-value");
 const ttsVolumeValue = document.getElementById("tts-volume-value");
 const ttsTestButton = document.getElementById("tts-test-button");
+const ttsManageUserVoicesButton = document.getElementById("tts-manage-user-voices-button");
+const commandFeedbackDurationInput = document.getElementById("command-feedback-duration");
+const commandFeedbackOverlayUrlInput = document.getElementById("command-feedback-overlay-url");
+const commandFeedbackOverlayCopyButton = document.getElementById("command-feedback-overlay-copy");
+const commandFeedbackOverlayOpenButton = document.getElementById("command-feedback-overlay-open");
+const commandFeedbackTemplateMyttsvoiceInput = document.getElementById("command-feedback-template-myttsvoice");
+const commandFeedbackTemplateListcommandsInput = document.getElementById("command-feedback-template-listcommands");
+const commandFeedbackStatus = document.getElementById("command-feedback-status");
 const ttsStatus = document.getElementById("tts-status");
 
 // Audience filters
@@ -128,6 +154,7 @@ const customRuleStatus = document.getElementById("custom-rule-status");
 const MAX_CHAT_MESSAGES = 400;
 const SEARCH_PREVIEW_LIMIT = 50;
 const SAVE_DEBOUNCE_MS = 250;
+const CONNECT_CREDIT_STABILIZE_MS = 2500;
 const TTS_STYLE_PROFILES = {
   natural: {
     rateOffset: 0,
@@ -184,8 +211,13 @@ const state = {
     activeCustomRuleId: null,
     forceClosing: false,
     authSessionCheckStatus: "waiting",
+  ttsVoiceManagerSearch: "",
   queueCount: 0,
   queueFilter: "all",
+  queueOverlayBaseUrl: "",
+  queueOverlayLane: 1,
+  queueOverlayMode: "full",
+  commandFeedbackOverlayBaseUrl: "",
   playbackQueueItems: [],
   customRulePreviewAudio: null,
   customRuleTriggerCounts: new Map(),
@@ -212,6 +244,7 @@ const state = {
 
 let toastTimer = null;
 let saveSettingsTimer = null;
+let pendingSettingsSavePromise = Promise.resolve();
 let headerEventsWired = false;
 let authEventsWired = false;
 let chatToolbarEventsWired = false;
@@ -234,6 +267,7 @@ function createDefaultSettings() {
     ttsEnabled: false,
     ttsProvider: "builtin",
     ttsVoice: "",
+    ttsRandomVoicePerMessage: false,
     ttsStyle: "natural",
     ttsQueue: 1,
     ttsRate: 1,
@@ -245,11 +279,20 @@ function createDefaultSettings() {
     ttsElevenMode: "free",
     ttsElevenApiKey: "",
     ttsElevenModel: "eleven_flash_v2_5",
-    ttsAudience: {
-      allViewers: true,
-      subscribers: false,
-      moderators: false
-    },
+      ttsAudience: {
+        allViewers: true,
+        subscribers: false,
+        moderators: false
+      },
+      commandFeedbackOverlayDurationMs: 6000,
+      commandFeedbackTemplates: {
+        myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
+        listcommands: "{user}, available chat commands: {commandList}"
+      },
+      ttsUserVoiceAssignments: {
+        builtin: {},
+        elevenlabs: {}
+      },
     userNotes: {},
     customEventRules: []
   };
@@ -264,9 +307,15 @@ function ensureSettingsShape(source = {}) {
     ...defaults,
     ...source,
     userNotes: normalizeUserNotes(source?.userNotes),
-    ttsAudience: {
-      ...defaults.ttsAudience,
-      ...(source?.ttsAudience ?? {})
+      ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
+      commandFeedbackOverlayDurationMs: Math.max(1000, Number(source?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
+      commandFeedbackTemplates: {
+        ...defaults.commandFeedbackTemplates,
+        ...(source?.commandFeedbackTemplates ?? {})
+      },
+      ttsAudience: {
+        ...defaults.ttsAudience,
+        ...(source?.ttsAudience ?? {})
     },
     customEventRules: Array.isArray(source?.customEventRules)
       ? source.customEventRules.map(normalizeRule).filter(Boolean)
@@ -347,6 +396,7 @@ function updateQueueIndicators() {
   statQueue.textContent = String(count);
   queueCountPill.textContent = `${count} ${count === 1 ? "item" : "items"}`;
   renderQueueActionList();
+  syncQueueOverlayState();
 }
 
 function getFilteredQueueItems() {
@@ -400,20 +450,201 @@ function renderQueueActionList() {
   );
 }
 
-function clearQueuedPlaybackItem(itemId) {
+function getSelectedQueueOverlayUrl() {
+  if (!state.queueOverlayBaseUrl) {
+    return "";
+  }
+
+  const queueLane = Math.min(10, Math.max(1, Number(state.queueOverlayLane) || 1));
+  const overlayMode = state.queueOverlayMode === "compact" ? "compact" : "full";
+  const overlayUrl = new URL(state.queueOverlayBaseUrl);
+  overlayUrl.searchParams.set("queue", String(queueLane));
+  overlayUrl.searchParams.set("mode", overlayMode);
+  return overlayUrl.toString();
+}
+
+function updateQueueOverlayControls(info = {}) {
+  if (info?.url) {
+    state.queueOverlayBaseUrl = String(info.url).trim();
+  }
+
+  state.queueOverlayLane = Math.min(10, Math.max(1, Number(queueOverlayQueueSelect?.value ?? state.queueOverlayLane) || 1));
+  state.queueOverlayMode = queueOverlayModeSelect?.value === "compact" ? "compact" : "full";
+  const overlayUrl = getSelectedQueueOverlayUrl();
+  if (queueOverlayQueueSelect) {
+    queueOverlayQueueSelect.value = String(state.queueOverlayLane);
+  }
+  if (queueOverlayModeSelect) {
+    queueOverlayModeSelect.value = state.queueOverlayMode;
+  }
+  queueOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  queueOverlayCopyButton.disabled = overlayUrl === "";
+  queueOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    queueOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? `Queue ${state.queueOverlayLane} ${state.queueOverlayMode === "compact" ? "compact" : "full"} hosted overlay ready. Use this URL in TikTok or OBS.`
+      : "Queue overlay is unavailable right now."
+  );
+}
+
+async function loadQueueOverlayInfo() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    state.queueOverlayBaseUrl = "";
+    queueOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    queueOverlayCopyButton.disabled = true;
+    queueOverlayOpenButton.disabled = true;
+    setStatusMessage(queueOverlayStatus, "info", "Sign in to generate a hosted queue overlay URL for this user.");
+    return;
+  }
+
+  try {
+    const info = await authRequest("/api/auth/create-queue-overlay-session", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken
+    });
+    updateQueueOverlayControls(info);
+  } catch (error) {
+    queueOverlayUrlInput.value = "Overlay unavailable";
+    queueOverlayCopyButton.disabled = true;
+    queueOverlayOpenButton.disabled = true;
+    setStatusMessage(queueOverlayStatus, "error", error.message || "Unable to load the queue overlay URL.");
+  }
+}
+
+function syncQueueOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-queue-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    connected: state.connected,
+    username: state.username,
+    queueCount: state.playbackQueueItems.length,
+    items: state.playbackQueueItems.map((item) => ({
+      id: item.id,
+      label: item.label,
+      queueId: item.queueId,
+      kind: item.kind,
+      status: item.status
+    }))
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so they never interrupt queue playback or UI updates.
+  });
+}
+
+function getCommandFeedbackOverlayUrl() {
+  return state.commandFeedbackOverlayBaseUrl || "";
+}
+
+function updateCommandFeedbackOverlayControls(info = {}) {
+  if (info?.url) {
+    state.commandFeedbackOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getCommandFeedbackOverlayUrl();
+  commandFeedbackOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  commandFeedbackOverlayCopyButton.disabled = overlayUrl === "";
+  commandFeedbackOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    commandFeedbackStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? "Command feedback overlay hosted URL ready. Use this in TikTok or OBS."
+      : "Command feedback overlay is unavailable right now."
+  );
+}
+
+async function loadCommandFeedbackOverlayInfo() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    state.commandFeedbackOverlayBaseUrl = "";
+    commandFeedbackOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    commandFeedbackOverlayCopyButton.disabled = true;
+    commandFeedbackOverlayOpenButton.disabled = true;
+    setStatusMessage(commandFeedbackStatus, "info", "Sign in to generate a hosted command feedback overlay URL for this user.");
+    return;
+  }
+
+  try {
+    const info = await authRequest("/api/auth/create-command-feedback-overlay-session", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken
+    });
+    updateCommandFeedbackOverlayControls(info);
+  } catch (error) {
+    commandFeedbackOverlayUrlInput.value = "Overlay unavailable";
+    commandFeedbackOverlayCopyButton.disabled = true;
+    commandFeedbackOverlayOpenButton.disabled = true;
+    setStatusMessage(commandFeedbackStatus, "error", error.message || "Unable to load the command feedback overlay URL.");
+  }
+}
+
+function getSupportedChatCommandList() {
+  const availableEntries = getAvailableTtsVoiceEntries();
+  const myTtsVoiceRange = availableEntries.length > 0 ? ` (1-${availableEntries.length})` : "";
+  return [
+    "!listcomands",
+    "!listcommands",
+    `!myttsvoice <number>${myTtsVoiceRange}`
+  ].join(", ");
+}
+
+function formatCommandFeedbackTemplate(template, replacements) {
+  return String(template ?? "")
+    .replaceAll("{user}", replacements.user ?? "")
+    .replaceAll("{voiceLabel}", replacements.voiceLabel ?? "")
+    .replaceAll("{voiceNumber}", replacements.voiceNumber ?? "")
+    .replaceAll("{commandList}", replacements.commandList ?? "")
+    .trim();
+}
+
+function showCommandFeedbackOverlay(commandType, replacements) {
+  const template = state.settings?.commandFeedbackTemplates?.[commandType] ?? "";
+  const message = formatCommandFeedbackTemplate(template, replacements);
+  if (!message) {
+    return;
+  }
+
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  const durationMs = Math.max(1000, Number(state.settings?.commandFeedbackOverlayDurationMs) || 6000);
+  const visibleUntil = new Date(Date.now() + durationMs).toISOString();
+
+  void authRequest("/api/overlay/update-command-feedback-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    message,
+    commandType,
+    username: replacements.user ?? "",
+    durationMs,
+    visibleUntil
+  }).catch(() => {
+    // Ignore overlay sync errors so command handling still completes normally.
+  });
+}
+
+function clearQueuedPlaybackItem(itemId, options = {}) {
+  const silent = Boolean(options?.silent);
   for (const lane of playbackQueues.values()) {
     const itemIndex = lane.items.findIndex((entry) => entry.id === itemId);
     if (itemIndex === -1) {
       continue;
     }
 
-    const [item] = lane.items.splice(itemIndex, 1);
-    state.playbackQueueItems = state.playbackQueueItems.filter((entry) => entry.id !== itemId);
-    updateQueueIndicators();
-    item.reject(createQueueClearedError());
-    showToast(`Cleared queued action: ${item.label}`, "info");
-    return true;
-  }
+      const [item] = lane.items.splice(itemIndex, 1);
+      state.playbackQueueItems = state.playbackQueueItems.filter((entry) => entry.id !== itemId);
+      updateQueueIndicators();
+      item.reject(createQueueClearedError());
+      if (!silent) {
+        showToast(`Cleared queued action: ${item.label}`, "info");
+      }
+      return true;
+    }
 
   return false;
 }
@@ -433,6 +664,21 @@ function clearFilteredPlaybackItems() {
   }
 
   showToast(`Cleared ${clearableIds.length} queued item${clearableIds.length === 1 ? "" : "s"}.`, "success");
+}
+
+function clearAllQueuedPlaybackItems(kinds = []) {
+  const clearKinds = Array.isArray(kinds) && kinds.length
+    ? new Set(kinds)
+    : null;
+
+  const clearableIds = state.playbackQueueItems
+    .filter((item) => item.status === "queued")
+    .filter((item) => !clearKinds || clearKinds.has(item.kind))
+    .map((item) => item.id);
+
+  for (const itemId of clearableIds) {
+    clearQueuedPlaybackItem(itemId, { silent: true });
+  }
 }
 
 async function processPlaybackLane(queueId) {
@@ -505,6 +751,229 @@ function normalizeUserNotes(source = {}) {
       .map(([key, value]) => [normalizeUserKey(key), String(value ?? "").trim()])
       .filter(([key, value]) => key && value)
   );
+}
+
+function normalizeTtsUserVoiceAssignments(source = {}) {
+  const normalized = {
+    builtin: {},
+    elevenlabs: {}
+  };
+
+  if (!source || typeof source !== "object") {
+    return normalized;
+  }
+
+  for (const providerKey of ["builtin", "elevenlabs"]) {
+    const providerAssignments = source?.[providerKey];
+    if (!providerAssignments || typeof providerAssignments !== "object") {
+      continue;
+    }
+
+    normalized[providerKey] = Object.fromEntries(
+      Object.entries(providerAssignments)
+        .map(([userKey, voiceValue]) => [normalizeUserKey(userKey), String(voiceValue ?? "").trim()])
+        .filter(([userKey, voiceValue]) => userKey && voiceValue)
+    );
+  }
+
+  return normalized;
+}
+
+function getCurrentTtsProviderKey() {
+  return ttsProviderSelect.value === "elevenlabs" ? "elevenlabs" : "builtin";
+}
+
+function getCurrentTtsProviderLabel() {
+  return getCurrentTtsProviderKey() === "elevenlabs" ? "ElevenLabs" : "Built-in";
+}
+
+function getAvailableTtsVoiceEntries() {
+  return state.voices.map((voice, index) => {
+    const value = getCurrentTtsProviderKey() === "elevenlabs" ? voice.id : voice.name;
+    const baseLabel = getCurrentTtsProviderKey() === "elevenlabs"
+      ? `${voice.name}${voice.category ? ` (${voice.category})` : ""}`
+      : `${voice.name}${voice.culture ? ` (${voice.culture})` : ""}`;
+
+    return {
+      index: index + 1,
+      value,
+      label: `${index + 1}. ${baseLabel}`,
+      baseLabel,
+      voice
+    };
+  });
+}
+
+function getUserAssignedTtsVoice(userKey) {
+  const providerKey = getCurrentTtsProviderKey();
+  const normalizedUser = normalizeUserKey(userKey);
+  if (!normalizedUser) {
+    return "";
+  }
+
+  return String(state.settings?.ttsUserVoiceAssignments?.[providerKey]?.[normalizedUser] ?? "").trim();
+}
+
+async function saveUserAssignedTtsVoice(userKey, voiceValue) {
+  const providerKey = getCurrentTtsProviderKey();
+  const normalizedUser = normalizeUserKey(userKey);
+  if (!normalizedUser) {
+    return;
+  }
+
+  const nextAssignments = normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments);
+  nextAssignments[providerKey] = {
+    ...nextAssignments[providerKey],
+    [normalizedUser]: String(voiceValue ?? "").trim()
+  };
+
+  await persistSettings({ ttsUserVoiceAssignments: nextAssignments });
+}
+
+async function removeUserAssignedTtsVoice(userKey) {
+  const providerKey = getCurrentTtsProviderKey();
+  const normalizedUser = normalizeUserKey(userKey);
+  if (!normalizedUser) {
+    return;
+  }
+
+  const nextAssignments = normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments);
+  delete nextAssignments[providerKey][normalizedUser];
+  await persistSettings({ ttsUserVoiceAssignments: nextAssignments });
+}
+
+function buildTtsVoiceManagerOptionsMarkup(selectedValue = "") {
+  const options = getAvailableTtsVoiceEntries()
+    .map((entry) => `<option value="${escapeHtml(entry.value)}" ${entry.value === selectedValue ? "selected" : ""}>${escapeHtml(entry.label)}</option>`)
+    .join("");
+
+  return `<option value="">Select a voice</option>${options}`;
+}
+
+function getKnownTtsVoiceUsers() {
+  const knownUsers = new Map();
+  const addUser = (userKey, nickname = "") => {
+    const normalizedUser = normalizeUserKey(userKey);
+    if (!normalizedUser || knownUsers.has(normalizedUser)) {
+      return;
+    }
+    knownUsers.set(normalizedUser, String(nickname ?? "").trim());
+  };
+
+  for (const [userKey, profile] of state.sessionUserProfiles.entries()) {
+    addUser(userKey, profile?.nickname ?? "");
+  }
+
+  for (const item of state.chatItems) {
+    addUser(item?.user, item?.nickname ?? "");
+  }
+
+  for (const userKey of Object.keys(normalizeUserNotes(state.settings?.userNotes))) {
+    addUser(userKey, "");
+  }
+
+  const assignments = normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments);
+  for (const providerAssignments of Object.values(assignments)) {
+    for (const userKey of Object.keys(providerAssignments ?? {})) {
+      addUser(userKey, "");
+    }
+  }
+
+  return Array.from(knownUsers.entries()).sort(([left], [right]) => left.localeCompare(right));
+}
+
+function renderTtsVoiceManagerUserSuggestions() {
+  if (!ttsVoiceManagerUserSuggestions) {
+    return;
+  }
+
+  const optionsMarkup = getKnownTtsVoiceUsers()
+    .map(([userKey, nickname]) => {
+      const label = nickname && normalizeUserKey(nickname) !== userKey ? `@${userKey} (${nickname})` : `@${userKey}`;
+      return `<option value="${escapeHtml(userKey)}" label="${escapeHtml(label)}"></option>`;
+    })
+    .join("");
+
+  ttsVoiceManagerUserSuggestions.innerHTML = optionsMarkup;
+}
+
+function renderTtsVoiceManager() {
+  if (!ttsVoiceManagerModal) {
+    return;
+  }
+
+  const providerKey = getCurrentTtsProviderKey();
+  const providerLabel = getCurrentTtsProviderLabel();
+  const searchTerm = String(state.ttsVoiceManagerSearch ?? "").trim().toLowerCase();
+  const assignments = Object.entries(normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments)?.[providerKey] ?? {})
+    .sort(([left], [right]) => left.localeCompare(right));
+  const filteredAssignments = searchTerm
+    ? assignments.filter(([userKey]) => userKey.toLowerCase().includes(searchTerm))
+    : assignments;
+
+  ttsVoiceManagerProvider.textContent = `Manage saved ${providerLabel} voice assignments for viewers. Chat command: !myttsvoice <number>.`;
+  ttsVoiceManagerVoiceSelect.innerHTML = buildTtsVoiceManagerOptionsMarkup();
+  ttsVoiceManagerSearchInput.value = state.ttsVoiceManagerSearch ?? "";
+  renderTtsVoiceManagerUserSuggestions();
+
+  if (!assignments.length) {
+    ttsVoiceManagerList.innerHTML = `<div class="tts-voice-manager-empty">No custom ${providerLabel} TTS voices are assigned yet.</div>`;
+    setStatusMessage(ttsVoiceManagerStatus, "info", `No saved ${providerLabel} voice assignments yet.`);
+    return;
+  }
+
+  if (!filteredAssignments.length) {
+    ttsVoiceManagerList.innerHTML = `<div class="tts-voice-manager-empty">No ${providerLabel} voice assignments match your search.</div>`;
+    setStatusMessage(ttsVoiceManagerStatus, "info", `Showing 0 of ${assignments.length} saved ${providerLabel} voice assignment${assignments.length === 1 ? "" : "s"}.`);
+    return;
+  }
+
+  setStatusMessage(
+    ttsVoiceManagerStatus,
+    "success",
+    searchTerm
+      ? `Showing ${filteredAssignments.length} of ${assignments.length} saved ${providerLabel} voice assignment${assignments.length === 1 ? "" : "s"}.`
+      : `${assignments.length} custom ${providerLabel} voice assignment${assignments.length === 1 ? "" : "s"} saved.`
+  );
+  ttsVoiceManagerList.innerHTML = filteredAssignments
+    .map(([userKey, voiceValue]) => `
+      <article class="tts-voice-manager-row" data-tts-voice-user="${escapeHtml(userKey)}">
+        <div class="tts-voice-manager-row-copy">
+          <strong>@${escapeHtml(userKey)}</strong>
+          <span class="helper-text">Custom voice for ${escapeHtml(providerLabel)}</span>
+        </div>
+        <label class="field">
+          <span>Assigned voice</span>
+          <select data-tts-voice-select="${escapeHtml(userKey)}">
+            ${buildTtsVoiceManagerOptionsMarkup(voiceValue)}
+          </select>
+        </label>
+        <div class="tts-voice-manager-row-actions">
+          <button type="button" class="ghost compact-button" data-tts-voice-save="${escapeHtml(userKey)}">Save</button>
+          <button type="button" class="ghost compact-button" data-tts-voice-remove="${escapeHtml(userKey)}">Remove</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function openTtsVoiceManagerModal() {
+  renderTtsVoiceManager();
+  ttsVoiceManagerUsernameInput.value = "";
+  ttsVoiceManagerVoiceSelect.value = "";
+  ttsVoiceManagerModal.hidden = false;
+  window.setTimeout(() => {
+    ttsVoiceManagerUsernameInput.focus();
+  }, 0);
+}
+
+function closeTtsVoiceManagerModal() {
+  if (!ttsVoiceManagerModal) {
+    return;
+  }
+
+  state.ttsVoiceManagerSearch = "";
+  ttsVoiceManagerModal.hidden = true;
 }
 
 function getUserNote(userKey) {
@@ -601,18 +1070,21 @@ function getAudienceQualifiedMetricValue(rule) {
 }
 
 function getSettingsPayload() {
+  const persistedTtsVoice = String(ttsVoiceSelect.value ?? "").trim() || String(state.settings?.ttsVoice ?? "").trim();
+
   return {
-    rememberedUsername: state.settings.rememberUsername ? usernameInput.value.trim() : "",
-    rememberUsername: rememberUsernameInput.checked,
-    translationEnabled: translationEnabledInput.checked,
-    translationTargetLanguage: translationTargetLanguageSelect.value,
+      rememberedUsername: state.settings.rememberUsername ? usernameInput.value.trim() : "",
+      rememberUsername: rememberUsernameInput.checked,
+      translationEnabled: translationEnabledInput.checked,
+      translationTargetLanguage: translationTargetLanguageSelect.value,
     translationProviderUrl: state.settings.translationProviderUrl ?? "",
-    translationApiKey: state.settings.translationApiKey ?? "",
-      ttsEnabled: ttsEnabledInput.checked,
-      ttsProvider: ttsProviderSelect.value,
-      ttsVoice: ttsVoiceSelect.value,
-      ttsStyle: "natural",
-    ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
+        translationApiKey: state.settings.translationApiKey ?? "",
+        ttsEnabled: ttsEnabledInput.checked,
+        ttsProvider: ttsProviderSelect.value,
+        ttsVoice: persistedTtsVoice,
+        ttsRandomVoicePerMessage: ttsRandomVoiceInput.checked,
+        ttsStyle: "natural",
+      ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
     ttsRate: Number(ttsRateInput.value),
       ttsPitch: Number(ttsPitchInput.value),
       ttsVolume: Number(ttsVolumeInput.value),
@@ -622,13 +1094,19 @@ function getSettingsPayload() {
         ttsElevenMode: ttsElevenModeSelect.value,
         ttsElevenApiKey: ttsElevenApiKeyInput.value.trim(),
         ttsElevenModel: ttsElevenModelSelect.value,
-        ttsAudience: {
-      allViewers: ttsAudienceAllInput.checked,
-      subscribers: ttsAudienceSubscribersInput.checked,
-      moderators: ttsAudienceModeratorsInput.checked
-    },
-    userNotes: normalizeUserNotes(state.settings.userNotes),
-    customEventRules: state.settings.customEventRules.map(normalizeRule).filter(Boolean)
+          ttsAudience: {
+        allViewers: ttsAudienceAllInput.checked,
+        subscribers: ttsAudienceSubscribersInput.checked,
+        moderators: ttsAudienceModeratorsInput.checked
+      },
+      commandFeedbackOverlayDurationMs: Math.max(1000, Number(commandFeedbackDurationInput.value) || 6000),
+      commandFeedbackTemplates: {
+        myttsvoice: String(commandFeedbackTemplateMyttsvoiceInput.value ?? "").trim(),
+        listcommands: String(commandFeedbackTemplateListcommandsInput.value ?? "").trim()
+      },
+      ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(state.settings.ttsUserVoiceAssignments),
+      userNotes: normalizeUserNotes(state.settings.userNotes),
+      customEventRules: state.settings.customEventRules.map(normalizeRule).filter(Boolean)
   };
 }
 
@@ -638,14 +1116,23 @@ async function persistSettings(partial = {}) {
     ...partial
   });
 
-  const saved = await app.saveSettings({
-    ...getSettingsPayload(),
-    ...partial
-  });
+  const nextSave = app
+    .saveSettings({
+      ...getSettingsPayload(),
+      ...partial
+    })
+    .then((saved) => {
+      state.settings = ensureSettingsShape(saved);
+      renderCustomRules();
+      updateHeaderPills();
+      if (ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
+        renderTtsVoiceManager();
+      }
+      return state.settings;
+    });
 
-  state.settings = ensureSettingsShape(saved);
-  renderCustomRules();
-  updateHeaderPills();
+  pendingSettingsSavePromise = nextSave.catch(() => state.settings);
+  return nextSave;
 }
 
 function scheduleSettingsSave() {
@@ -654,8 +1141,29 @@ function scheduleSettingsSave() {
     persistSettings().catch((error) => {
       showToast(error.message || "Unable to save settings.", "error");
     });
-  }, SAVE_DEBOUNCE_MS);
+    }, SAVE_DEBOUNCE_MS);
 }
+
+async function flushPendingSettingsForExit() {
+  window.clearTimeout(saveSettingsTimer);
+  saveSettingsTimer = null;
+
+  try {
+    await persistSettings();
+  } catch {
+    // Allow the app to close even if the final save fails.
+  }
+
+  try {
+    await pendingSettingsSavePromise;
+  } catch {
+    // Ignore close-time save failures.
+  }
+
+  return true;
+}
+
+window.__flushPendingSettingsForExit = flushPendingSettingsForExit;
 
 function setAuthStatus(level, message) {
   setStatusMessage(authStatus, level, message);
@@ -717,12 +1225,14 @@ function scheduleAuthRememberSave() {
 
 function showDashboardForUser(user) {
     state.authenticatedUser = user;
-    signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
-    creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+  signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
     authShell.hidden = true;
     dashboardShell.hidden = false;
     setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
     setAuthSessionCheckStatus("checking", "Session check: Checking");
+  void loadQueueOverlayInfo();
+  void loadCommandFeedbackOverlayInfo();
   startAuthSessionMonitor();
 }
 
@@ -734,6 +1244,8 @@ function showAuthShell() {
     authShell.hidden = false;
   stopAuthSessionMonitor();
   setAuthSessionCheckStatus("waiting", "Session check: Waiting");
+  void loadQueueOverlayInfo();
+  void loadCommandFeedbackOverlayInfo();
 }
 
 function setAuthSessionCheckStatus(level, message) {
@@ -847,26 +1359,66 @@ async function handleForcedAdminSignOut(message) {
   }, 900);
 }
 
+async function handleLockedAccountSignOut(message) {
+  if (state.forceClosing) {
+    return;
+  }
+
+  stopAuthSessionMonitor();
+  setAuthSessionCheckStatus("forced", "Session check: Account locked");
+  setAuthStatus("error", message);
+  showToast(message, "error");
+
+  try {
+    if (state.connected) {
+      await app.disconnect();
+    }
+  } catch {
+    // Best-effort disconnect before returning to the sign-in screen.
+  }
+
+  state.connected = false;
+  state.connecting = false;
+  state.username = "";
+  state.roomId = null;
+  updateHeaderPills();
+  setConnectionUiState();
+
+  await persistSettings({ authUser: null });
+  showAuthShell();
+
+  window.alert(message);
+}
+
 async function syncAuthenticatedUser(user) {
-  state.authenticatedUser = user ?? null;
-  signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
-  creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+  const mergedUser = user
+    ? {
+        ...(state.authenticatedUser ?? {}),
+        ...user,
+        sessionToken: user.sessionToken || state.authenticatedUser?.sessionToken || ""
+      }
+    : null;
+
+  state.authenticatedUser = mergedUser;
+  signedInPill.textContent = mergedUser ? `Signed in as ${mergedUser.displayName || mergedUser.email}` : "Signed in";
+  creditsPill.textContent = `Credits: ${Number(mergedUser?.credits ?? 0)}`;
   await persistSettings({
-    authUser: state.settings?.authRememberMe ? user ?? null : null
+    authUser: state.settings?.authRememberMe ? mergedUser ?? null : null
   });
 }
 
-async function recordAuditEvent(eventType) {
+async function recordAuditEvent(eventType, metadata = {}) {
   const user = state.authenticatedUser;
   if (!user?.id || !user?.sessionToken) {
     return null;
   }
 
-  const result = await authRequest("/api/auth/audit-event", {
-    userId: user.id,
-    sessionToken: user.sessionToken,
-    eventType
-  });
+    const result = await authRequest("/api/auth/audit-event", {
+      userId: user.id,
+      sessionToken: user.sessionToken,
+      eventType,
+      ...metadata
+    });
 
   if (result.user) {
     await syncAuthenticatedUser(result.user);
@@ -934,18 +1486,114 @@ async function authRequest(path, payload) {
     body: JSON.stringify(payload)
   });
 
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(result.error || result.message || "Authentication request failed.");
-      error.authCode = result.code || "";
-      if (error.authCode === "admin_forced_sign_out") {
-        await handleForcedAdminSignOut(error.message || "Your session was ended by an administrator. The app will close now.");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(result.error || result.message || "Authentication request failed.");
+        error.authCode = result.code || "";
+        if (error.authCode === "admin_forced_sign_out") {
+          await handleForcedAdminSignOut(error.message || "Your session was ended by an administrator. The app will close now.");
+        }
+        if (error.authCode === "account_locked") {
+          await handleLockedAccountSignOut(error.message || "This account has been locked. Please contact admin.");
+        }
+        throw error;
       }
-      throw error;
-    }
 
     return result;
   }
+
+async function reportAuthenticatedAppError(error, errorContext, details = {}) {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken || state.forceClosing) {
+    return;
+  }
+
+  const message = String(
+    error?.message
+      || error?.reason?.message
+      || details.message
+      || "Unknown application error."
+  ).trim();
+  if (!message) {
+    return;
+  }
+
+  const errorCode = String(
+    error?.authCode
+      || error?.code
+      || error?.reason?.code
+      || details.errorCode
+      || ""
+  ).trim();
+
+  const payload = {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    eventType: "app_error",
+    errorContext: String(errorContext || "App").trim(),
+    errorMessage: message,
+    errorCode,
+    source: "desktop_app",
+    details: {
+      ...details,
+      provider: state.settings?.ttsProvider || "",
+      connected: Boolean(state.connected)
+    }
+  };
+
+  try {
+    await fetch(`${getAuthApiBaseUrl()}/api/auth/audit-event`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    // Ignore audit logging failures so they never disrupt the app flow.
+  }
+}
+
+async function reportAuthenticatedDebugTrace(debugContext, debugMessage, details = {}) {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken || state.forceClosing) {
+    return;
+  }
+
+  if (!state.authenticatedUser?.debugEnabled) {
+    return;
+  }
+
+  const message = String(debugMessage || "").trim();
+  if (!message) {
+    return;
+  }
+
+  const payload = {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    eventType: "debug_trace",
+    debugContext: String(debugContext || "Debug").trim(),
+    debugMessage: message,
+    source: "desktop_app",
+    details: {
+      ...details,
+      provider: state.settings?.ttsProvider || "",
+      connected: Boolean(state.connected),
+      queueCount: Number(state.playbackQueueItems?.length || 0)
+    }
+  };
+
+  try {
+    await fetch(`${getAuthApiBaseUrl()}/api/auth/audit-event`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch {
+    // Ignore debug logging failures so they never disrupt the app flow.
+  }
+}
 
 async function verifyAuthenticatedSession() {
   if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken || state.forceClosing) {
@@ -968,37 +1616,43 @@ async function verifyAuthenticatedSession() {
       applySessionCheckUserSnapshot(result.user);
     }
 
-    if (result.active) {
-      setAuthSessionCheckStatus("active", "Session check: Active");
-      return result.user ?? state.authenticatedUser;
-    }
+      if (result.active) {
+        setAuthSessionCheckStatus("active", "Session check: Active");
+        return result.user ?? state.authenticatedUser;
+      }
 
-    if (result.code === "admin_forced_sign_out") {
-      await handleForcedAdminSignOut(result.message || "Your session was ended by an administrator. The app will close now.");
-      return null;
-    }
+      if (result.code === "account_locked") {
+        await handleLockedAccountSignOut(result.message || "This account has been locked. Please contact admin.");
+        return null;
+      }
+
+      if (result.code === "admin_forced_sign_out") {
+        await handleForcedAdminSignOut(result.message || "Your session was ended by an administrator. The app will close now.");
+        return null;
+      }
 
     setAuthSessionCheckStatus("error", `Session check: ${result.message || "Inactive"}`);
     return null;
-  } catch (error) {
-    if (error?.authCode === "admin_forced_sign_out") {
-      return null;
-    }
-    setAuthSessionCheckStatus("error", "Session check: Unavailable");
+    } catch (error) {
+      if (error?.authCode === "admin_forced_sign_out" || error?.authCode === "account_locked") {
+        return null;
+      }
+      setAuthSessionCheckStatus("error", "Session check: Unavailable");
     return null;
   }
 }
 
-async function consumeConnectCredit() {
+async function consumeConnectCredit(tiktokUsername = "") {
   const user = state.authenticatedUser;
   if (!user?.id || !user?.sessionToken) {
     throw new Error("Please sign in again before connecting.");
   }
 
-  const result = await authRequest("/api/auth/consume-connect-credit", {
-    userId: user.id,
-    sessionToken: user.sessionToken
-  });
+    const result = await authRequest("/api/auth/consume-connect-credit", {
+      userId: user.id,
+      sessionToken: user.sessionToken,
+      tiktokUsername
+    });
 
   await syncAuthenticatedUser(result.user);
 
@@ -1073,6 +1727,58 @@ async function refreshCreditsStatus() {
   }
 }
 
+async function openCreditsTopup() {
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    throw new Error("Please sign in before opening credit top up.");
+  }
+
+  const result = await authRequest("/api/auth/create-topup-session", {
+    userId: user.id,
+    sessionToken: user.sessionToken,
+  });
+
+  if (result.user) {
+    await syncAuthenticatedUser(result.user);
+  }
+
+  await app.openExternal(result.url);
+  showToast("Opened the secure credit top-up page in your browser.", "info");
+  return result;
+}
+
+function isInsufficientCreditsError(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return message.includes("do not have enough credits") || message.includes("not enough credits");
+}
+
+async function promptCreditsTopupForConnect() {
+  const shouldTopup = window.confirm("You do not have enough credits to go live. Would you like to top up now?");
+  if (!shouldTopup) {
+    return false;
+  }
+
+  await openCreditsTopup();
+  return true;
+}
+
+async function waitForStableConnectedLive(username) {
+  await delay(CONNECT_CREDIT_STABILIZE_MS);
+  const liveConnectionState = await app.getConnectionState();
+  const normalizedRequestedUsername = String(username ?? "").trim().replace(/^@/, "").toLowerCase();
+  const normalizedLiveUsername = String(liveConnectionState?.username ?? "").trim().replace(/^@/, "").toLowerCase();
+
+  if (
+    !liveConnectionState?.connected ||
+    !liveConnectionState?.roomId ||
+    normalizedLiveUsername !== normalizedRequestedUsername
+  ) {
+    throw new Error(`@${username} is no longer live, so no credit was deducted.`);
+  }
+
+  return liveConnectionState;
+}
+
 function setConnectionUiState() {
   connectButton.textContent = state.connected ? "Disconnect" : state.connecting ? "Connecting..." : "Connect";
   connectButton.disabled = state.connecting;
@@ -1090,11 +1796,18 @@ function updateHeaderPills() {
   const ttsOn = ttsEnabledInput.checked;
   ttsPill.textContent = ttsOn ? "TTS On" : "TTS Off";
   ttsPill.className = `status-pill ${ttsOn ? "accent" : "muted"}`;
+  syncQueueOverlayState();
 }
 
 function setStatusMessage(element, level, message) {
   element.className = `status ${level}`;
   element.textContent = message;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 function showToast(message, level = "info") {
@@ -1169,6 +1882,11 @@ function updateTtsStatus() {
   }
   if (ttsProviderSelect.value === "elevenlabs" && ttsElevenModeSelect.value === "paid" && !state.voices.length) {
     setStatusMessage(ttsStatus, "info", "Paid mode needs one of your own compatible ElevenLabs account voices.");
+    return;
+  }
+  if (ttsRandomVoiceInput.checked) {
+    const randomLabel = state.voices.length ? `${state.voices.length} available voices` : "no loaded voices";
+    setStatusMessage(ttsStatus, "success", `TTS is on using random ${providerLabel} voices per message from ${randomLabel} on ${getQueueLabel(ttsQueueSelect.value)}. User-picked voices still take priority.`);
     return;
   }
   if (ttsProviderSelect.value === "elevenlabs") {
@@ -1456,13 +2174,40 @@ async function playAudioUrl(audioUrl, volume = Number(ttsVolumeInput.value) || 1
   return new Promise((resolve) => {
     const source = state.audioContext.createBufferSource();
     const gainNode = state.audioContext.createGain();
+    state.currentGainNode = gainNode;
     gainNode.gain.value = volume;
     source.buffer = buffer;
     source.connect(gainNode);
     gainNode.connect(state.audioContext.destination);
-    source.onended = resolve;
+    source.onended = () => {
+      if (state.currentGainNode === gainNode) {
+        state.currentGainNode = null;
+      }
+      resolve();
+    };
     source.start(0);
   });
+}
+
+function stopCurrentAudioPlayback() {
+  if (!state.currentGainNode) {
+    return;
+  }
+
+  try {
+    state.currentGainNode.gain.cancelScheduledValues(0);
+    state.currentGainNode.gain.setValueAtTime(state.currentGainNode.gain.value, state.audioContext?.currentTime ?? 0);
+    state.currentGainNode.gain.linearRampToValueAtTime(0, (state.audioContext?.currentTime ?? 0) + 0.06);
+  } catch {
+    // Ignore audio shutdown issues during disconnect cleanup.
+  } finally {
+    state.currentGainNode = null;
+  }
+}
+
+function clearLiveInteractionState() {
+  clearAllQueuedPlaybackItems(["tts", "action"]);
+  stopCurrentAudioPlayback();
 }
 
 function getEffectiveCustomRule(ruleId) {
@@ -1979,6 +2724,95 @@ function buildSpeechText(item) {
   return body;
 }
 
+function addLocalSystemChatMessage(message) {
+  const item = {
+    id: `system-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    type: "system",
+    user: "system",
+    nickname: "Stream Sync Pro LIVE",
+    message,
+    translatedText: "",
+    detectedLanguage: null,
+    timestamp: new Date().toISOString()
+  };
+
+  state.chatItems.unshift(item);
+  if (state.chatItems.length > MAX_CHAT_MESSAGES) {
+    state.chatItems.length = MAX_CHAT_MESSAGES;
+  }
+
+  renderChatList();
+}
+
+async function handleListCommandsCommand(item) {
+  if (item.type !== "chat") {
+    return false;
+  }
+
+  const normalizedMessage = String(item.message ?? "").trim().toLowerCase();
+  if (normalizedMessage !== "!listcomands" && normalizedMessage !== "!listcommands") {
+    return false;
+  }
+
+  const commandSummary = `Available chat commands: ${getSupportedChatCommandList()}.`;
+
+  addLocalSystemChatMessage(commandSummary);
+  showCommandFeedbackOverlay("listcommands", {
+    user: `@${item.user}`,
+    commandList: getSupportedChatCommandList()
+  });
+  showToast(`Displayed the available chat commands for @${item.user}.`, "info");
+  return true;
+}
+
+function getResolvedTtsVoiceSelection(item = null) {
+  const availableEntries = getAvailableTtsVoiceEntries();
+  const availableByValue = new Map(availableEntries.map((entry) => [entry.value, entry]));
+  const assignedVoiceValue = item?.user ? getUserAssignedTtsVoice(item.user) : "";
+
+  if (assignedVoiceValue && availableByValue.has(assignedVoiceValue)) {
+    const assignedEntry = availableByValue.get(assignedVoiceValue);
+    return {
+      value: assignedEntry.value,
+      label: assignedEntry.baseLabel,
+      random: false,
+      assigned: true
+    };
+  }
+
+  if (ttsRandomVoiceInput.checked && availableEntries.length > 0) {
+    const randomEntry = availableEntries[Math.floor(Math.random() * availableEntries.length)];
+    return {
+      value: randomEntry.value,
+      label: randomEntry.baseLabel,
+      random: true,
+      assigned: false
+    };
+  }
+
+  const selectedValue = String(ttsVoiceSelect.value ?? "").trim();
+  if (selectedValue && availableByValue.has(selectedValue)) {
+    const selectedEntry = availableByValue.get(selectedValue);
+    return {
+      value: selectedEntry.value,
+      label: selectedEntry.baseLabel,
+      random: false,
+      assigned: false
+    };
+  }
+
+  return {
+    value: selectedValue,
+    label: voiceLabelFromSelect(),
+    random: false,
+    assigned: false
+  };
+}
+
+function voiceLabelFromSelect() {
+  return ttsVoiceSelect.options[ttsVoiceSelect.selectedIndex]?.text ?? "Default voice";
+}
+
 function getStyleAdjustedPitch() {
   const styleProfile = TTS_STYLE_PROFILES.natural;
   const basePitch = Number(ttsPitchInput.value) || 1;
@@ -2005,38 +2839,99 @@ function updateTtsProviderVisibility() {
   ttsElevenModelField.classList.toggle("is-hidden", !isElevenLabs);
 }
 
-function enqueueSpeech(text) {
+function enqueueSpeech(text, options = {}) {
   if (!text) {
     return;
   }
 
   const previewText = text.length > 44 ? `${text.slice(0, 44)}...` : text;
+  const provider = options.provider ?? ttsProviderSelect.value;
+  const mode = options.mode ?? ttsElevenModeSelect.value;
+  const apiKey = options.apiKey ?? ttsElevenApiKeyInput.value.trim();
+  const modelId = options.modelId ?? ttsElevenModelSelect.value;
+  const voiceSelection = options.voiceSelection ?? getResolvedTtsVoiceSelection();
+  const queueId = options.queueId ?? ttsQueueSelect.value;
+  const receivedAt = Number(options.receivedAt || Date.now());
+  const sourceUser = String(options.sourceUser || "").trim();
+  const rate = options.rate ?? getStyleAdjustedRate();
+  const pitch = options.pitch ?? getStyleAdjustedPitch();
+  const volume = options.volume ?? getStyleAdjustedVolume();
+  const queuedAt = Date.now();
 
-  void enqueuePlaybackTask(ttsQueueSelect.value, async () => {
+  void reportAuthenticatedDebugTrace("TTS queued", "Queued TTS message for playback.", {
+    queueId,
+    voice: voiceSelection?.value || "",
+    previewText,
+    sourceUser,
+    latencySinceReceiptMs: Math.max(0, queuedAt - receivedAt)
+  });
+
+  void enqueuePlaybackTask(queueId, async () => {
+    const playbackStartedAt = Date.now();
+    const synthStartedAt = Date.now();
+
+    await reportAuthenticatedDebugTrace("TTS playback", "Starting queued TTS playback task.", {
+      queueId,
+      voice: voiceSelection?.value || "",
+      previewText,
+      sourceUser,
+      queueWaitMs: Math.max(0, playbackStartedAt - queuedAt),
+      latencySinceReceiptMs: Math.max(0, playbackStartedAt - receivedAt)
+    });
+
     try {
         const result = await app.speakToFile({
           text,
-          provider: ttsProviderSelect.value,
-          voiceName: ttsVoiceSelect.value,
-          voiceId: ttsVoiceSelect.value,
-          mode: ttsElevenModeSelect.value,
-          apiKey: ttsElevenApiKeyInput.value.trim(),
-          modelId: ttsElevenModelSelect.value,
+          provider,
+          voiceName: voiceSelection.value,
+          voiceId: voiceSelection.value,
+          mode,
+          apiKey,
+          modelId,
           style: "natural",
-          rate: getStyleAdjustedRate(),
-          pitch: getStyleAdjustedPitch()
+          rate,
+          pitch
         });
+      const synthCompletedAt = Date.now();
+
+      await reportAuthenticatedDebugTrace("TTS synthesis", "Finished generating TTS audio file.", {
+        queueId,
+        voice: voiceSelection?.value || "",
+        previewText,
+        sourceUser,
+        synthDurationMs: Math.max(0, synthCompletedAt - synthStartedAt),
+        latencySinceReceiptMs: Math.max(0, synthCompletedAt - receivedAt),
+        filePath: result?.filePath || ""
+      });
 
       const fileUrl = new URL(`file://${result.filePath.replaceAll("\\", "/")}`).toString();
-        await playAudioUrl(fileUrl, getStyleAdjustedVolume());
+        await playAudioUrl(fileUrl, volume);
+        const playbackCompletedAt = Date.now();
+
+        await reportAuthenticatedDebugTrace("TTS complete", "Completed TTS playback.", {
+          queueId,
+          voice: voiceSelection?.value || "",
+          previewText,
+          sourceUser,
+          totalLatencyMs: Math.max(0, playbackCompletedAt - receivedAt),
+          playbackDurationMs: Math.max(0, playbackCompletedAt - synthCompletedAt)
+        });
         await app.deleteTtsFile(result.filePath);
-    } catch (error) {
-      if (error?.cleared) {
-        return;
+      } catch (error) {
+        if (error?.cleared) {
+          return;
+        }
+        void reportAuthenticatedAppError(error, "TTS playback", {
+          queueId,
+          voice: voiceSelection?.value || "",
+          previewText
+        });
+        showToast(error.message || "Unable to play TTS audio.", "error");
       }
-      showToast(error.message || "Unable to play TTS audio.", "error");
-    }
-  }, { label: `TTS: ${previewText}`, kind: "tts" });
+  }, {
+    label: `TTS: ${previewText}${voiceSelection.label ? ` · ${voiceSelection.label}` : ""}`,
+    kind: "tts"
+  });
 }
 
 async function translateChatItem(item) {
@@ -2056,13 +2951,56 @@ async function translateChatItem(item) {
       translatedText: result.translatedText,
       detectedLanguage: result.detectedLanguage
     };
-  } catch (error) {
-    setStatusMessage(translationStatus, "error", error.message || "Translation failed.");
-    return item;
+    } catch (error) {
+      void reportAuthenticatedAppError(error, "Translation", {
+        targetLanguage: translationTargetLanguageSelect.value
+      });
+      setStatusMessage(translationStatus, "error", error.message || "Translation failed.");
+      return item;
+    }
+}
+
+async function handleMyTtsVoiceCommand(item) {
+  if (item.type !== "chat") {
+    return false;
   }
+
+  const match = String(item.message ?? "").trim().match(/^!myttsvoice\s+(\d+)\s*$/i);
+  if (!match) {
+    return false;
+  }
+
+  const availableEntries = getAvailableTtsVoiceEntries();
+  const selectedNumber = Number(match[1]);
+  const selectedEntry = availableEntries.find((entry) => entry.index === selectedNumber);
+
+  if (!availableEntries.length) {
+    showToast(`@${item.user} tried to set a TTS voice, but no voices are currently loaded.`, "error");
+    return true;
+  }
+
+  if (!selectedEntry) {
+    showToast(`@${item.user} chose an invalid TTS voice number. Available voices: 1-${availableEntries.length}.`, "error");
+    return true;
+  }
+
+  await saveUserAssignedTtsVoice(item.user, selectedEntry.value);
+  showCommandFeedbackOverlay("myttsvoice", {
+    user: `@${item.user}`,
+    voiceLabel: selectedEntry.label,
+    voiceNumber: String(selectedNumber)
+  });
+  showToast(`@${item.user} set their TTS voice to ${selectedEntry.label}.`, "success");
+  return true;
 }
 
 async function handleIncomingChat(payload) {
+  if (!state.connected) {
+    return;
+  }
+
+  const receivedAt = Date.now();
+
   const item = await translateChatItem({
     ...payload,
     translatedText: payload.translatedText ?? "",
@@ -2070,6 +3008,12 @@ async function handleIncomingChat(payload) {
   });
 
   updateSessionUserProfile(item);
+  void reportAuthenticatedDebugTrace("Chat received", "Received live chat or interaction event.", {
+    itemType: item.type,
+    user: item.user || "",
+    previewText: String(item.text || item.giftName || "").slice(0, 120),
+    translatedText: String(item.translatedText || "").slice(0, 120)
+  });
 
   if (item.type === "chat") {
     state.statState.chatTimestamps.push(Date.now());
@@ -2110,11 +3054,28 @@ async function handleIncomingChat(payload) {
   }
 
   renderChatList();
+  if (ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
+    renderTtsVoiceManagerUserSuggestions();
+  }
   updateStats();
   checkCustomRules();
 
+  const handledListCommands = await handleListCommandsCommand(item);
+  if (handledListCommands) {
+    return;
+  }
+
+  const handledVoiceCommand = await handleMyTtsVoiceCommand(item);
+  if (handledVoiceCommand) {
+    return;
+  }
+
   if (shouldSpeakChatItem(item)) {
-    enqueueSpeech(buildSpeechText(item));
+    enqueueSpeech(buildSpeechText(item), {
+      voiceSelection: getResolvedTtsVoiceSelection(item),
+      receivedAt,
+      sourceUser: item.user || ""
+    });
   }
 }
 
@@ -2154,23 +3115,29 @@ async function loadVoices() {
       apiKey: ttsElevenApiKeyInput.value.trim()
     });
     state.voices = Array.isArray(voices) ? voices : [];
-  } catch (error) {
-    state.voices = [];
-    setStatusMessage(ttsStatus, "error", error.message || "Unable to load voices.");
-  }
+    } catch (error) {
+      state.voices = [];
+      void reportAuthenticatedAppError(error, "TTS voice loading", {
+        provider: ttsProviderSelect.value,
+        mode: ttsElevenModeSelect.value
+      });
+      setStatusMessage(ttsStatus, "error", error.message || "Unable to load voices.");
+    }
 
   const selectedVoice = state.settings.ttsVoice;
-  const options = state.voices.map((voice) => {
-    const value = ttsProviderSelect.value === "elevenlabs" ? voice.id : voice.name;
-    const label = ttsProviderSelect.value === "elevenlabs"
-      ? `${voice.name}${voice.category ? ` (${voice.category})` : ""}`
-      : `${voice.name}${voice.culture ? ` (${voice.culture})` : ""}`;
-    return `<option value="${escapeHtml(value)}">${escapeHtml(label)}</option>`;
+  const options = getAvailableTtsVoiceEntries().map((entry) => {
+    return `<option value="${escapeHtml(entry.value)}">${escapeHtml(entry.label)}</option>`;
   });
 
   ttsVoiceSelect.innerHTML = `<option value="">${ttsProviderSelect.value === "elevenlabs" ? "Select an ElevenLabs voice" : "Default system voice"}</option>${options.join("")}`;
   const hasSelectedVoice = state.voices.some((voice) => (ttsProviderSelect.value === "elevenlabs" ? voice.id : voice.name) === selectedVoice);
   if (selectedVoice && hasSelectedVoice) {
+    ttsVoiceSelect.value = selectedVoice;
+  } else if (selectedVoice) {
+    const fallbackLabel = ttsProviderSelect.value === "elevenlabs"
+      ? `Saved voice (${selectedVoice})`
+      : `Saved system voice (${selectedVoice})`;
+    ttsVoiceSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(selectedVoice)}">${escapeHtml(fallbackLabel)}</option>`);
     ttsVoiceSelect.value = selectedVoice;
   } else {
     ttsVoiceSelect.value = "";
@@ -2179,6 +3146,12 @@ async function loadVoices() {
   if (ttsProviderSelect.value === "elevenlabs" && ttsElevenModeSelect.value === "paid" && !state.voices.length) {
     setStatusMessage(ttsStatus, "info", "No compatible ElevenLabs account voices were found for Paid mode. Create or save an eligible voice in ElevenLabs, or switch to Free mode.");
   }
+
+  if (ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
+    renderTtsVoiceManager();
+  }
+
+  updateTtsStatus();
 }
 
 function applySettingsToUi() {
@@ -2194,6 +3167,7 @@ function applySettingsToUi() {
 
   ttsEnabledInput.checked = settings.ttsEnabled;
   ttsProviderSelect.value = settings.ttsProvider || "builtin";
+  ttsRandomVoiceInput.checked = Boolean(settings.ttsRandomVoicePerMessage);
   ttsIncludeUsernameInput.checked = settings.ttsIncludeUsername;
   ttsReadGiftsInput.checked = settings.ttsReadGifts;
   ttsGiftMinCoinsInput.value = String(Math.max(0, Number(settings.ttsGiftMinCoins) || 0));
@@ -2205,11 +3179,14 @@ function applySettingsToUi() {
   ttsPitchInput.value = String(settings.ttsPitch);
   ttsVolumeInput.value = String(settings.ttsVolume);
 
-  ttsAudienceAllInput.checked = settings.ttsAudience.allViewers;
-  ttsAudienceSubscribersInput.checked = settings.ttsAudience.subscribers;
-  ttsAudienceModeratorsInput.checked = settings.ttsAudience.moderators;
-  ttsAudienceVipsInput.checked = false;
-  updateTtsProviderVisibility();
+    ttsAudienceAllInput.checked = settings.ttsAudience.allViewers;
+    ttsAudienceSubscribersInput.checked = settings.ttsAudience.subscribers;
+    ttsAudienceModeratorsInput.checked = settings.ttsAudience.moderators;
+    ttsAudienceVipsInput.checked = false;
+    commandFeedbackDurationInput.value = String(Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000));
+    commandFeedbackTemplateMyttsvoiceInput.value = settings.commandFeedbackTemplates?.myttsvoice ?? "";
+    commandFeedbackTemplateListcommandsInput.value = settings.commandFeedbackTemplates?.listcommands ?? "";
+    updateTtsProviderVisibility();
 
   updateRatePitchVolumeLabels();
   updateTranslationStatus();
@@ -2293,22 +3270,28 @@ function wireHeaderEvents() {
     setConnectionUiState();
 
     if (state.connected) {
-      try {
-        state.connecting = true;
-        setConnectionUiState();
-        await app.disconnect();
-        await recordAuditEvent("disconnect");
-        state.connected = false;
-        state.username = "";
-        state.roomId = null;
-        resetSessionMetrics();
-        updateHeaderPills();
-        setConnectionUiState();
+        try {
+          state.connecting = true;
+          setConnectionUiState();
+          await app.disconnect();
+          await recordAuditEvent("disconnect", {
+            tiktokUsername: state.username || usernameInput.value.trim()
+          });
+          state.connected = false;
+          state.username = "";
+          state.roomId = null;
+          clearLiveInteractionState();
+          resetSessionMetrics();
+          updateHeaderPills();
+          setConnectionUiState();
         await refreshCreditsStatus();
         showToast("Disconnected from TikTok LIVE.", "info");
-      } catch (error) {
-        showToast(error.message || "Unable to disconnect.", "error");
-      } finally {
+        } catch (error) {
+          void reportAuthenticatedAppError(error, "TikTok disconnect", {
+            username: state.username || usernameInput.value.trim()
+          });
+          showToast(error.message || "Unable to disconnect.", "error");
+        } finally {
         state.connecting = false;
         updateHeaderPills();
         setConnectionUiState();
@@ -2332,31 +3315,53 @@ function wireHeaderEvents() {
         rememberUsername: rememberUsernameInput.checked,
         rememberedUsername: rememberUsernameInput.checked ? username : ""
       });
-      await refreshCreditsStatus();
-      await checkConnectCredit();
-      const result = await app.connect(username);
-      state.connected = Boolean(result.connected);
-      state.username = result.username ?? username;
-      state.roomId = result.roomId ?? null;
-      resetSessionMetrics();
-      updateHeaderPills();
-      const creditResult = await consumeConnectCredit();
+        await refreshCreditsStatus();
+        await checkConnectCredit();
+        const result = await app.connect(username);
+        state.connected = Boolean(result.connected);
+        state.username = result.username ?? username;
+        state.roomId = result.roomId ?? null;
+        if (!state.connected || !state.roomId) {
+          throw new Error(`TikTok did not return a valid room ID for @${username}. The live may not be active yet, so no credit was deducted.`);
+        }
+        const stableConnectionState = await waitForStableConnectedLive(username);
+        state.connected = Boolean(stableConnectionState.connected);
+        state.username = stableConnectionState.username ?? state.username;
+        state.roomId = stableConnectionState.roomId ?? state.roomId;
+        resetSessionMetrics();
+        updateHeaderPills();
+        const creditResult = await consumeConnectCredit(state.username || username);
       showToast(`${creditResult.message} Remaining credits: ${creditResult.user?.credits ?? 0}.`, "info");
       showToast(`Connected to @${state.username}.`, "success");
-    } catch (error) {
-      if (state.connected) {
-        try {
-          await app.disconnect();
-        } catch {
+      } catch (error) {
+        if (state.connected) {
+          try {
+            await app.disconnect();
+          } catch {
           // Ignore cleanup errors after a failed post-connect credit deduction.
         }
-      }
-      state.connected = false;
-      state.username = "";
-      state.roomId = null;
-      updateHeaderPills();
-      showToast(error.message || "Unable to connect.", "error");
-    } finally {
+        }
+        state.connected = false;
+        state.username = "";
+        state.roomId = null;
+        clearLiveInteractionState();
+        updateHeaderPills();
+          if (isInsufficientCreditsError(error)) {
+            try {
+              await promptCreditsTopupForConnect();
+            } catch (topupError) {
+              void reportAuthenticatedAppError(topupError, "Credit top-up prompt", {
+                stage: "connect_insufficient_credits"
+              });
+              showToast(topupError.message || "Unable to open the credit top-up page right now.", "error");
+            }
+          } else {
+            void reportAuthenticatedAppError(error, "TikTok connect", {
+              username
+            });
+          }
+          showToast(error.message || "Unable to connect.", "error");
+      } finally {
       await refreshCreditsStatus();
       state.connecting = false;
       updateHeaderPills();
@@ -2455,6 +3460,14 @@ function wireAuthEvents() {
       await signOutUser();
     } catch (error) {
       setAuthStatus("error", error.message || "Unable to sign out right now.");
+    }
+  });
+
+  topupCreditsButton.addEventListener("click", async () => {
+    try {
+      await openCreditsTopup();
+    } catch (error) {
+      setAuthStatus("error", error.message || "Unable to open the credit top-up page right now.");
     }
   });
 
@@ -2620,10 +3633,75 @@ function wireChatToolbarEvents() {
     state.queueFilter = queueFilterSelect.value || "all";
     renderQueueActionList();
   });
+  queueOverlayQueueSelect.addEventListener("change", () => {
+    state.queueOverlayLane = Math.min(10, Math.max(1, Number(queueOverlayQueueSelect.value) || 1));
+    updateQueueOverlayControls();
+  });
+  queueOverlayModeSelect.addEventListener("change", () => {
+    state.queueOverlayMode = queueOverlayModeSelect.value === "compact" ? "compact" : "full";
+    updateQueueOverlayControls();
+  });
   queueClearFilteredButton.addEventListener("click", clearFilteredPlaybackItems);
+  queueOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = queueOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The queue overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Queue overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the queue overlay URL.", "error");
+    }
+  });
+  queueOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = queueOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The queue overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the queue overlay.", "error");
+    }
+  });
+  commandFeedbackOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = commandFeedbackOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The command feedback overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Command feedback overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the command feedback overlay URL.", "error");
+    }
+  });
+  commandFeedbackOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = commandFeedbackOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The command feedback overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the command feedback overlay.", "error");
+    }
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !chatNotesPanel.hidden) {
       closeChatNotesPanel();
+    }
+    if (event.key === "Escape" && ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
+      closeTtsVoiceManagerModal();
     }
   });
 }
@@ -2644,6 +3722,7 @@ function wireSettingsEvents() {
       translationTargetLanguageSelect,
         ttsEnabledInput,
         ttsProviderSelect,
+        ttsRandomVoiceInput,
         ttsElevenModeSelect,
         ttsElevenApiKeyInput,
         ttsElevenModelSelect,
@@ -2651,13 +3730,16 @@ function wireSettingsEvents() {
         ttsReadGiftsInput,
         ttsGiftMinCoinsInput,
       ttsVoiceSelect,
-    ttsQueueSelect,
-    ttsRateInput,
-    ttsPitchInput,
-    ttsVolumeInput,
-    ttsAudienceAllInput,
-    ttsAudienceSubscribersInput,
-    ttsAudienceModeratorsInput
+      ttsQueueSelect,
+      ttsRateInput,
+      ttsPitchInput,
+      ttsVolumeInput,
+      commandFeedbackDurationInput,
+      commandFeedbackTemplateMyttsvoiceInput,
+      commandFeedbackTemplateListcommandsInput,
+      ttsAudienceAllInput,
+      ttsAudienceSubscribersInput,
+      ttsAudienceModeratorsInput
   ].forEach((element) => {
       element.addEventListener("change", () => {
         updateTtsProviderVisibility();
@@ -2669,11 +3751,29 @@ function wireSettingsEvents() {
       });
     });
 
-    [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput].forEach((element) => {
-      element.addEventListener("change", () => {
-        void loadVoices();
+  [
+    commandFeedbackDurationInput,
+    commandFeedbackTemplateMyttsvoiceInput,
+    commandFeedbackTemplateListcommandsInput
+  ].forEach((element) => {
+    element.addEventListener("input", () => {
+      scheduleSettingsSave();
+    });
+  });
+
+      [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput].forEach((element) => {
+        element.addEventListener("change", () => {
+          void loadVoices();
+        });
+      });
+
+  [ttsProviderSelect, ttsElevenModeSelect, ttsElevenModelSelect, ttsVoiceSelect, ttsQueueSelect].forEach((element) => {
+    element.addEventListener("change", () => {
+      persistSettings().catch((error) => {
+        showToast(error.message || "Unable to save TTS settings.", "error");
       });
     });
+  });
 
   ttsRateInput.addEventListener("input", updateRatePitchVolumeLabels);
   ttsPitchInput.addEventListener("input", updateRatePitchVolumeLabels);
@@ -2684,6 +3784,81 @@ function wireSettingsEvents() {
       ? "Stream Sync Pro LIVE model comparison. This voice should sound consistent, clear, and expressive across a longer test phrase."
       : "Stream Sync Pro LIVE voice test.";
     enqueueSpeech(testPhrase);
+  });
+
+  ttsManageUserVoicesButton.addEventListener("click", () => {
+    openTtsVoiceManagerModal();
+  });
+
+  ttsVoiceManagerCloseButton.addEventListener("click", closeTtsVoiceManagerModal);
+  ttsVoiceManagerModal.addEventListener("click", (event) => {
+    if (event.target === ttsVoiceManagerModal) {
+      closeTtsVoiceManagerModal();
+    }
+  });
+  ttsVoiceManagerSearchInput.addEventListener("input", () => {
+    state.ttsVoiceManagerSearch = ttsVoiceManagerSearchInput.value;
+    renderTtsVoiceManager();
+  });
+
+  ttsVoiceManagerAddButton.addEventListener("click", async () => {
+    const normalizedUser = normalizeUserKey(ttsVoiceManagerUsernameInput.value);
+    const voiceValue = String(ttsVoiceManagerVoiceSelect.value ?? "").trim();
+
+    if (!normalizedUser) {
+      showToast("Enter a username before adding a custom TTS voice.", "error");
+      ttsVoiceManagerUsernameInput.focus();
+      return;
+    }
+
+    if (!voiceValue) {
+      showToast("Choose a voice before adding the custom TTS assignment.", "error");
+      ttsVoiceManagerVoiceSelect.focus();
+      return;
+    }
+
+    await saveUserAssignedTtsVoice(normalizedUser, voiceValue);
+    renderTtsVoiceManager();
+    ttsVoiceManagerUsernameInput.value = "";
+    ttsVoiceManagerVoiceSelect.value = "";
+    showToast(`Saved a custom TTS voice for @${normalizedUser}.`, "success");
+  });
+
+  ttsVoiceManagerList.addEventListener("click", (event) => {
+    const saveButton = event.target.closest("[data-tts-voice-save]");
+    const removeButton = event.target.closest("[data-tts-voice-remove]");
+
+    if (!saveButton && !removeButton) {
+      return;
+    }
+
+    void (async () => {
+      if (saveButton) {
+        const userKey = saveButton.dataset.ttsVoiceSave;
+        const select = ttsVoiceManagerList.querySelector(`[data-tts-voice-select="${CSS.escape(userKey)}"]`);
+        const voiceValue = String(select?.value ?? "").trim();
+
+        if (!voiceValue) {
+          showToast("Choose a voice before saving this assignment.", "error");
+          select?.focus();
+          return;
+        }
+
+        await saveUserAssignedTtsVoice(userKey, voiceValue);
+        renderTtsVoiceManager();
+        showToast(`Updated the custom TTS voice for @${userKey}.`, "success");
+        return;
+      }
+
+      if (removeButton) {
+        const userKey = removeButton.dataset.ttsVoiceRemove;
+        await removeUserAssignedTtsVoice(userKey);
+        renderTtsVoiceManager();
+        showToast(`Removed the custom TTS voice for @${userKey}.`, "info");
+      }
+    })().catch((error) => {
+      showToast(error.message || "Unable to update custom TTS voice assignments.", "error");
+    });
   });
 }
 
@@ -2842,7 +4017,30 @@ function wireCustomRuleEvents() {
 
 function wireAppEvents() {
   app.onStatus((payload) => {
+    if (payload?.connectionState) {
+      state.connected = Boolean(payload.connectionState.connected);
+      state.username = payload.connectionState.username ?? "";
+      state.roomId = payload.connectionState.roomId ?? null;
+
+      if (!state.connected) {
+        state.connecting = false;
+        resetSessionMetrics();
+      }
+
+      updateHeaderPills();
+      setConnectionUiState();
+      updateStats();
+    }
+
     const level = payload?.level === "error" ? "error" : payload?.level === "success" ? "success" : "info";
+    if (payload?.connectionState && payload.connectionState.connected === false) {
+      state.connected = false;
+      state.roomId = null;
+      clearLiveInteractionState();
+      resetSessionMetrics();
+      updateHeaderPills();
+      setConnectionUiState();
+    }
     showToast(payload?.message || "Connection status updated.", level);
   });
 
@@ -2886,13 +4084,16 @@ async function initializeApp() {
 
   await Promise.all([
     loadVoices(),
-    ensureSoundCatalog()
+    ensureSoundCatalog(),
+    loadQueueOverlayInfo(),
+    loadCommandFeedbackOverlayInfo()
   ]);
 
   updateTtsStatus();
   updateTranslationStatus();
   updateUpdateStatus();
   renderChatList();
+  syncQueueOverlayState();
 }
 
 wireHeaderEvents();
@@ -2907,6 +4108,19 @@ updateRatePitchVolumeLabels();
 updateUpdateStatus();
 setConnectionUiState();
 
+window.addEventListener("error", (event) => {
+  void reportAuthenticatedAppError(event?.error || new Error(event?.message || "Unhandled window error."), "Window error", {
+    filename: event?.filename || "",
+    line: event?.lineno || 0,
+    column: event?.colno || 0
+  });
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  void reportAuthenticatedAppError(event?.reason || new Error("Unhandled promise rejection."), "Unhandled promise rejection");
+});
+
 initializeApp().catch((error) => {
+  void reportAuthenticatedAppError(error, "App initialization");
   showToast(error.message || "The app could not be initialized.", "error");
 });

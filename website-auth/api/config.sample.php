@@ -18,6 +18,19 @@ return [
         'verification_expiry_minutes' => 15,
         'reset_expiry_minutes' => 15,
     ],
+    'billing' => [
+        'credits_per_gbp' => 10,
+        'currency' => 'GBP',
+        'minimum_credits' => 1,
+        'maximum_credits' => 5000,
+        'topup_session_expiry_minutes' => 20,
+    ],
+    'paypal' => [
+        'environment' => 'live', // or "sandbox"
+        'client_id' => 'YOUR_PAYPAL_CLIENT_ID',
+        'client_secret' => 'YOUR_PAYPAL_CLIENT_SECRET',
+        'brand_name' => 'Stream Sync Pro LIVE',
+    ],
     'admin' => [
         'username' => 'admin',
         'password_hash' => '$2b$10$8kRwidVrYS2KZ/HTWCu48./AFJ9oYRrvAcnzo7mgqmvPKwtRVxmV.',

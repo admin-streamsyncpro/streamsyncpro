@@ -1,5 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { execFile } from "node:child_process";
+import { createServer } from "node:http";
 import log from "electron-log";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -20,6 +21,7 @@ const execFileAsync = promisify(execFile);
 const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
 const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
 const DEFAULT_GITHUB_REPO = "streamsyncpro";
+const QUEUE_OVERLAY_PREFERRED_PORT = 46321;
 const MYINSTANTS_CATEGORY_URL = "https://www.myinstants.com/en/categories/sound%20effects/us/";
 const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MYINSTANTS_MAX_PAGES = 50;
@@ -33,14 +35,69 @@ const ELEVENLABS_FREE_VOICE_OPTIONS = [
 ];
 
 let mainWindow = null;
+let isFlushingWindowClose = false;
 let updateConfig = null;
 let updater = null;
 let hasCheckedForUpdatesOnLaunch = false;
+let queueOverlayServer = null;
+let queueOverlayPort = null;
+let queueOverlayState = {
+  connected: false,
+  username: "",
+  queueCount: 0,
+  updatedAt: null,
+  items: []
+};
+let commandFeedbackOverlayState = {
+  message: "",
+  commandType: "",
+  username: "",
+  updatedAt: null,
+  visibleUntil: null,
+  durationMs: 6000
+};
 let myInstantsCatalogCache = {
   fetchedAt: 0,
   sounds: []
 };
 const myInstantsAudioUrlCache = new Map();
+
+function getOverlayUrlBundle(pathname) {
+  if (!queueOverlayPort) {
+    return {
+      url: "",
+      localUrl: "",
+      networkUrl: ""
+    };
+  }
+
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const localUrl = `http://127.0.0.1:${queueOverlayPort}${normalizedPath}`;
+  const networkInterfaces = os.networkInterfaces();
+  let networkHost = "";
+
+  for (const addresses of Object.values(networkInterfaces)) {
+    for (const address of addresses ?? []) {
+      if (address && address.family === "IPv4" && !address.internal) {
+        networkHost = address.address;
+        break;
+      }
+    }
+
+    if (networkHost) {
+      break;
+    }
+  }
+
+  const networkUrl = networkHost ? `http://${networkHost}:${queueOverlayPort}${normalizedPath}` : "";
+
+  return {
+    url: networkUrl || localUrl,
+    localUrl,
+    networkUrl
+  };
+}
+
 let settings = {
   githubOwner: DEFAULT_GITHUB_OWNER,
   githubRepo: DEFAULT_GITHUB_REPO,
@@ -57,6 +114,7 @@ let settings = {
   ttsEnabled: false,
   ttsProvider: "builtin",
   ttsVoice: "",
+  ttsRandomVoicePerMessage: false,
   ttsStyle: "natural",
   ttsRate: 1,
   ttsPitch: 1,
@@ -73,8 +131,17 @@ let settings = {
     subscribers: false,
     moderators: false
   },
+  ttsUserVoiceAssignments: {
+    builtin: {},
+    elevenlabs: {}
+  },
   userNotes: {},
-  customEventRules: DEFAULT_CUSTOM_EVENT_RULES
+  customEventRules: DEFAULT_CUSTOM_EVENT_RULES,
+  commandFeedbackOverlayDurationMs: 6000,
+  commandFeedbackTemplates: {
+    myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
+    listcommands: "{user}, available chat commands: {commandList}"
+  }
 };
 
 log.initialize();
@@ -85,6 +152,149 @@ function sendToRenderer(channel, payload) {
   }
 
   mainWindow.webContents.send(channel, payload);
+}
+
+function sanitizeQueueOverlayState(payload = {}) {
+  const items = Array.isArray(payload.items)
+    ? payload.items
+        .map((item, index) => ({
+          id: String(item?.id ?? `queue-item-${index}`),
+          label: String(item?.label ?? "Queued action").trim() || "Queued action",
+          queueId: Math.min(10, Math.max(1, Number(item?.queueId) || 1)),
+          kind: item?.kind === "tts" ? "tts" : "action",
+          status: item?.status === "running" ? "running" : "queued"
+        }))
+        .slice(0, 12)
+    : [];
+
+  return {
+    connected: Boolean(payload.connected),
+    username: String(payload.username ?? "").trim(),
+    queueCount: Math.max(0, Number(payload.queueCount) || items.length),
+    updatedAt: new Date().toISOString(),
+    items
+  };
+}
+
+function getQueueOverlayUrl() {
+  return getOverlayUrlBundle("/queue-overlay").url;
+}
+
+function getCommandFeedbackOverlayUrl() {
+  return getOverlayUrlBundle("/command-feedback-overlay").url;
+}
+
+async function serveQueueOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "queue-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve queue overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Queue overlay unavailable.");
+  }
+}
+
+async function serveCommandFeedbackOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "command-feedback-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve command feedback overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Command feedback overlay unavailable.");
+  }
+}
+
+function buildQueueOverlayServer() {
+  return createServer(async (request, response) => {
+    const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
+
+    if (requestUrl.pathname === "/" || requestUrl.pathname === "/queue-overlay") {
+      await serveQueueOverlayHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/command-feedback-overlay") {
+      await serveCommandFeedbackOverlayHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/queue-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getQueueOverlayUrl(),
+        state: queueOverlayState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/command-feedback-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getCommandFeedbackOverlayUrl(),
+        state: commandFeedbackOverlayState
+      }));
+      return;
+    }
+
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Not found.");
+  });
+}
+
+async function listenQueueOverlayServer(port) {
+  queueOverlayServer = buildQueueOverlayServer();
+
+  await new Promise((resolve, reject) => {
+    const handleError = (error) => {
+      queueOverlayServer.off("listening", handleListening);
+      reject(error);
+    };
+    const handleListening = () => {
+      queueOverlayServer.off("error", handleError);
+      resolve();
+    };
+
+    queueOverlayServer.once("error", handleError);
+    queueOverlayServer.once("listening", handleListening);
+    queueOverlayServer.listen(port, "0.0.0.0");
+  });
+
+  queueOverlayPort = queueOverlayServer.address()?.port ?? null;
+}
+
+async function startQueueOverlayServer() {
+  if (queueOverlayServer) {
+    return;
+  }
+
+  try {
+    await listenQueueOverlayServer(QUEUE_OVERLAY_PREFERRED_PORT);
+  } catch (error) {
+    if (error?.code !== "EADDRINUSE") {
+      throw error;
+    }
+
+    queueOverlayServer = null;
+    await listenQueueOverlayServer(0);
+  }
 }
 
 function createWindow() {
@@ -104,6 +314,34 @@ function createWindow() {
 
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadFile(path.join(__dirname, "index.html"));
+  mainWindow.on("close", (event) => {
+    if (isFlushingWindowClose) {
+      return;
+    }
+
+    event.preventDefault();
+    isFlushingWindowClose = true;
+
+    Promise.resolve(
+      mainWindow?.webContents.executeJavaScript(
+        "window.__flushPendingSettingsForExit ? window.__flushPendingSettingsForExit() : Promise.resolve(true)",
+        true
+      )
+    )
+      .catch((error) => {
+        log.warn("Failed to flush renderer settings before close", error);
+      })
+      .finally(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.destroy();
+        }
+      });
+  });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+    isFlushingWindowClose = false;
+  });
 }
 
 function getSettingsPath() {
@@ -151,9 +389,15 @@ async function loadSettings() {
       settings.ttsAudience === "subscribers"
         ? { allViewers: false, subscribers: true, moderators: false }
         : settings.ttsAudience === "moderators"
-          ? { allViewers: false, subscribers: false, moderators: true }
-          : { allViewers: true, subscribers: false, moderators: false };
+            ? { allViewers: false, subscribers: false, moderators: true }
+            : { allViewers: true, subscribers: false, moderators: false };
   }
+
+  settings.commandFeedbackOverlayDurationMs = Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000);
+  settings.commandFeedbackTemplates = {
+    myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
+    listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
+  };
 
   // Keep updater settings pinned to the built-in GitHub Releases repo.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
@@ -173,6 +417,11 @@ async function saveSettings(partialSettings) {
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
   settings.githubRepo = DEFAULT_GITHUB_REPO;
   settings.customEventRules = normalizeCustomEventRules(settings.customEventRules);
+  settings.commandFeedbackOverlayDurationMs = Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000);
+  settings.commandFeedbackTemplates = {
+    myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
+    listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
+  };
 
   updateConfig = getGitHubUpdateConfig(settings);
 
@@ -849,10 +1098,12 @@ app.whenReady().then(() => {
   });
 
   return loadSettings().then(() => {
-    createWindow();
-    configureAutoUpdater();
-    checkForUpdatesOnLaunch().catch((error) => {
-      log.warn("Startup update check failed", error);
+    return startQueueOverlayServer().then(() => {
+      createWindow();
+      configureAutoUpdater();
+      checkForUpdatesOnLaunch().catch((error) => {
+        log.warn("Startup update check failed", error);
+      });
     });
   });
 });
@@ -888,6 +1139,60 @@ ipcMain.handle("app:get-settings", async () => {
 
 ipcMain.handle("app:get-version", async () => {
   return app.getVersion();
+});
+
+ipcMain.handle("overlay:get-queue-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/queue-overlay");
+  return {
+    ...overlayUrls,
+    port: queueOverlayPort,
+    state: queueOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-queue-state", async (_event, payload) => {
+  queueOverlayState = sanitizeQueueOverlayState(payload);
+  return {
+    ok: true,
+    state: queueOverlayState
+  };
+});
+
+ipcMain.handle("overlay:get-command-feedback-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/command-feedback-overlay");
+  return {
+    ...overlayUrls,
+    port: queueOverlayPort,
+    state: commandFeedbackOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-command-feedback-state", async (_event, payload) => {
+  const durationMs = Math.max(1000, Number(payload?.durationMs) || 6000);
+  const updatedAt = new Date().toISOString();
+  commandFeedbackOverlayState = {
+    message: String(payload?.message ?? "").trim(),
+    commandType: String(payload?.commandType ?? "").trim(),
+    username: String(payload?.username ?? "").trim(),
+    updatedAt,
+    visibleUntil: new Date(Date.now() + durationMs).toISOString(),
+    durationMs
+  };
+
+  return {
+    ok: true,
+    state: commandFeedbackOverlayState
+  };
+});
+
+ipcMain.handle("app:open-external", async (_event, payload) => {
+  const url = String(payload?.url ?? "").trim();
+  if (url === "") {
+    throw new Error("A valid URL is required.");
+  }
+
+  await shell.openExternal(url);
+  return { ok: true };
 });
 
 ipcMain.handle("app:quit", async () => {

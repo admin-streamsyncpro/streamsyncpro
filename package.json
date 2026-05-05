@@ -1,6 +1,6 @@
 {
   "name": "ssp-live",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Stream Sync Pro LIVE desktop app for TikTok chat monitoring, TTS, and remote updates.",
   "main": "src/main.mjs",
   "type": "module",
@@ -8,7 +8,7 @@
     "type": "git",
     "url": "https://github.com/admin-streamsyncpro/streamsyncpro.git"
   },
-  "author": "",
+  "author": "Stream Sync Pro",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
@@ -36,6 +36,7 @@
   "build": {
     "appId": "com.codex.tiktoklivereader",
     "productName": "Stream Sync Pro LIVE",
+    "artifactName": "Stream-Sync-Pro-LIVE-Setup-${version}.${ext}",
     "files": [
       "src/**/*",
       "package.json"

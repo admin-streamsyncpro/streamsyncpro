@@ -782,6 +782,40 @@ h3,
   margin: 0;
 }
 
+.section-copy {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.queue-overlay-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.command-feedback-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(84, 208, 255, 0.1);
+  display: grid;
+  gap: 14px;
+}
+
+.panel-inline-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-title-small {
+  font-size: 1rem;
+}
+
 .queue-action-row {
   display: flex;
   justify-content: space-between;
@@ -880,6 +914,75 @@ h3,
   justify-content: flex-end;
   gap: 12px;
   margin-top: 14px;
+}
+
+.tts-voice-manager-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.tts-voice-manager-summary {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.tts-voice-manager-summary .field {
+    margin: 0;
+}
+
+.tts-voice-manager-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  margin-bottom: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(103, 164, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tts-voice-manager-list {
+  display: grid;
+  gap: 12px;
+  max-height: 42vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.tts-voice-manager-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.9fr) minmax(0, 1.4fr) auto;
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(103, 164, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tts-voice-manager-row-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.tts-voice-manager-row-copy strong {
+  font-size: 0.95rem;
+}
+
+.tts-voice-manager-row-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tts-voice-manager-empty {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px dashed rgba(103, 164, 255, 0.18);
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 textarea {
