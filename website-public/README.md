@@ -7,6 +7,9 @@ Upload the contents of this folder to your website root if you want the public m
 Suggested upload structure:
 
 - `public_html/index.html`
+- `public_html/contact.html`
+- `public_html/privacy.html`
+- `public_html/terms.html`
 - `public_html/styles.css`
 - `public_html/assets/SSP.png`
 - `public_html/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.9.exe`

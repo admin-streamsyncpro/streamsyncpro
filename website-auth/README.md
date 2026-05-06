@@ -5,6 +5,7 @@ This package is designed for shared hosting that supports PHP and MySQL, includi
 It provides these endpoints:
 
 - `GET /api/health`
+- `POST /api/contact/submit`
 - `POST /api/auth/register`
 - `POST /api/auth/verify-email`
 - `POST /api/auth/login`
@@ -53,8 +54,9 @@ public_html/
    - `paypal.client_secret`
    - `paypal.environment`
 5. Upload the `api` folder, `admin/index.php`, `billing/index.php`, `overlay/queue.php`, and `overlay/command-feedback.php` to your website root.
-6. Visit `https://your-domain.com/api/health`
-7. If it returns JSON with `"ok": true`, the API is live.
+6. If you want website contact messages routed to a specific inbox, set `contact.to_email` and `contact.to_name` in `config.php`.
+7. Visit `https://your-domain.com/api/health`
+8. If it returns JSON with `"ok": true`, the API is live.
 
 ### Admin dashboard
 
@@ -108,7 +110,7 @@ Locked accounts will receive this app-facing message on login:
 
 Each user account now has a `credits` balance.
 
-New accounts created through app registration now start with `5` credits automatically.
+New accounts created through app registration use the live `Credits granted on sign-up` value from the admin billing settings. The default fallback is `5` credits until you change it in admin.
 
 The desktop app deducts:
 
@@ -131,6 +133,12 @@ The current default billing rate is:
 The website calculates the GBP total from the requested credit amount, creates a PayPal order on the server, captures the payment, and only then adds credits to the user account.
 
 Promo codes can now also be created in the admin dashboard and applied on the billing page.
+
+The billing panel in admin also lets you control:
+
+- credits per GBP
+- min/max credits per purchase
+- credits granted automatically on new sign-up
 
 The top-up page uses a short-lived billing token generated from the app, so the user's main auth session token does not have to be exposed in the browser URL.
 

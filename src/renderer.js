@@ -38,6 +38,11 @@ const translationPill = document.getElementById("translation-pill");
 const ttsPill = document.getElementById("tts-pill");
 const signedInPill = document.getElementById("signed-in-pill");
 const creditsPill = document.getElementById("credits-pill");
+const settingsProfileSelect = document.getElementById("settings-profile-select");
+const settingsProfileCreateButton = document.getElementById("settings-profile-create-button");
+const settingsProfileDeleteButton = document.getElementById("settings-profile-delete-button");
+const settingsProfileImportButton = document.getElementById("settings-profile-import-button");
+const settingsProfileExportButton = document.getElementById("settings-profile-export-button");
 const appVersionLabel = document.getElementById("app-version");
 const appVersionAuth = document.getElementById("app-version-auth");
 const appVersionInline = document.getElementById("app-version-inline");
@@ -47,6 +52,7 @@ const topupCreditsButton = document.getElementById("topup-credits-button");
 // Connection controls
 const connectForm = document.getElementById("connect-form");
 const usernameInput = document.getElementById("username");
+const rememberedUsernamesList = document.getElementById("remembered-usernames");
 const connectButton = document.getElementById("connect-button");
 const rememberUsernameInput = document.getElementById("remember-username");
 const signoutButton = document.getElementById("signout-button");
@@ -76,6 +82,10 @@ const ttsVoiceManagerVoiceSelect = document.getElementById("tts-voice-manager-vo
 const ttsVoiceManagerAddButton = document.getElementById("tts-voice-manager-add-button");
 const ttsVoiceManagerList = document.getElementById("tts-voice-manager-list");
 const ttsVoiceManagerUserSuggestions = document.getElementById("tts-voice-manager-user-suggestions");
+const settingsProfileModal = document.getElementById("settings-profile-modal");
+const settingsProfileModalCloseButton = document.getElementById("settings-profile-modal-close");
+const settingsProfileNameInput = document.getElementById("settings-profile-name-input");
+const settingsProfileModalSaveButton = document.getElementById("settings-profile-modal-save");
 
 // Sidebar tabs
 const controlsTabButton = document.getElementById("controls-tab-button");
@@ -155,6 +165,37 @@ const MAX_CHAT_MESSAGES = 400;
 const SEARCH_PREVIEW_LIMIT = 50;
 const SAVE_DEBOUNCE_MS = 250;
 const CONNECT_CREDIT_STABILIZE_MS = 2500;
+const DEFAULT_SETTINGS_PROFILE_ID = "default";
+const PROFILE_SETTING_KEYS = [
+  "rememberedUsername",
+  "rememberUsername",
+  "rememberedUsernames",
+  "translationEnabled",
+  "translationTargetLanguage",
+  "translationProviderUrl",
+  "translationApiKey",
+  "ttsEnabled",
+  "ttsProvider",
+  "ttsVoice",
+  "ttsRandomVoicePerMessage",
+  "ttsStyle",
+  "ttsQueue",
+  "ttsRate",
+  "ttsPitch",
+  "ttsVolume",
+  "ttsIncludeUsername",
+  "ttsReadGifts",
+  "ttsGiftMinCoins",
+  "ttsElevenMode",
+  "ttsElevenApiKey",
+  "ttsElevenModel",
+  "ttsAudience",
+  "commandFeedbackOverlayDurationMs",
+  "commandFeedbackTemplates",
+  "ttsUserVoiceAssignments",
+  "userNotes",
+  "customEventRules"
+];
 const TTS_STYLE_PROFILES = {
   natural: {
     rateOffset: 0,
@@ -210,6 +251,7 @@ const state = {
     soundCatalogError: "",
     activeCustomRuleId: null,
     forceClosing: false,
+    sessionTerminationReason: "",
     authSessionCheckStatus: "waiting",
   ttsVoiceManagerSearch: "",
   queueCount: 0,
@@ -258,8 +300,16 @@ function createDefaultSettings() {
     authUser: null,
     authRememberMe: false,
     authRememberedEmail: "",
+    activeSettingsProfileId: DEFAULT_SETTINGS_PROFILE_ID,
+    settingsProfiles: {
+      [DEFAULT_SETTINGS_PROFILE_ID]: {
+        name: "Default",
+        settings: createDefaultProfileSettings()
+      }
+    },
     rememberedUsername: "",
     rememberUsername: false,
+    rememberedUsernames: [],
     translationEnabled: false,
     translationTargetLanguage: "en",
     translationProviderUrl: "",
@@ -303,22 +353,36 @@ const AUTH_SESSION_MONITOR_MS = 10000;
 
 function ensureSettingsShape(source = {}) {
   const defaults = createDefaultSettings();
+  const normalizedProfiles = normalizeSettingsProfiles(source?.settingsProfiles, {
+    ...defaults,
+    ...source
+  });
+  const requestedProfileId = String(source?.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
+  const activeSettingsProfileId = normalizedProfiles[requestedProfileId]
+    ? requestedProfileId
+    : Object.keys(normalizedProfiles)[0] ?? DEFAULT_SETTINGS_PROFILE_ID;
+  const activeProfileSettings = normalizedProfiles[activeSettingsProfileId]?.settings ?? createDefaultProfileSettings();
+
   return {
     ...defaults,
     ...source,
-    userNotes: normalizeUserNotes(source?.userNotes),
-      ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
-      commandFeedbackOverlayDurationMs: Math.max(1000, Number(source?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
-      commandFeedbackTemplates: {
-        ...defaults.commandFeedbackTemplates,
-        ...(source?.commandFeedbackTemplates ?? {})
-      },
-      ttsAudience: {
-        ...defaults.ttsAudience,
-        ...(source?.ttsAudience ?? {})
+    ...activeProfileSettings,
+    activeSettingsProfileId,
+    settingsProfiles: normalizedProfiles,
+    rememberedUsernames: normalizeRememberedUsernames([activeProfileSettings?.rememberedUsername, ...(activeProfileSettings?.rememberedUsernames ?? [])]),
+    userNotes: normalizeUserNotes(activeProfileSettings?.userNotes),
+    ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(activeProfileSettings?.ttsUserVoiceAssignments),
+    commandFeedbackOverlayDurationMs: Math.max(1000, Number(activeProfileSettings?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
+    commandFeedbackTemplates: {
+      ...defaults.commandFeedbackTemplates,
+      ...(activeProfileSettings?.commandFeedbackTemplates ?? {})
     },
-    customEventRules: Array.isArray(source?.customEventRules)
-      ? source.customEventRules.map(normalizeRule).filter(Boolean)
+    ttsAudience: {
+      ...defaults.ttsAudience,
+      ...(activeProfileSettings?.ttsAudience ?? {})
+    },
+    customEventRules: Array.isArray(activeProfileSettings?.customEventRules)
+      ? activeProfileSettings.customEventRules.map(normalizeRule).filter(Boolean)
       : []
   };
 }
@@ -741,6 +805,50 @@ function normalizeUserKey(value) {
   return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
 }
 
+function normalizeRememberedUsernames(source = []) {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = [];
+
+  for (const entry of source) {
+    const username = String(entry ?? "").trim().replace(/^@/, "");
+    const dedupeKey = username.toLowerCase();
+    if (!username || seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    normalized.push(username);
+
+    if (normalized.length >= 20) {
+      break;
+    }
+  }
+
+  return normalized;
+}
+
+function buildRememberedUsernameHistory(nextUsername = "") {
+  return normalizeRememberedUsernames([nextUsername, ...(state.settings?.rememberedUsernames ?? [])]);
+}
+
+function renderRememberedUsernameOptions() {
+  if (!rememberedUsernamesList) {
+    return;
+  }
+
+  rememberedUsernamesList.replaceChildren(
+    ...normalizeRememberedUsernames(state.settings?.rememberedUsernames ?? []).map((username) => {
+      const option = document.createElement("option");
+      option.value = username;
+      return option;
+    })
+  );
+}
+
 function normalizeUserNotes(source = {}) {
   if (!source || typeof source !== "object") {
     return {};
@@ -774,6 +882,134 @@ function normalizeTtsUserVoiceAssignments(source = {}) {
         .map(([userKey, voiceValue]) => [normalizeUserKey(userKey), String(voiceValue ?? "").trim()])
         .filter(([userKey, voiceValue]) => userKey && voiceValue)
     );
+  }
+
+  return normalized;
+}
+
+function getDefaultProfileSettingsSource() {
+  return {
+    rememberedUsername: "",
+    rememberUsername: false,
+    rememberedUsernames: [],
+    translationEnabled: false,
+    translationTargetLanguage: "en",
+    translationProviderUrl: "",
+    translationApiKey: "",
+    ttsEnabled: false,
+    ttsProvider: "builtin",
+    ttsVoice: "",
+    ttsRandomVoicePerMessage: false,
+    ttsStyle: "natural",
+    ttsQueue: 1,
+    ttsRate: 1,
+    ttsPitch: 1,
+    ttsVolume: 1,
+    ttsIncludeUsername: true,
+    ttsReadGifts: false,
+    ttsGiftMinCoins: 0,
+    ttsElevenMode: "free",
+    ttsElevenApiKey: "",
+    ttsElevenModel: "eleven_flash_v2_5",
+    ttsAudience: {
+      allViewers: true,
+      subscribers: false,
+      moderators: false
+    },
+    commandFeedbackOverlayDurationMs: 6000,
+    commandFeedbackTemplates: {
+      myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
+      listcommands: "{user}, available chat commands: {commandList}"
+    },
+    ttsUserVoiceAssignments: {
+      builtin: {},
+      elevenlabs: {}
+    },
+    userNotes: {},
+    customEventRules: []
+  };
+}
+
+function createDefaultProfileSettings() {
+  return normalizeProfileSettingsSnapshot(getDefaultProfileSettingsSource());
+}
+
+function normalizeProfileSettingsSnapshot(source = {}) {
+  const defaults = getDefaultProfileSettingsSource();
+
+  return {
+    rememberedUsername: String(source?.rememberedUsername ?? defaults.rememberedUsername).trim().replace(/^@/, ""),
+    rememberUsername: Boolean(source?.rememberUsername ?? defaults.rememberUsername),
+    rememberedUsernames: normalizeRememberedUsernames([source?.rememberedUsername, ...(source?.rememberedUsernames ?? defaults.rememberedUsernames)]),
+    translationEnabled: Boolean(source?.translationEnabled ?? defaults.translationEnabled),
+    translationTargetLanguage: String(source?.translationTargetLanguage ?? defaults.translationTargetLanguage).trim() || defaults.translationTargetLanguage,
+    translationProviderUrl: String(source?.translationProviderUrl ?? defaults.translationProviderUrl),
+    translationApiKey: String(source?.translationApiKey ?? defaults.translationApiKey),
+    ttsEnabled: Boolean(source?.ttsEnabled ?? defaults.ttsEnabled),
+    ttsProvider: source?.ttsProvider === "elevenlabs" ? "elevenlabs" : "builtin",
+    ttsVoice: String(source?.ttsVoice ?? defaults.ttsVoice).trim(),
+    ttsRandomVoicePerMessage: Boolean(source?.ttsRandomVoicePerMessage ?? defaults.ttsRandomVoicePerMessage),
+    ttsStyle: "natural",
+    ttsQueue: normalizeQueueId(source?.ttsQueue, defaults.ttsQueue),
+    ttsRate: Number(source?.ttsRate ?? defaults.ttsRate) || defaults.ttsRate,
+    ttsPitch: Number(source?.ttsPitch ?? defaults.ttsPitch) || defaults.ttsPitch,
+    ttsVolume: Number(source?.ttsVolume ?? defaults.ttsVolume) || defaults.ttsVolume,
+    ttsIncludeUsername: Boolean(source?.ttsIncludeUsername ?? defaults.ttsIncludeUsername),
+    ttsReadGifts: Boolean(source?.ttsReadGifts ?? defaults.ttsReadGifts),
+    ttsGiftMinCoins: Math.max(0, Number(source?.ttsGiftMinCoins ?? defaults.ttsGiftMinCoins) || 0),
+    ttsElevenMode: source?.ttsElevenMode === "paid" ? "paid" : "free",
+    ttsElevenApiKey: String(source?.ttsElevenApiKey ?? defaults.ttsElevenApiKey).trim(),
+    ttsElevenModel: String(source?.ttsElevenModel ?? defaults.ttsElevenModel).trim() || defaults.ttsElevenModel,
+    ttsAudience: {
+      ...defaults.ttsAudience,
+      ...(source?.ttsAudience ?? {})
+    },
+    commandFeedbackOverlayDurationMs: Math.max(1000, Number(source?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
+    commandFeedbackTemplates: {
+      ...defaults.commandFeedbackTemplates,
+      ...(source?.commandFeedbackTemplates ?? {})
+    },
+    ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
+    userNotes: normalizeUserNotes(source?.userNotes),
+    customEventRules: Array.isArray(source?.customEventRules)
+      ? source.customEventRules.map(normalizeRule).filter(Boolean)
+      : []
+  };
+}
+
+function extractProfileSettings(source = {}) {
+  const snapshot = {};
+
+  for (const key of PROFILE_SETTING_KEYS) {
+    snapshot[key] = source?.[key];
+  }
+
+  return normalizeProfileSettingsSnapshot(snapshot);
+}
+
+function normalizeSettingsProfiles(source = {}, fallbackSource = {}) {
+  const fallbackSettings = extractProfileSettings(fallbackSource);
+  const normalized = {};
+
+  if (source && typeof source === "object") {
+    for (const [profileId, profile] of Object.entries(source)) {
+      const normalizedId = String(profileId ?? "").trim();
+      if (!normalizedId) {
+        continue;
+      }
+
+      normalized[normalizedId] = {
+        name: String(profile?.name ?? normalizedId).trim() || normalizedId,
+        settings: normalizeProfileSettingsSnapshot(profile?.settings ?? fallbackSettings)
+      };
+    }
+  }
+
+  if (!Object.keys(normalized).length) {
+    normalized[DEFAULT_SETTINGS_PROFILE_ID] = {
+      name: "Default",
+      settings: fallbackSettings
+    };
   }
 
   return normalized;
@@ -1070,43 +1306,76 @@ function getAudienceQualifiedMetricValue(rule) {
 }
 
 function getSettingsPayload() {
-  const persistedTtsVoice = String(ttsVoiceSelect.value ?? "").trim() || String(state.settings?.ttsVoice ?? "").trim();
+  return getSettingsPayloadWithPartial();
+}
+
+function getCurrentProfileSettingsFromUi(overrides = {}) {
+  const merged = {
+    ...state.settings,
+    ...overrides
+  };
+  const persistedTtsVoice = String(ttsVoiceSelect.value ?? "").trim() || String(merged?.ttsVoice ?? "").trim();
+
+  return normalizeProfileSettingsSnapshot({
+    ...merged,
+    rememberedUsername: rememberUsernameInput.checked ? usernameInput.value.trim() : "",
+    rememberUsername: rememberUsernameInput.checked,
+    rememberedUsernames: normalizeRememberedUsernames(merged?.rememberedUsernames),
+    translationEnabled: translationEnabledInput.checked,
+    translationTargetLanguage: translationTargetLanguageSelect.value,
+    translationProviderUrl: merged.translationProviderUrl ?? "",
+    translationApiKey: merged.translationApiKey ?? "",
+    ttsEnabled: ttsEnabledInput.checked,
+    ttsProvider: ttsProviderSelect.value,
+    ttsVoice: persistedTtsVoice,
+    ttsRandomVoicePerMessage: ttsRandomVoiceInput.checked,
+    ttsStyle: "natural",
+    ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
+    ttsRate: Number(ttsRateInput.value),
+    ttsPitch: Number(ttsPitchInput.value),
+    ttsVolume: Number(ttsVolumeInput.value),
+    ttsIncludeUsername: ttsIncludeUsernameInput.checked,
+    ttsReadGifts: ttsReadGiftsInput.checked,
+    ttsGiftMinCoins: Math.max(0, Number(ttsGiftMinCoinsInput.value) || 0),
+    ttsElevenMode: ttsElevenModeSelect.value,
+    ttsElevenApiKey: ttsElevenApiKeyInput.value.trim(),
+    ttsElevenModel: ttsElevenModelSelect.value,
+    ttsAudience: {
+      allViewers: ttsAudienceAllInput.checked,
+      subscribers: ttsAudienceSubscribersInput.checked,
+      moderators: ttsAudienceModeratorsInput.checked
+    },
+    commandFeedbackOverlayDurationMs: Math.max(1000, Number(commandFeedbackDurationInput.value) || 6000),
+    commandFeedbackTemplates: {
+      myttsvoice: String(commandFeedbackTemplateMyttsvoiceInput.value ?? "").trim(),
+      listcommands: String(commandFeedbackTemplateListcommandsInput.value ?? "").trim()
+    },
+    ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(merged.ttsUserVoiceAssignments),
+    userNotes: normalizeUserNotes(merged.userNotes),
+    customEventRules: merged.customEventRules.map(normalizeRule).filter(Boolean)
+  });
+}
+
+function getSettingsPayloadWithPartial(partial = {}) {
+  const merged = ensureSettingsShape({
+    ...state.settings,
+    ...partial
+  });
+  const activeSettingsProfileId = String(merged.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
+  const settingsProfiles = normalizeSettingsProfiles(merged.settingsProfiles, merged);
+  const activeProfileName = String(settingsProfiles?.[activeSettingsProfileId]?.name ?? "Default").trim() || "Default";
+  const activeProfileSettings = getCurrentProfileSettingsFromUi(merged);
+
+  settingsProfiles[activeSettingsProfileId] = {
+    name: activeProfileName,
+    settings: activeProfileSettings
+  };
 
   return {
-      rememberedUsername: state.settings.rememberUsername ? usernameInput.value.trim() : "",
-      rememberUsername: rememberUsernameInput.checked,
-      translationEnabled: translationEnabledInput.checked,
-      translationTargetLanguage: translationTargetLanguageSelect.value,
-    translationProviderUrl: state.settings.translationProviderUrl ?? "",
-        translationApiKey: state.settings.translationApiKey ?? "",
-        ttsEnabled: ttsEnabledInput.checked,
-        ttsProvider: ttsProviderSelect.value,
-        ttsVoice: persistedTtsVoice,
-        ttsRandomVoicePerMessage: ttsRandomVoiceInput.checked,
-        ttsStyle: "natural",
-      ttsQueue: normalizeQueueId(ttsQueueSelect.value, 1),
-    ttsRate: Number(ttsRateInput.value),
-      ttsPitch: Number(ttsPitchInput.value),
-      ttsVolume: Number(ttsVolumeInput.value),
-      ttsIncludeUsername: ttsIncludeUsernameInput.checked,
-        ttsReadGifts: ttsReadGiftsInput.checked,
-        ttsGiftMinCoins: Math.max(0, Number(ttsGiftMinCoinsInput.value) || 0),
-        ttsElevenMode: ttsElevenModeSelect.value,
-        ttsElevenApiKey: ttsElevenApiKeyInput.value.trim(),
-        ttsElevenModel: ttsElevenModelSelect.value,
-          ttsAudience: {
-        allViewers: ttsAudienceAllInput.checked,
-        subscribers: ttsAudienceSubscribersInput.checked,
-        moderators: ttsAudienceModeratorsInput.checked
-      },
-      commandFeedbackOverlayDurationMs: Math.max(1000, Number(commandFeedbackDurationInput.value) || 6000),
-      commandFeedbackTemplates: {
-        myttsvoice: String(commandFeedbackTemplateMyttsvoiceInput.value ?? "").trim(),
-        listcommands: String(commandFeedbackTemplateListcommandsInput.value ?? "").trim()
-      },
-      ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(state.settings.ttsUserVoiceAssignments),
-      userNotes: normalizeUserNotes(state.settings.userNotes),
-      customEventRules: state.settings.customEventRules.map(normalizeRule).filter(Boolean)
+    ...merged,
+    ...activeProfileSettings,
+    activeSettingsProfileId,
+    settingsProfiles
   };
 }
 
@@ -1117,13 +1386,12 @@ async function persistSettings(partial = {}) {
   });
 
   const nextSave = app
-    .saveSettings({
-      ...getSettingsPayload(),
-      ...partial
-    })
+    .saveSettings(getSettingsPayloadWithPartial(partial))
     .then((saved) => {
       state.settings = ensureSettingsShape(saved);
       renderCustomRules();
+      renderRememberedUsernameOptions();
+      renderSettingsProfileOptions();
       updateHeaderPills();
       if (ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
         renderTtsVoiceManager();
@@ -1225,6 +1493,7 @@ function scheduleAuthRememberSave() {
 
 function showDashboardForUser(user) {
     state.authenticatedUser = user;
+  state.sessionTerminationReason = "";
   signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
   creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
     authShell.hidden = true;
@@ -1246,6 +1515,16 @@ function showAuthShell() {
   setAuthSessionCheckStatus("waiting", "Session check: Waiting");
   void loadQueueOverlayInfo();
   void loadCommandFeedbackOverlayInfo();
+}
+
+function beginSessionTermination(reason) {
+  if (state.forceClosing || state.sessionTerminationReason) {
+    return false;
+  }
+
+  state.sessionTerminationReason = String(reason || "session_ended");
+  stopAuthSessionMonitor();
+  return true;
 }
 
 function setAuthSessionCheckStatus(level, message) {
@@ -1327,12 +1606,11 @@ function applySessionCheckUserSnapshot(user) {
 }
 
 async function handleForcedAdminSignOut(message) {
-  if (state.forceClosing) {
+  if (!beginSessionTermination("admin_forced_sign_out")) {
     return;
   }
 
   state.forceClosing = true;
-  stopAuthSessionMonitor();
   setAuthSessionCheckStatus("forced", "Session check: Forced sign out");
   setAuthStatus("error", message);
   showToast(message, "error");
@@ -1360,12 +1638,41 @@ async function handleForcedAdminSignOut(message) {
 }
 
 async function handleLockedAccountSignOut(message) {
-  if (state.forceClosing) {
+  if (!beginSessionTermination("account_locked")) {
     return;
   }
 
-  stopAuthSessionMonitor();
   setAuthSessionCheckStatus("forced", "Session check: Account locked");
+  setAuthStatus("error", message);
+  showToast(message, "error");
+
+  try {
+    if (state.connected) {
+      await app.disconnect();
+    }
+  } catch {
+    // Best-effort disconnect before returning to the sign-in screen.
+  }
+
+  state.connected = false;
+  state.connecting = false;
+  state.username = "";
+  state.roomId = null;
+  updateHeaderPills();
+  setConnectionUiState();
+
+  await persistSettings({ authUser: null });
+  showAuthShell();
+
+  window.alert(message);
+}
+
+async function handleSignedInElsewhereSignOut(message) {
+  if (!beginSessionTermination("signed_in_elsewhere")) {
+    return;
+  }
+
+  setAuthSessionCheckStatus("forced", "Session check: Signed out on another device");
   setAuthStatus("error", message);
   showToast(message, "error");
 
@@ -1496,6 +1803,9 @@ async function authRequest(path, payload) {
         if (error.authCode === "account_locked") {
           await handleLockedAccountSignOut(error.message || "This account has been locked. Please contact admin.");
         }
+        if (error.authCode === "signed_in_elsewhere") {
+          await handleSignedInElsewhereSignOut(error.message || "You were signed out because this account was signed in on another device.");
+        }
         throw error;
       }
 
@@ -1567,6 +1877,13 @@ async function reportAuthenticatedDebugTrace(debugContext, debugMessage, details
     return;
   }
 
+  let systemUsage = null;
+  try {
+    systemUsage = await app.getSystemUsage();
+  } catch {
+    systemUsage = null;
+  }
+
   const payload = {
     userId: state.authenticatedUser.id,
     sessionToken: state.authenticatedUser.sessionToken,
@@ -1578,7 +1895,11 @@ async function reportAuthenticatedDebugTrace(debugContext, debugMessage, details
       ...details,
       provider: state.settings?.ttsProvider || "",
       connected: Boolean(state.connected),
-      queueCount: Number(state.playbackQueueItems?.length || 0)
+      queueCount: Number(state.playbackQueueItems?.length || 0),
+      cpuUsagePercent: systemUsage?.cpuUsagePercent ?? null,
+      ramUsagePercent: systemUsage?.ramUsagePercent ?? null,
+      usedMemoryMb: systemUsage?.usedMemoryMb ?? null,
+      totalMemoryMb: systemUsage?.totalMemoryMb ?? null
     }
   };
 
@@ -1631,10 +1952,15 @@ async function verifyAuthenticatedSession() {
         return null;
       }
 
+      if (result.code === "signed_in_elsewhere") {
+        await handleSignedInElsewhereSignOut(result.message || "You were signed out because this account was signed in on another device.");
+        return null;
+      }
+
     setAuthSessionCheckStatus("error", `Session check: ${result.message || "Inactive"}`);
     return null;
     } catch (error) {
-      if (error?.authCode === "admin_forced_sign_out" || error?.authCode === "account_locked") {
+      if (error?.authCode === "admin_forced_sign_out" || error?.authCode === "account_locked" || error?.authCode === "signed_in_elsewhere") {
         return null;
       }
       setAuthSessionCheckStatus("error", "Session check: Unavailable");
@@ -1901,9 +2227,257 @@ function updateUpdateStatus() {
 }
 
 function updateFooterVersion() {
-  appVersionLabel.textContent = state.appVersion || "Unknown";
-  appVersionAuth.textContent = state.appVersion || "Unknown";
-  appVersionInline.textContent = state.appVersion || "Unknown";
+  if (appVersionLabel) {
+    appVersionLabel.textContent = state.appVersion || "Unknown";
+  }
+  if (appVersionAuth) {
+    appVersionAuth.textContent = state.appVersion || "Unknown";
+  }
+  if (appVersionInline) {
+    appVersionInline.textContent = state.appVersion || "Unknown";
+  }
+}
+
+function getActiveSettingsProfileId() {
+  return String(state.settings?.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
+}
+
+function getActiveSettingsProfile() {
+  const profileId = getActiveSettingsProfileId();
+  return state.settings?.settingsProfiles?.[profileId] ?? null;
+}
+
+function renderSettingsProfileOptions() {
+  if (!settingsProfileSelect) {
+    return;
+  }
+
+  const profiles = state.settings?.settingsProfiles ?? {};
+  const activeProfileId = getActiveSettingsProfileId();
+  const profileEntries = Object.entries(profiles);
+
+  settingsProfileSelect.innerHTML = profileEntries
+    .map(([profileId, profile]) => {
+      const label = String(profile?.name ?? profileId).trim() || profileId;
+      return `<option value="${escapeHtml(profileId)}">${escapeHtml(label)}</option>`;
+    })
+    .join("");
+
+  settingsProfileSelect.value = activeProfileId;
+
+  if (settingsProfileDeleteButton) {
+    settingsProfileDeleteButton.disabled = profileEntries.length <= 1;
+  }
+}
+
+function buildSettingsExportBundle() {
+  const profileId = getActiveSettingsProfileId();
+  const activeProfile = getActiveSettingsProfile();
+
+  return {
+    schemaVersion: 1,
+    app: "Stream Sync Pro",
+    exportedAt: new Date().toISOString(),
+    activeSettingsProfileId: profileId,
+    settingsProfiles: normalizeSettingsProfiles(state.settings?.settingsProfiles, state.settings),
+    exportedProfileName: String(activeProfile?.name ?? profileId).trim() || profileId
+  };
+}
+
+function getSettingsImportProfileSnapshot(bundle) {
+  if (bundle?.settingsProfiles && typeof bundle.settingsProfiles === "object") {
+    return {
+      settingsProfiles: bundle.settingsProfiles,
+      activeSettingsProfileId: String(bundle.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID
+    };
+  }
+
+  const importedSettings = bundle?.settings ?? bundle;
+  return {
+    settingsProfiles: {
+      [DEFAULT_SETTINGS_PROFILE_ID]: {
+        name: String(bundle?.profileName ?? "Imported").trim() || "Imported",
+        settings: normalizeProfileSettingsSnapshot(importedSettings ?? {})
+      }
+    },
+    activeSettingsProfileId: DEFAULT_SETTINGS_PROFILE_ID
+  };
+}
+
+function createSettingsProfileId(profileName) {
+  const base = String(profileName ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "profile";
+  let nextId = base;
+  let suffix = 2;
+
+  while (state.settings?.settingsProfiles?.[nextId]) {
+    nextId = `${base}-${suffix}`;
+    suffix += 1;
+  }
+
+  return nextId;
+}
+
+async function switchSettingsProfile(profileId) {
+  const nextProfileId = String(profileId ?? "").trim();
+  const nextProfile = state.settings?.settingsProfiles?.[nextProfileId];
+  if (!nextProfile) {
+    return;
+  }
+
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    ...normalizeProfileSettingsSnapshot(nextProfile.settings),
+    activeSettingsProfileId: nextProfileId
+  });
+
+  applySettingsToUi();
+  renderSettingsProfileOptions();
+  updateHeaderPills();
+  renderCustomRules();
+  await persistSettings({ activeSettingsProfileId: nextProfileId });
+  showToast(`Switched to the ${nextProfile.name} profile.`, "success");
+}
+
+async function createSettingsProfile() {
+  if (!settingsProfileModal || !settingsProfileNameInput) {
+    throw new Error("The profile creation dialog is not available right now.");
+  }
+
+  settingsProfileNameInput.value = "New Profile";
+  settingsProfileModal.hidden = false;
+  window.setTimeout(() => {
+    settingsProfileNameInput.focus();
+    settingsProfileNameInput.select();
+  }, 0);
+}
+
+function closeSettingsProfileModal() {
+  if (!settingsProfileModal) {
+    return;
+  }
+
+  settingsProfileModal.hidden = true;
+}
+
+async function saveSettingsProfileFromModal() {
+  const profileName = String(settingsProfileNameInput?.value ?? "").trim();
+  if (!profileName) {
+    showToast("Enter a profile name to create it.", "error");
+    return;
+  }
+
+  const nextProfileId = createSettingsProfileId(profileName);
+  const nextProfiles = normalizeSettingsProfiles(state.settings?.settingsProfiles, state.settings);
+  nextProfiles[nextProfileId] = {
+    name: profileName,
+    settings: getCurrentProfileSettingsFromUi()
+  };
+
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: nextProfileId,
+    ...nextProfiles[nextProfileId].settings
+  });
+
+  closeSettingsProfileModal();
+  applySettingsToUi();
+  renderSettingsProfileOptions();
+  await persistSettings({
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: nextProfileId
+  });
+  showToast(`Created the ${profileName} profile.`, "success");
+}
+
+async function deleteSettingsProfile() {
+  const activeProfileId = getActiveSettingsProfileId();
+  const activeProfile = getActiveSettingsProfile();
+  const profileEntries = Object.entries(state.settings?.settingsProfiles ?? {});
+
+  if (profileEntries.length <= 1) {
+    showToast("Keep at least one settings profile in the app.", "info");
+    return;
+  }
+
+  const shouldDelete = window.confirm(`Delete the ${activeProfile?.name ?? "current"} profile?`);
+  if (!shouldDelete) {
+    return;
+  }
+
+  const nextProfiles = normalizeSettingsProfiles(state.settings?.settingsProfiles, state.settings);
+  delete nextProfiles[activeProfileId];
+  const fallbackProfileId = Object.keys(nextProfiles)[0];
+  const fallbackProfile = nextProfiles[fallbackProfileId];
+
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    ...normalizeProfileSettingsSnapshot(fallbackProfile.settings),
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: fallbackProfileId
+  });
+
+  applySettingsToUi();
+  renderSettingsProfileOptions();
+  await persistSettings({
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: fallbackProfileId
+  });
+  showToast(`Deleted the ${activeProfile?.name ?? "selected"} profile.`, "info");
+}
+
+async function exportSettingsBundle() {
+  const activeProfile = getActiveSettingsProfile();
+  const defaultFileName = `${String(activeProfile?.name ?? "stream-sync-pro-settings").trim().replace(/[^a-z0-9]+/gi, "-") || "stream-sync-pro-settings"}.json`;
+  const result = await app.exportSettingsBundle({
+    defaultFileName,
+    bundle: buildSettingsExportBundle()
+  });
+
+  if (result?.canceled) {
+    return;
+  }
+
+  showToast("Settings export created successfully.", "success");
+}
+
+async function importSettingsBundle() {
+  const result = await app.importSettingsBundle();
+  if (result?.canceled) {
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(String(result?.content ?? ""));
+  } catch {
+    throw new Error("That settings file could not be read as valid JSON.");
+  }
+
+  const imported = getSettingsImportProfileSnapshot(parsed);
+  const nextProfiles = normalizeSettingsProfiles(imported.settingsProfiles, state.settings);
+  const requestedProfileId = String(imported.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
+  const nextProfileId = nextProfiles[requestedProfileId] ? requestedProfileId : Object.keys(nextProfiles)[0];
+  const nextProfile = nextProfiles[nextProfileId];
+
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    ...normalizeProfileSettingsSnapshot(nextProfile.settings),
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: nextProfileId
+  });
+
+  applySettingsToUi();
+  renderSettingsProfileOptions();
+  await persistSettings({
+    settingsProfiles: nextProfiles,
+    activeSettingsProfileId: nextProfileId
+  });
+  showToast("Settings import completed successfully.", "success");
 }
 
 function setActiveTab(tabName) {
@@ -3159,6 +3733,8 @@ function applySettingsToUi() {
 
   rememberUsernameInput.checked = settings.rememberUsername;
   usernameInput.value = settings.rememberUsername ? settings.rememberedUsername ?? "" : settings.rememberedUsername ? settings.rememberedUsername : usernameInput.value;
+  renderRememberedUsernameOptions();
+  renderSettingsProfileOptions();
 
   translationEnabledInput.checked = settings.translationEnabled;
   translationTargetLanguageSelect.value = settings.translationTargetLanguage;
@@ -3330,6 +3906,9 @@ function wireHeaderEvents() {
         state.roomId = stableConnectionState.roomId ?? state.roomId;
         resetSessionMetrics();
         updateHeaderPills();
+        await persistSettings({
+          rememberedUsernames: buildRememberedUsernameHistory(state.username || username)
+        });
         const creditResult = await consumeConnectCredit(state.username || username);
       showToast(`${creditResult.message} Remaining credits: ${creditResult.user?.credits ?? 0}.`, "info");
       showToast(`Connected to @${state.username}.`, "success");
@@ -3372,6 +3951,73 @@ function wireHeaderEvents() {
 
   rememberUsernameInput.addEventListener("change", () => {
     scheduleSettingsSave();
+  });
+
+  settingsProfileSelect?.addEventListener("change", async (event) => {
+    const nextProfileId = event.target.value;
+    try {
+      await switchSettingsProfile(nextProfileId);
+    } catch (error) {
+      showToast(error.message || "Unable to switch settings profiles.", "error");
+      renderSettingsProfileOptions();
+    }
+  });
+
+  settingsProfileCreateButton?.addEventListener("click", async () => {
+    try {
+      await createSettingsProfile();
+    } catch (error) {
+      showToast(error.message || "Unable to create a new settings profile.", "error");
+    }
+  });
+
+  settingsProfileModalCloseButton?.addEventListener("click", () => {
+    closeSettingsProfileModal();
+  });
+
+  settingsProfileModalSaveButton?.addEventListener("click", async () => {
+    try {
+      await saveSettingsProfileFromModal();
+    } catch (error) {
+      showToast(error.message || "Unable to create a new settings profile.", "error");
+    }
+  });
+
+  settingsProfileNameInput?.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+
+    event.preventDefault();
+    try {
+      await saveSettingsProfileFromModal();
+    } catch (error) {
+      showToast(error.message || "Unable to create a new settings profile.", "error");
+    }
+  });
+
+  settingsProfileDeleteButton?.addEventListener("click", async () => {
+    try {
+      await deleteSettingsProfile();
+    } catch (error) {
+      showToast(error.message || "Unable to delete that settings profile.", "error");
+    }
+  });
+
+  settingsProfileExportButton?.addEventListener("click", async () => {
+    try {
+      await exportSettingsBundle();
+    } catch (error) {
+      showToast(error.message || "Unable to export the current settings.", "error");
+    }
+  });
+
+  settingsProfileImportButton?.addEventListener("click", async () => {
+    try {
+      await importSettingsBundle();
+    } catch (error) {
+      showToast(error.message || "Unable to import settings from that file.", "error");
+    }
   });
 
   usernameInput.addEventListener("input", () => {
@@ -3702,6 +4348,9 @@ function wireChatToolbarEvents() {
     }
     if (event.key === "Escape" && ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
       closeTtsVoiceManagerModal();
+    }
+    if (event.key === "Escape" && settingsProfileModal && !settingsProfileModal.hidden) {
+      closeSettingsProfileModal();
     }
   });
 }

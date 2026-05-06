@@ -37,6 +37,15 @@ contextBridge.exposeInMainWorld("desktopApp", {
   saveSettings(settings) {
     return ipcRenderer.invoke("app:save-settings", settings);
   },
+  getSystemUsage() {
+    return ipcRenderer.invoke("app:get-system-usage");
+  },
+  exportSettingsBundle(payload) {
+    return ipcRenderer.invoke("app:export-settings-bundle", payload);
+  },
+  importSettingsBundle() {
+    return ipcRenderer.invoke("app:import-settings-bundle");
+  },
   translateText(payload) {
     return ipcRenderer.invoke("translation:translate", payload);
   },

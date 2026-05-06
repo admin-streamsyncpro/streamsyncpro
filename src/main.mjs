@@ -61,6 +61,7 @@ let myInstantsCatalogCache = {
   sounds: []
 };
 const myInstantsAudioUrlCache = new Map();
+let lastCpuUsageSample = null;
 
 function getOverlayUrlBundle(pathname) {
   if (!queueOverlayPort) {
@@ -98,6 +99,51 @@ function getOverlayUrlBundle(pathname) {
   };
 }
 
+function captureCpuUsageSample() {
+  const cpus = os.cpus();
+  let idle = 0;
+  let total = 0;
+
+  for (const cpu of cpus) {
+    const times = cpu?.times ?? {};
+    idle += Number(times.idle ?? 0);
+    total += Number(times.user ?? 0)
+      + Number(times.nice ?? 0)
+      + Number(times.sys ?? 0)
+      + Number(times.irq ?? 0)
+      + Number(times.idle ?? 0);
+  }
+
+  return { idle, total };
+}
+
+function getSystemUsageSnapshot() {
+  const currentCpuSample = captureCpuUsageSample();
+  const previousCpuSample = lastCpuUsageSample;
+  lastCpuUsageSample = currentCpuSample;
+
+  let cpuUsagePercent = 0;
+  if (previousCpuSample) {
+    const idleDiff = currentCpuSample.idle - previousCpuSample.idle;
+    const totalDiff = currentCpuSample.total - previousCpuSample.total;
+    if (totalDiff > 0) {
+      cpuUsagePercent = Math.max(0, Math.min(100, ((totalDiff - idleDiff) / totalDiff) * 100));
+    }
+  }
+
+  const totalMemoryBytes = os.totalmem();
+  const freeMemoryBytes = os.freemem();
+  const usedMemoryBytes = Math.max(0, totalMemoryBytes - freeMemoryBytes);
+  const ramUsagePercent = totalMemoryBytes > 0 ? Math.max(0, Math.min(100, (usedMemoryBytes / totalMemoryBytes) * 100)) : 0;
+
+  return {
+    cpuUsagePercent: Number(cpuUsagePercent.toFixed(1)),
+    ramUsagePercent: Number(ramUsagePercent.toFixed(1)),
+    usedMemoryMb: Math.round(usedMemoryBytes / (1024 * 1024)),
+    totalMemoryMb: Math.round(totalMemoryBytes / (1024 * 1024))
+  };
+}
+
 let settings = {
   githubOwner: DEFAULT_GITHUB_OWNER,
   githubRepo: DEFAULT_GITHUB_REPO,
@@ -107,6 +153,7 @@ let settings = {
   authRememberedEmail: "",
   rememberedUsername: "",
   rememberUsername: false,
+  rememberedUsernames: [],
   translationEnabled: false,
   translationTargetLanguage: "en",
   translationProviderUrl: "",
@@ -1209,6 +1256,56 @@ ipcMain.handle("app:quit", async () => {
 ipcMain.handle("app:save-settings", async (_event, payload) => {
   await saveSettings(payload ?? {});
   return settings;
+});
+
+ipcMain.handle("app:get-system-usage", async () => {
+  return getSystemUsageSnapshot();
+});
+
+ipcMain.handle("app:export-settings-bundle", async (_event, payload) => {
+  const defaultFileName = String(payload?.defaultFileName ?? "stream-sync-pro-settings.json").trim() || "stream-sync-pro-settings.json";
+  const bundle = payload?.bundle ?? null;
+
+  if (!bundle || typeof bundle !== "object") {
+    throw new Error("No settings bundle was provided for export.");
+  }
+
+  const saveResult = await dialog.showSaveDialog(mainWindow, {
+    title: "Export Stream Sync Pro settings",
+    defaultPath: path.join(app.getPath("documents"), defaultFileName),
+    filters: [
+      { name: "JSON files", extensions: ["json"] }
+    ]
+  });
+
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { canceled: true };
+  }
+
+  await fs.writeFile(saveResult.filePath, JSON.stringify(bundle, null, 2), "utf8");
+  return { canceled: false, filePath: saveResult.filePath };
+});
+
+ipcMain.handle("app:import-settings-bundle", async () => {
+  const openResult = await dialog.showOpenDialog(mainWindow, {
+    title: "Import Stream Sync Pro settings",
+    properties: ["openFile"],
+    filters: [
+      { name: "JSON files", extensions: ["json"] }
+    ]
+  });
+
+  if (openResult.canceled || !openResult.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  const filePath = openResult.filePaths[0];
+  const content = await fs.readFile(filePath, "utf8");
+  return {
+    canceled: false,
+    filePath,
+    content
+  };
 });
 
 ipcMain.handle("translation:translate", async (_event, payload) => {

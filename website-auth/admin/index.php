@@ -65,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                      SET is_locked = 1,
                          locked_reason = :locked_reason,
                          forced_logout_token_hash = :forced_logout_token_hash,
+                         forced_logout_reason = :forced_logout_reason,
                          forced_logout_at = :forced_logout_at,
                          session_token_hash = NULL,
                          session_token_expires_at = NULL,
@@ -75,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $statement->execute([
                     ':locked_reason' => $reason !== '' ? $reason : null,
                     ':forced_logout_token_hash' => $currentSessionTokenHash !== '' ? $currentSessionTokenHash : null,
+                    ':forced_logout_reason' => $currentSessionTokenHash !== '' ? 'account_locked' : null,
                     ':forced_logout_at' => gmdate('Y-m-d H:i:s'),
                     ':id' => $id,
                 ]);
@@ -138,6 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $statement = $pdo->prepare(
                     'UPDATE auth_users
                      SET forced_logout_token_hash = :forced_logout_token_hash,
+                         forced_logout_reason = :forced_logout_reason,
                          forced_logout_at = :forced_logout_at,
                          session_token_hash = NULL,
                          session_token_expires_at = NULL,
@@ -147,6 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $statement->execute([
                     ':forced_logout_token_hash' => $currentSessionTokenHash !== '' ? $currentSessionTokenHash : null,
+                    ':forced_logout_reason' => $currentSessionTokenHash !== '' ? 'admin_forced_sign_out' : null,
                     ':forced_logout_at' => gmdate('Y-m-d H:i:s'),
                     ':id' => $id,
                 ]);
@@ -192,9 +196,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $creditsPerGbp = max(1, (int) ($_POST['credits_per_gbp'] ?? 10));
             $minimumCredits = max(1, (int) ($_POST['minimum_credits'] ?? 1));
             $maximumCredits = max($minimumCredits, (int) ($_POST['maximum_credits'] ?? 5000));
+            $signupCredits = max(0, (int) ($_POST['signup_credits'] ?? 5));
             upsertBillingSetting($pdo, 'credits_per_gbp', (string) $creditsPerGbp);
             upsertBillingSetting($pdo, 'minimum_credits', (string) $minimumCredits);
             upsertBillingSetting($pdo, 'maximum_credits', (string) $maximumCredits);
+            upsertBillingSetting($pdo, 'signup_credits', (string) $signupCredits);
             $message = 'Billing settings updated successfully.';
             $messageType = 'success';
         } elseif ($action === 'create-promo-code') {
@@ -393,7 +399,8 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_users', 'active_connection_token_hash', 'ALTER TABLE auth_users ADD COLUMN active_connection_token_hash VARCHAR(255) NULL AFTER session_token_expires_at');
     ensureColumn($pdo, 'auth_users', 'active_connection_started_at', 'ALTER TABLE auth_users ADD COLUMN active_connection_started_at DATETIME NULL AFTER active_connection_token_hash');
     ensureColumn($pdo, 'auth_users', 'forced_logout_token_hash', 'ALTER TABLE auth_users ADD COLUMN forced_logout_token_hash VARCHAR(255) NULL AFTER active_connection_started_at');
-    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_reason', 'ALTER TABLE auth_users ADD COLUMN forced_logout_reason VARCHAR(64) NULL AFTER forced_logout_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_reason');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
 
@@ -419,6 +426,7 @@ function resolveBillingDefaults(array $config): array
         'credits_per_gbp' => max(1, (int) (($config['billing']['credits_per_gbp'] ?? 10))),
         'minimum_credits' => max(1, (int) (($config['billing']['minimum_credits'] ?? 1))),
         'maximum_credits' => max(1, (int) (($config['billing']['maximum_credits'] ?? 5000))),
+        'signup_credits' => max(0, (int) (($config['billing']['signup_credits'] ?? 5))),
     ];
 }
 
@@ -461,6 +469,7 @@ function fetchBillingSettings(PDO $pdo, array $config): array
     $settings['credits_per_gbp'] = max(1, (int) ($settings['credits_per_gbp'] ?? 10));
     $settings['minimum_credits'] = max(1, (int) ($settings['minimum_credits'] ?? 1));
     $settings['maximum_credits'] = max((int) $settings['minimum_credits'], (int) ($settings['maximum_credits'] ?? 5000));
+    $settings['signup_credits'] = max(0, (int) ($settings['signup_credits'] ?? 5));
     $settings['gbp_per_credit'] = number_format(1 / (int) $settings['credits_per_gbp'], 2, '.', '');
 
     return $settings;
@@ -617,6 +626,7 @@ function getAuditTypeColor(string $eventType): string
         'sign_in_failed' => '#ff9f59',
         'sign_out' => '#8db6ff',
         'forced_sign_out' => '#ff5a7a',
+        'signed_in_elsewhere' => '#ffd166',
         'account_locked' => '#ffb04f',
         'app_error' => '#ff667d',
         'debug_trace' => '#4de7ff',
@@ -635,6 +645,7 @@ function getAuditTypeLabel(string $eventType): string
         'sign_in_failed' => 'Bad password',
         'sign_out' => 'Sign out',
         'forced_sign_out' => 'Forced sign out',
+        'signed_in_elsewhere' => 'Signed in elsewhere',
         'account_locked' => 'Account locked',
         'app_error' => 'App error',
         'debug_trace' => 'Debug trace',
@@ -1054,7 +1065,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
       <div class="admin-panel panel">
         <div class="panel-head"><span class="eyebrow">Billing</span></div>
         <div class="panel-body">
-          <div class="subtitle" style="margin-top:0">Change the live credit price and manage promo codes for the top-up page.</div>
+          <div class="subtitle" style="margin-top:0">Change live credit pricing, control how many credits new users receive on sign-up, and manage promo codes for the top-up page.</div>
           <form method="post" style="margin-top:16px">
             <input type="hidden" name="action" value="update-billing-settings" />
             <label>
@@ -1068,6 +1079,10 @@ function renderDashboard(array $users, string $message, string $messageType, str
             <label>
               Maximum credits per purchase
               <input type="number" min="1" name="maximum_credits" value="<?php echo (int) ($billingSettings['maximum_credits'] ?? 5000); ?>" required />
+            </label>
+            <label>
+              Credits granted on sign-up
+              <input type="number" min="0" name="signup_credits" value="<?php echo (int) ($billingSettings['signup_credits'] ?? 5); ?>" required />
             </label>
             <button type="submit" class="unlock">Save Billing Settings</button>
           </form>
@@ -1323,6 +1338,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
                   <option value="sign_in_failed" <?php echo $auditType === 'sign_in_failed' ? 'selected' : ''; ?>>Bad password</option>
                   <option value="sign_out" <?php echo $auditType === 'sign_out' ? 'selected' : ''; ?>>Sign out</option>
                   <option value="forced_sign_out" <?php echo $auditType === 'forced_sign_out' ? 'selected' : ''; ?>>Forced sign out</option>
+                  <option value="signed_in_elsewhere" <?php echo $auditType === 'signed_in_elsewhere' ? 'selected' : ''; ?>>Signed in elsewhere</option>
                   <option value="account_locked" <?php echo $auditType === 'account_locked' ? 'selected' : ''; ?>>Account locked</option>
                   <option value="app_error" <?php echo $auditType === 'app_error' ? 'selected' : ''; ?>>App error</option>
                   <option value="debug_trace" <?php echo $auditType === 'debug_trace' ? 'selected' : ''; ?>>Debug trace</option>

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact | Stream Sync Pro LIVE</title>
+  <meta
+    name="description"
+    content="Contact Stream Sync Pro LIVE for general enquiries, app support, billing questions, and more."
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./styles.css?v=20260505d" />
+</head>
+<body>
+  <div class="site-shell legal-shell">
+    <header class="topbar">
+      <a class="brand" href="./index.html" aria-label="Stream Sync Pro LIVE">
+        <img src="./assets/SSP.png" alt="Stream Sync Pro LIVE logo" class="brand-logo" />
+        <div class="brand-copy">
+          <span class="brand-kicker">LIVE</span>
+          <span class="brand-title">Stream Sync Pro</span>
+        </div>
+      </a>
+
+      <nav class="topnav" aria-label="Primary navigation">
+        <a href="./index.html#features">Features</a>
+        <a href="./index.html#how-it-works">How It Works</a>
+        <a href="./index.html#download">Download</a>
+        <a href="./privacy.html">Privacy</a>
+        <a href="./terms.html">Terms</a>
+      </nav>
+    </header>
+
+    <main class="legal-page">
+      <section class="card">
+        <div class="card-header">
+          <span class="eyebrow">Contact</span>
+        </div>
+        <div class="card-body">
+          <div class="contact-hero">
+            <div class="contact-hero-copy">
+              <div class="legal-meta">
+                <div class="beta-pill">Support</div>
+                <span class="eyebrow">General / App / Billing / Account</span>
+              </div>
+              <h1 class="card-title">Get in touch with Stream Sync Pro LIVE</h1>
+              <p class="legal-summary">
+                Reach the Stream Sync Pro LIVE team for platform questions, app support, billing help, account access,
+                or feature ideas. Choose the topic that best fits your message and we will route it properly.
+              </p>
+            </div>
+
+            <div class="contact-hero-meta">
+              <div class="contact-hero-stat">
+                <span>Routing</span>
+                <strong>Topic-based</strong>
+              </div>
+              <div class="contact-hero-stat">
+                <span>Coverage</span>
+                <strong>Support + Billing</strong>
+              </div>
+              <div class="contact-hero-stat">
+                <span>Best for</span>
+                <strong>Creators & Admins</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <span class="eyebrow">Support Form</span>
+        </div>
+        <div class="card-body">
+          <div class="contact-layout">
+            <aside class="contact-panel">
+              <div class="contact-panel-intro">
+                <h2>Choose the right route</h2>
+                <p>
+                  Pick the topic that best matches your message so we can place it into the right support flow quickly
+                  and cleanly.
+                </p>
+              </div>
+              <div class="contact-panel-compact">
+                <div class="contact-panel-chip">Product help</div>
+                <div class="contact-panel-chip">Technical support</div>
+                <div class="contact-panel-chip">Billing issues</div>
+                <div class="contact-panel-chip">Account access</div>
+              </div>
+              <div class="contact-points">
+                <div class="contact-point">
+                  <strong>General enquiry</strong>
+                  <p>Questions about the product, launch plans, pricing direction, or what Stream Sync Pro LIVE can do.</p>
+                </div>
+                <div class="contact-point">
+                  <strong>App support</strong>
+                  <p>Issues with connecting to TikTok LIVE, TTS delays, actions, overlays, updates, or other desktop behavior.</p>
+                </div>
+                <div class="contact-point">
+                  <strong>Billing and account help</strong>
+                  <p>Questions about credits, payments, promo codes, sign-in access, forced sign-out, or locked accounts.</p>
+                </div>
+                <div class="contact-point">
+                  <strong>Feature requests and partnerships</strong>
+                  <p>Suggestions for future workflow improvements, creator integrations, business use, or collaboration opportunities.</p>
+                </div>
+              </div>
+            </aside>
+
+            <div class="contact-form-shell">
+              <div class="contact-form-heading">
+                <h2>Send a message</h2>
+                <p>Share the essentials below and we will review the message against the topic you selected.</p>
+              </div>
+
+              <form id="contact-form" class="contact-form" novalidate>
+                <div class="contact-form-grid">
+                  <label>
+                    <span>Full name</span>
+                    <input type="text" name="name" maxlength="120" required />
+                  </label>
+                  <label>
+                    <span>Email address</span>
+                    <input type="email" name="email" maxlength="255" required />
+                  </label>
+                </div>
+
+                <label class="contact-form-topic">
+                  <span>Topic</span>
+                  <select name="topic" required>
+                    <option value="general">General enquiry</option>
+                    <option value="app_support">App support</option>
+                    <option value="billing">Billing</option>
+                    <option value="account_help">Account help</option>
+                    <option value="bug_report">Bug report</option>
+                    <option value="feature_request">Feature request</option>
+                    <option value="partnership">Partnership</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+
+                <label class="contact-form-message">
+                  <span>Message</span>
+                  <textarea name="message" minlength="10" placeholder="Tell us how we can help..." required></textarea>
+                </label>
+
+                <div class="contact-form-actions">
+                  <p id="contact-form-status" class="form-status" aria-live="polite"></p>
+                  <button type="submit" class="button button-primary">Send Message</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>&copy; 2026 Stream Sync Pro LIVE</span>
+      <div class="site-footer-links">
+        <a href="./index.html">Back to Home</a>
+        <a href="./privacy.html">Privacy Statement</a>
+        <a href="./terms.html">Terms &amp; Conditions</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById("contact-form");
+    const status = document.getElementById("contact-form-status");
+
+    form?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const formData = new FormData(form);
+      const payload = {
+        name: String(formData.get("name") || "").trim(),
+        email: String(formData.get("email") || "").trim(),
+        topic: String(formData.get("topic") || "").trim(),
+        message: String(formData.get("message") || "").trim()
+      };
+
+      status.textContent = "Sending your message...";
+      status.className = "form-status";
+
+      try {
+        const response = await fetch("/api/contact/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(result.error || "Your message could not be sent right now.");
+        }
+
+        form.reset();
+        status.textContent = result.message || "Thanks, your message has been sent.";
+        status.className = "form-status success";
+      } catch (error) {
+        status.textContent = error.message || "Your message could not be sent right now.";
+        status.className = "form-status error";
+      }
+    });
+  </script>
+</body>
+</html>

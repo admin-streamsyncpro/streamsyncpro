@@ -248,7 +248,7 @@ body {
 
 .dashboard-header {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(420px, 0.9fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(480px, 1fr);
   gap: 24px;
   align-items: center;
   padding: 24px 26px;
@@ -333,21 +333,44 @@ h3,
   min-width: 0;
 }
 
-.header-controls-top {
+.profile-actions-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.header-meta-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.compact-inline-field {
+  margin: 0;
 }
 
-.account-actions-row {
+.compact-inline-field > span {
+  font-size: 0.78rem;
+}
+
+.profile-select-field {
+  min-width: 180px;
+}
+
+.profile-select-field select {
+  min-width: 180px;
+  min-height: 40px;
+}
+
+.status-overview-card {
+  margin-top: 18px;
+}
+
+.status-card-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-actions-row {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -918,6 +941,10 @@ h3,
 
 .tts-voice-manager-modal {
   width: min(760px, calc(100vw - 32px));
+}
+
+.settings-profile-modal {
+  width: min(460px, calc(100vw - 32px));
 }
 
 .tts-voice-manager-summary {
@@ -1651,6 +1678,12 @@ button.ghost {
   .card-header.section-head {
     margin: 0 0 16px;
     padding: 12px 14px 10px;
+  }
+
+  .profile-actions-row,
+  .status-card-layout,
+  .status-actions-row {
+    justify-content: flex-start;
   }
 
   .card-body {

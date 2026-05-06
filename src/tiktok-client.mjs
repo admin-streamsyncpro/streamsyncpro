@@ -116,6 +116,14 @@ function formatConnectionError(error, username) {
   return rawMessage || `Unable to connect to @${username}.`;
 }
 
+async function ensureLiveIsActive(connection, normalizedUsername) {
+  const isLive = await connection.fetchIsLive();
+
+  if (!isLive) {
+    throw new Error(`TikTok LIVE is not active for @${normalizedUsername} right now.`);
+  }
+}
+
 function bindConnectionEvents(connection, normalizedUsername, listeners) {
   let streamEndedDisconnecting = false;
 
@@ -310,6 +318,7 @@ export async function connectToLive(username, listeners) {
     bindConnectionEvents(connection, normalizedUsername, listeners);
 
       try {
+        await ensureLiveIsActive(connection, normalizedUsername);
         const state = await connection.connect();
         const resolvedRoomId = state.roomId ?? null;
 
@@ -322,6 +331,8 @@ export async function connectToLive(username, listeners) {
 
           throw new Error(`TikTok did not return a valid room ID for @${normalizedUsername}. The live may not be active yet, so please try again when the stream is fully live.`);
         }
+
+        await ensureLiveIsActive(connection, normalizedUsername);
 
         currentConnection = connection;
         connectionState = {

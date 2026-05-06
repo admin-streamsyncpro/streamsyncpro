@@ -145,28 +145,21 @@
             <div class="brand-lockup">
               <img class="brand-logo" src="./assets/SSP.png" alt="Stream Sync Pro logo" />
               <div class="brand-copy">
-                <h1>Stream Sync Pro LIVE</h1>
-                <p class="brand-tagline">Smarter Live Engagement Starts Here</p>
+                <h1>Stream Sync Pro</h1>
               </div>
             </div>
           </section>
 
           <section class="header-controls">
-            <div class="header-controls-top">
-              <div class="status-pill-group">
-                <span id="connection-pill" class="status-pill info">Disconnected</span>
-                <span id="translation-pill" class="status-pill muted">Translation Off</span>
-                <span id="tts-pill" class="status-pill muted">TTS Off</span>
-              </div>
-              <span id="app-version-pill" class="version-pill">Version <span id="app-version">Loading...</span></span>
-            </div>
-
-            <div class="account-actions-row">
-              <span id="signed-in-pill" class="status-pill accent">Signed in</span>
-              <span id="credits-pill" class="status-pill info">Credits: 0</span>
-              <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
-              <button type="button" id="topup-credits-button" class="ghost compact-button">Top up credits</button>
-              <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
+            <div class="profile-actions-row">
+              <label class="field compact-inline-field profile-select-field">
+                <span>Profile</span>
+                <select id="settings-profile-select"></select>
+              </label>
+              <button type="button" id="settings-profile-create-button" class="ghost compact-button">New profile</button>
+              <button type="button" id="settings-profile-delete-button" class="ghost compact-button">Delete profile</button>
+              <button type="button" id="settings-profile-import-button" class="ghost compact-button">Import settings</button>
+              <button type="button" id="settings-profile-export-button" class="ghost compact-button">Export settings</button>
             </div>
 
             <form id="connect-form" class="header-connect-form">
@@ -178,8 +171,10 @@
                     name="username"
                     placeholder="@creator"
                     autocomplete="off"
+                    list="remembered-usernames"
                     required
                   />
+                  <datalist id="remembered-usernames"></datalist>
                   <button type="submit" id="connect-button">Connect</button>
                 </div>
               </label>
@@ -191,6 +186,31 @@
             </form>
           </section>
         </header>
+
+        <section class="status-overview-card card compact-status">
+          <div class="card-header section-head">
+            <div>
+              <p class="eyebrow">Status</p>
+              <h2 class="section-title">Session and account overview</h2>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="status-card-layout">
+              <div class="status-pill-group">
+                <span id="connection-pill" class="status-pill info">Disconnected</span>
+                <span id="translation-pill" class="status-pill muted">Translation Off</span>
+                <span id="tts-pill" class="status-pill muted">TTS Off</span>
+                <span id="signed-in-pill" class="status-pill accent">Signed in</span>
+                <span id="credits-pill" class="status-pill info">Credits: 0</span>
+                <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
+              </div>
+              <div class="status-actions-row">
+                <button type="button" id="topup-credits-button" class="ghost compact-button">Top up credits</button>
+                <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <!-- Welcome -->
         <section class="welcome-card card">
@@ -813,6 +833,29 @@
 
             <div id="tts-voice-manager-list" class="tts-voice-manager-list"></div>
             <datalist id="tts-voice-manager-user-suggestions"></datalist>
+          </section>
+        </div>
+
+        <div id="settings-profile-modal" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel settings-profile-modal" role="dialog" aria-modal="true" aria-labelledby="settings-profile-modal-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">Settings Profiles</p>
+                <h3 id="settings-profile-modal-title" class="section-title">Create a new profile</h3>
+              </div>
+              <button type="button" id="settings-profile-modal-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <p class="helper-text">Create a named profile from the settings you have configured right now.</p>
+
+            <label class="field">
+              <span>Profile name</span>
+              <input id="settings-profile-name-input" type="text" placeholder="New Profile" autocomplete="off" />
+            </label>
+
+            <div class="chat-notes-actions">
+              <button type="button" id="settings-profile-modal-save" class="ghost compact-button">Create profile</button>
+            </div>
           </section>
         </div>
       </section>

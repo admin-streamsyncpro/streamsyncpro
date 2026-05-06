@@ -115,6 +115,9 @@ function routeRequest(PDO $pdo, array $config): void
         case '/auth/create-command-feedback-overlay-session':
             handleCreateCommandFeedbackOverlaySession($pdo, $input);
             return;
+        case '/contact/submit':
+            handleContactSubmit($pdo, $config, $input);
+            return;
         case '/billing/session':
             handleBillingSession($pdo, $config, $input);
             return;
@@ -178,6 +181,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
             active_connection_token_hash VARCHAR(255) NULL,
             active_connection_started_at DATETIME NULL,
             forced_logout_token_hash VARCHAR(255) NULL,
+            forced_logout_reason VARCHAR(64) NULL,
             forced_logout_at DATETIME NULL,
             billing_link_token_hash VARCHAR(255) NULL,
             billing_link_token_expires_at DATETIME NULL,
@@ -264,6 +268,21 @@ function ensureSchema(PDO $pdo, array $config = []): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS auth_contact_messages (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(120) NOT NULL,
+            email VARCHAR(255) NOT NULL,
+            topic VARCHAR(80) NOT NULL,
+            subject VARCHAR(255) NOT NULL,
+            message_body TEXT NOT NULL,
+            ip_address VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_contact_created (created_at),
+            INDEX idx_contact_topic (topic)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
     ensureColumn($pdo, 'auth_users', 'is_locked', 'ALTER TABLE auth_users ADD COLUMN is_locked TINYINT(1) NOT NULL DEFAULT 0 AFTER is_verified');
     ensureColumn($pdo, 'auth_users', 'debug_enabled', 'ALTER TABLE auth_users ADD COLUMN debug_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER is_locked');
     ensureColumn($pdo, 'auth_users', 'credits', 'ALTER TABLE auth_users ADD COLUMN credits INT NOT NULL DEFAULT 0 AFTER debug_enabled');
@@ -273,7 +292,8 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_users', 'active_connection_token_hash', 'ALTER TABLE auth_users ADD COLUMN active_connection_token_hash VARCHAR(255) NULL AFTER session_token_expires_at');
     ensureColumn($pdo, 'auth_users', 'active_connection_started_at', 'ALTER TABLE auth_users ADD COLUMN active_connection_started_at DATETIME NULL AFTER active_connection_token_hash');
     ensureColumn($pdo, 'auth_users', 'forced_logout_token_hash', 'ALTER TABLE auth_users ADD COLUMN forced_logout_token_hash VARCHAR(255) NULL AFTER active_connection_started_at');
-    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_reason', 'ALTER TABLE auth_users ADD COLUMN forced_logout_reason VARCHAR(64) NULL AFTER forced_logout_token_hash');
+    ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_reason');
     ensureColumn($pdo, 'auth_users', 'billing_link_token_hash', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_hash VARCHAR(255) NULL AFTER forced_logout_at');
     ensureColumn($pdo, 'auth_users', 'billing_link_token_expires_at', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_expires_at DATETIME NULL AFTER billing_link_token_hash');
     ensureColumn($pdo, 'auth_credit_transactions', 'discount_amount', 'ALTER TABLE auth_credit_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER amount_value');
@@ -319,6 +339,8 @@ function handleRegister(PDO $pdo, array $config, array $input): void
     $displayName = trim((string) ($input['displayName'] ?? ''));
     $email = normalizeEmail((string) ($input['email'] ?? ''));
     $password = (string) ($input['password'] ?? '');
+    $billingSettings = getBillingSettings($pdo, $config);
+    $signupCredits = max(0, (int) ($billingSettings['signup_credits'] ?? 5));
 
     if ($displayName === '' || $email === '' || $password === '') {
         jsonResponse(400, ['ok' => false, 'error' => 'Display name, email, and password are required.']);
@@ -358,7 +380,7 @@ function handleRegister(PDO $pdo, array $config, array $input): void
         $statement->execute([
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
-            ':credits' => 5,
+            ':credits' => $signupCredits,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
             ':id' => (int) $existingUser['id'],
@@ -385,7 +407,7 @@ function handleRegister(PDO $pdo, array $config, array $input): void
             ':email' => $email,
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
-            ':credits' => 5,
+            ':credits' => $signupCredits,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
         ]);
@@ -490,6 +512,8 @@ function handleLogin(PDO $pdo, array $input): void
         jsonResponse(403, ['ok' => false, 'error' => 'Please verify your email before signing in.']);
     }
 
+    $previousSessionTokenHash = trim((string) ($user['session_token_hash'] ?? ''));
+    $sessionTakeover = $previousSessionTokenHash !== '';
     $sessionToken = bin2hex(random_bytes(32));
     $sessionTokenHash = hash('sha256', $sessionToken);
     $sessionTokenExpiresAt = createExpiryTimestamp(60 * 24 * 30);
@@ -498,13 +522,17 @@ function handleLogin(PDO $pdo, array $input): void
         'UPDATE auth_users
          SET session_token_hash = :session_token_hash,
              session_token_expires_at = :session_token_expires_at,
-             forced_logout_token_hash = NULL,
-             forced_logout_at = NULL
+             forced_logout_token_hash = :forced_logout_token_hash,
+             forced_logout_reason = :forced_logout_reason,
+             forced_logout_at = :forced_logout_at
          WHERE id = :id'
     );
     $statement->execute([
         ':session_token_hash' => $sessionTokenHash,
         ':session_token_expires_at' => $sessionTokenExpiresAt,
+        ':forced_logout_token_hash' => $sessionTakeover ? $previousSessionTokenHash : null,
+        ':forced_logout_reason' => $sessionTakeover ? 'signed_in_elsewhere' : null,
+        ':forced_logout_at' => $sessionTakeover ? gmdate('Y-m-d H:i:s') : null,
         ':id' => (int) $user['id'],
     ]);
 
@@ -517,6 +545,15 @@ function handleLogin(PDO $pdo, array $input): void
         'User signed in.',
         (int) ($user['credits'] ?? 0)
     );
+    if ($sessionTakeover) {
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'signed_in_elsewhere',
+            'A previous session was signed out because this account signed in on another device.',
+            (int) ($user['credits'] ?? 0)
+        );
+    }
 
     jsonResponse(200, [
         'ok' => true,
@@ -660,7 +697,7 @@ function handleSelfCheck(PDO $pdo, array $input): void
             if ($reason !== '') {
                 $message .= ' Reason: ' . $reason;
             }
-            clearUserActiveSession($pdo, (int) $user['id'], $sessionTokenHash);
+            clearUserActiveSession($pdo, (int) $user['id'], $sessionTokenHash, 'account_locked');
             jsonResponse(200, [
                 'ok' => true,
                 'active' => false,
@@ -690,11 +727,12 @@ function handleSelfCheck(PDO $pdo, array $input): void
 
     $forcedLogoutUser = findUserByForcedLogoutTokenHash($pdo, $sessionTokenHash, $userId);
     if ($forcedLogoutUser) {
+        $forcedLogoutPayload = buildForcedLogoutResponse($forcedLogoutUser);
         jsonResponse(200, [
             'ok' => true,
             'active' => false,
-            'code' => 'admin_forced_sign_out',
-            'message' => 'Your session was ended by an administrator. The app will close now.',
+            'code' => $forcedLogoutPayload['code'],
+            'message' => $forcedLogoutPayload['message'],
         ]);
     }
 
@@ -1408,6 +1446,7 @@ function getBillingSettings(PDO $pdo, array $config): array
     $settings['currency'] = strtoupper((string) ($settings['currency'] ?? 'GBP'));
     $settings['minimum_credits'] = max(1, (int) ($settings['minimum_credits'] ?? 1));
     $settings['maximum_credits'] = max((int) $settings['minimum_credits'], (int) ($settings['maximum_credits'] ?? 5000));
+    $settings['signup_credits'] = max(0, (int) ($settings['signup_credits'] ?? 5));
     $settings['topup_session_expiry_minutes'] = max(5, (int) ($settings['topup_session_expiry_minutes'] ?? 20));
 
     return $settings;
@@ -1645,10 +1684,11 @@ function requireValidConnectSession(PDO $pdo, array $input): array
     if (!$user) {
         $forcedLogoutUser = findUserByForcedLogoutTokenHash($pdo, $sessionTokenHash, $userId);
         if ($forcedLogoutUser) {
+            $forcedLogoutPayload = buildForcedLogoutResponse($forcedLogoutUser);
             jsonResponse(401, [
                 'ok' => false,
-                'code' => 'admin_forced_sign_out',
-                'error' => 'Your session was ended by an administrator. The app will close now.',
+                'code' => $forcedLogoutPayload['code'],
+                'error' => $forcedLogoutPayload['message'],
             ]);
         }
         jsonResponse(401, ['ok' => false, 'error' => 'Your session is invalid. Please sign in again.']);
@@ -1660,7 +1700,7 @@ function requireValidConnectSession(PDO $pdo, array $input): array
         if ($reason !== '') {
             $message .= ' Reason: ' . $reason;
         }
-        clearUserActiveSession($pdo, (int) $user['id'], $sessionTokenHash);
+        clearUserActiveSession($pdo, (int) $user['id'], $sessionTokenHash, 'account_locked');
         jsonResponse(423, ['ok' => false, 'code' => 'account_locked', 'error' => $message]);
     }
 
@@ -1688,11 +1728,12 @@ function hasAnotherActiveConnection(array $user, string $sessionTokenHash): bool
     return !hash_equals($activeConnectionTokenHash, $sessionTokenHash);
 }
 
-function clearUserActiveSession(PDO $pdo, int $userId, string $sessionTokenHash = ''): void
+function clearUserActiveSession(PDO $pdo, int $userId, string $sessionTokenHash = '', ?string $forcedLogoutReason = 'admin_forced_sign_out'): void
 {
     $statement = $pdo->prepare(
         'UPDATE auth_users
          SET forced_logout_token_hash = :forced_logout_token_hash,
+             forced_logout_reason = :forced_logout_reason,
              forced_logout_at = :forced_logout_at,
              session_token_hash = NULL,
              session_token_expires_at = NULL,
@@ -1702,9 +1743,33 @@ function clearUserActiveSession(PDO $pdo, int $userId, string $sessionTokenHash 
     );
     $statement->execute([
         ':forced_logout_token_hash' => $sessionTokenHash !== '' ? $sessionTokenHash : null,
+        ':forced_logout_reason' => $sessionTokenHash !== '' ? $forcedLogoutReason : null,
         ':forced_logout_at' => gmdate('Y-m-d H:i:s'),
         ':id' => $userId,
     ]);
+}
+
+function buildForcedLogoutResponse(array $user): array
+{
+    $reason = trim((string) ($user['forced_logout_reason'] ?? ''));
+    $lockedReason = trim((string) ($user['locked_reason'] ?? ''));
+
+    return match ($reason) {
+        'signed_in_elsewhere' => [
+            'code' => 'signed_in_elsewhere',
+            'message' => 'You were signed out because this account was signed in on another device.',
+        ],
+        'account_locked' => [
+            'code' => 'account_locked',
+            'message' => $lockedReason !== ''
+                ? 'This account has been locked. Please contact admin. Reason: ' . $lockedReason
+                : 'This account has been locked. Please contact admin.',
+        ],
+        default => [
+            'code' => 'admin_forced_sign_out',
+            'message' => 'Your session was ended by an administrator. The app will close now.',
+        ],
+    };
 }
 
 function handleForgotPassword(PDO $pdo, array $config, array $input): void
@@ -1810,6 +1875,92 @@ function handleResetPassword(PDO $pdo, array $input): void
     jsonResponse(200, [
         'ok' => true,
         'message' => 'Password reset successfully.',
+    ]);
+}
+
+function handleContactSubmit(PDO $pdo, array $config, array $input): void
+{
+    $name = trim((string) ($input['name'] ?? ''));
+    $email = normalizeEmail((string) ($input['email'] ?? ''));
+    $topic = trim((string) ($input['topic'] ?? ''));
+    $messageBody = trim((string) ($input['message'] ?? ''));
+
+    $allowedTopics = [
+        'general',
+        'app_support',
+        'billing',
+        'account_help',
+        'bug_report',
+        'feature_request',
+        'partnership',
+        'other',
+    ];
+
+    if ($name === '' || $email === '' || $topic === '' || $messageBody === '') {
+        jsonResponse(400, ['ok' => false, 'error' => 'Name, email, topic, and message are required.']);
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Enter a valid email address.']);
+    }
+
+    if (!in_array($topic, $allowedTopics, true)) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Choose a valid contact topic.']);
+    }
+
+    if (mb_strlen($messageBody) < 10) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Please enter a fuller message so support can help properly.']);
+    }
+
+    $topicLabels = [
+        'general' => 'General enquiry',
+        'app_support' => 'App support',
+        'billing' => 'Billing',
+        'account_help' => 'Account help',
+        'bug_report' => 'Bug report',
+        'feature_request' => 'Feature request',
+        'partnership' => 'Partnership',
+        'other' => 'Other',
+    ];
+    $resolvedSubject = $topicLabels[$topic] ?? 'Website contact';
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_contact_messages (
+            name,
+            email,
+            topic,
+            subject,
+            message_body,
+            ip_address
+         ) VALUES (
+            :name,
+            :email,
+            :topic,
+            :subject,
+            :message_body,
+            :ip_address
+         )'
+    );
+    $statement->execute([
+        ':name' => mb_substr($name, 0, 120),
+        ':email' => mb_substr($email, 0, 255),
+        ':topic' => mb_substr($topic, 0, 80),
+        ':subject' => mb_substr($resolvedSubject, 0, 255),
+        ':message_body' => $messageBody,
+        ':ip_address' => resolveClientIp(),
+    ]);
+
+    sendContactEmail($config, [
+        'name' => $name,
+        'email' => $email,
+        'topic' => $topic,
+        'subject' => $resolvedSubject,
+        'message' => $messageBody,
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Thanks, your message has been sent. We will review it as soon as possible.',
     ]);
 }
 
@@ -2104,23 +2255,391 @@ function sendCodeEmail(array $config, string $recipient, string $subject, string
 {
     $fromEmail = (string) ($config['mail']['from_email'] ?? '');
     $fromName = (string) ($config['mail']['from_name'] ?? 'Stream Sync Pro');
+    $appName = (string) ($config['app']['name'] ?? 'Stream Sync Pro');
 
     if ($fromEmail === '') {
         throw new RuntimeException('Mail sender address is missing in config.php.');
     }
 
-    $body = $intro . "\n\n" . $code . "\n\nIf you did not request this, you can ignore this email.";
-    $headers = [
-        'MIME-Version: 1.0',
-        'Content-type: text/plain; charset=UTF-8',
-        'From: ' . sprintf('%s <%s>', $fromName, $fromEmail),
-    ];
+    $textBody = implode("\n\n", [
+        $intro,
+        $code,
+        'If you did not request this, you can ignore this email.',
+    ]);
+    $htmlBody = renderBrandedEmailHtml($appName, [
+        'eyebrow' => 'Account Security',
+        'title' => $subject,
+        'intro' => $intro,
+        'code' => $code,
+        'sections' => [],
+        'footnote' => 'If you did not request this, you can safely ignore this email.',
+    ]);
 
-    $sent = mail($recipient, $subject, $body, implode("\r\n", $headers));
+    $sent = sendBrandedEmail(
+        $recipient,
+        $subject,
+        $textBody,
+        $htmlBody,
+        [
+            'fromEmail' => $fromEmail,
+            'fromName' => $fromName,
+        ]
+    );
 
     if (!$sent) {
         throw new RuntimeException('Email could not be sent. Your hosting mail() setup may need to be configured.');
     }
+}
+
+function sendContactEmail(array $config, array $payload): void
+{
+    $fromEmail = (string) ($config['mail']['from_email'] ?? '');
+    $fromName = (string) ($config['mail']['from_name'] ?? 'Stream Sync Pro');
+    $toEmail = (string) ($config['contact']['to_email'] ?? $fromEmail);
+    $toName = (string) ($config['contact']['to_name'] ?? 'Stream Sync Pro Support');
+    $appName = (string) ($config['app']['name'] ?? 'Stream Sync Pro');
+
+    if ($fromEmail === '' || $toEmail === '') {
+        throw new RuntimeException('Contact email routing is missing in config.php.');
+    }
+
+    $topicLabels = [
+        'general' => 'General enquiry',
+        'app_support' => 'App support',
+        'billing' => 'Billing',
+        'account_help' => 'Account help',
+        'bug_report' => 'Bug report',
+        'feature_request' => 'Feature request',
+        'partnership' => 'Partnership',
+        'other' => 'Other',
+    ];
+    $topic = (string) ($payload['topic'] ?? 'other');
+    $topicLabel = $topicLabels[$topic] ?? 'Other';
+    $senderName = (string) ($payload['name'] ?? '');
+    $senderEmail = (string) ($payload['email'] ?? '');
+    $messageText = (string) ($payload['message'] ?? '');
+
+    $subject = sprintf('[%s] %s', $topicLabel, (string) ($payload['subject'] ?? 'Website contact'));
+    $textBody = implode("\n", [
+        'A new website contact form message has been submitted.',
+        '',
+        'Name: ' . $senderName,
+        'Email: ' . $senderEmail,
+        'Topic: ' . $topicLabel,
+        '',
+        'Message:',
+        $messageText,
+    ]);
+    $htmlBody = renderBrandedEmailHtml($appName, [
+        'eyebrow' => 'Website Contact',
+        'title' => $subject,
+        'intro' => 'A new contact form message has been submitted through your website.',
+        'sections' => [
+            ['label' => 'Name', 'value' => $senderName],
+            ['label' => 'Email', 'value' => $senderEmail],
+            ['label' => 'Topic', 'value' => $topicLabel],
+            ['label' => 'Message', 'value' => $messageText, 'multiline' => true],
+        ],
+        'footnote' => 'Reply directly to this email to respond to the sender.',
+    ]);
+
+    $sent = sendBrandedEmail(
+        $toEmail,
+        $subject,
+        $textBody,
+        $htmlBody,
+        [
+            'toName' => $toName,
+            'fromEmail' => $fromEmail,
+            'fromName' => $fromName,
+            'replyToEmail' => $senderEmail !== '' ? $senderEmail : $fromEmail,
+            'replyToName' => $senderName !== '' ? $senderName : 'Website user',
+        ]
+    );
+
+    if (!$sent) {
+        throw new RuntimeException('Contact email could not be sent. Your hosting mail() setup may need to be configured.');
+    }
+}
+
+function sendBrandedEmail(string $toEmail, string $subject, string $textBody, string $htmlBody, array $options = []): bool
+{
+    $toName = trim((string) ($options['toName'] ?? ''));
+    $fromEmail = trim((string) ($options['fromEmail'] ?? ''));
+    $fromName = trim((string) ($options['fromName'] ?? 'Stream Sync Pro'));
+    $replyToEmail = trim((string) ($options['replyToEmail'] ?? ''));
+    $replyToName = trim((string) ($options['replyToName'] ?? ''));
+
+    $boundary = 'ssp_' . bin2hex(random_bytes(12));
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
+        'From: ' . sprintf('%s <%s>', $fromName, $fromEmail),
+        'X-Mailer: PHP/' . PHP_VERSION,
+    ];
+
+    if ($toName !== '') {
+        $headers[] = 'To: ' . sprintf('%s <%s>', $toName, $toEmail);
+    }
+
+    if ($replyToEmail !== '') {
+        $displayReplyName = $replyToName !== '' ? $replyToName : $replyToEmail;
+        $headers[] = 'Reply-To: ' . sprintf('%s <%s>', $displayReplyName, $replyToEmail);
+    }
+
+    $body = implode("\r\n", [
+        '--' . $boundary,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        $textBody,
+        '',
+        '--' . $boundary,
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        $htmlBody,
+        '',
+        '--' . $boundary . '--',
+    ]);
+
+    return mail($toEmail, $subject, $body, implode("\r\n", $headers));
+}
+
+function renderBrandedEmailHtml(string $appName, array $payload): string
+{
+    $eyebrow = htmlspecialchars((string) ($payload['eyebrow'] ?? 'Notification'), ENT_QUOTES, 'UTF-8');
+    $title = htmlspecialchars((string) ($payload['title'] ?? $appName), ENT_QUOTES, 'UTF-8');
+    $intro = nl2br(htmlspecialchars((string) ($payload['intro'] ?? ''), ENT_QUOTES, 'UTF-8'));
+    $code = trim((string) ($payload['code'] ?? ''));
+    $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
+    $footnote = htmlspecialchars((string) ($payload['footnote'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $safeAppName = htmlspecialchars($appName, ENT_QUOTES, 'UTF-8');
+    $logoUrl = htmlspecialchars((string) ($payload['logoUrl'] ?? 'https://streamsyncpro.co.uk/assets/SSP.png'), ENT_QUOTES, 'UTF-8');
+
+    $sectionsHtml = '';
+    foreach ($sections as $section) {
+        $label = htmlspecialchars((string) ($section['label'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $value = (string) ($section['value'] ?? '');
+        $isMultiline = !empty($section['multiline']);
+        $renderedValue = $isMultiline
+            ? nl2br(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'))
+            : htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        $valueClass = $isMultiline ? 'email-detail-value email-detail-value--multiline' : 'email-detail-value';
+        $sectionsHtml .= <<<HTML
+          <div class="email-detail">
+            <div class="email-detail-label">{$label}</div>
+            <div class="{$valueClass}">{$renderedValue}</div>
+          </div>
+HTML;
+    }
+
+    $codeHtml = '';
+    if ($code !== '') {
+        $safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+        $codeHtml = <<<HTML
+          <div class="email-code-wrap">
+            <div class="email-code-label">Verification code</div>
+            <div class="email-code">{$safeCode}</div>
+          </div>
+HTML;
+    }
+
+    $footnoteHtml = '';
+    if ($footnote !== '') {
+        $footnoteHtml = <<<HTML
+          <p class="email-footnote">{$footnote}</p>
+HTML;
+    }
+
+    return <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{$title}</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background:
+          radial-gradient(circle at top left, rgba(77, 231, 255, 0.12), transparent 32%),
+          radial-gradient(circle at top right, rgba(144, 104, 255, 0.14), transparent 24%),
+          linear-gradient(180deg, #081122 0%, #050915 45%, #02050d 100%);
+        font-family: Inter, Arial, sans-serif;
+        color: #eaf2ff;
+      }
+      .email-shell {
+        width: 100%;
+        padding: 32px 16px;
+      }
+      .email-card {
+        max-width: 680px;
+        margin: 0 auto;
+        border: 1px solid rgba(97, 160, 255, 0.22);
+        border-radius: 28px;
+        background: rgba(8, 14, 28, 0.96);
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+        overflow: hidden;
+      }
+      .email-head {
+        padding: 24px 28px 22px;
+        border-bottom: 1px solid rgba(97, 160, 255, 0.18);
+        background:
+          radial-gradient(circle at top, rgba(18, 35, 68, 0.18), transparent 52%),
+          linear-gradient(180deg, rgba(9, 17, 33, 0.98), rgba(7, 13, 24, 0.88));
+      }
+      .email-brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-family: "Space Grotesk", Inter, Arial, sans-serif;
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 0 0 6px;
+      }
+      .email-brand-logo {
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        display: block;
+        filter: drop-shadow(0 0 14px rgba(77, 231, 255, 0.18));
+      }
+      .email-brand-name {
+        display: block;
+      }
+      .email-eyebrow {
+        margin: 0;
+        color: #4de7ff;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .email-body {
+        padding: 28px;
+      }
+      .email-title {
+        margin: 0 0 12px;
+        font-size: 28px;
+        line-height: 1.12;
+        letter-spacing: -0.03em;
+      }
+      .email-intro {
+        margin: 0 0 22px;
+        color: #a7b9d6;
+        font-size: 16px;
+        line-height: 1.75;
+      }
+      .email-code-wrap {
+        margin: 0 0 22px;
+        padding: 18px 20px;
+        border: 1px solid rgba(89, 170, 255, 0.14);
+        border-radius: 20px;
+        background:
+          linear-gradient(180deg, rgba(10, 17, 31, 0.88), rgba(8, 14, 25, 0.76));
+      }
+      .email-code-label {
+        margin: 0 0 8px;
+        color: #a7b9d6;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .email-code {
+        font-family: "Space Grotesk", Inter, Arial, sans-serif;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: #ffffff;
+      }
+      .email-details {
+        display: grid;
+        gap: 12px;
+      }
+      .email-detail {
+        padding: 16px 18px;
+        border: 1px solid rgba(89, 170, 255, 0.13);
+        border-radius: 18px;
+        background:
+          linear-gradient(180deg, rgba(10, 17, 31, 0.88), rgba(8, 14, 25, 0.76));
+      }
+      .email-detail-label {
+        margin: 0 0 8px;
+        color: #a7b9d6;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .email-detail-value {
+        color: #eaf2ff;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .email-detail-value--multiline {
+        white-space: normal;
+      }
+      .email-footnote {
+        margin: 22px 0 0;
+        color: #a7b9d6;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .email-footer {
+        padding: 0 28px 26px;
+        color: #7f96bb;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+      @media only screen and (max-width: 640px) {
+        .email-head,
+        .email-body,
+        .email-footer {
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+        .email-brand-logo {
+          width: 48px;
+          height: 48px;
+        }
+        .email-title {
+          font-size: 24px;
+        }
+        .email-code {
+          font-size: 26px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="email-shell">
+      <div class="email-card">
+        <div class="email-head">
+          <p class="email-eyebrow">{$eyebrow}</p>
+          <h1 class="email-brand">
+            <img class="email-brand-logo" src="{$logoUrl}" alt="{$safeAppName} logo" />
+            <span class="email-brand-name">{$safeAppName}</span>
+          </h1>
+        </div>
+        <div class="email-body">
+          <h2 class="email-title">{$title}</h2>
+          <p class="email-intro">{$intro}</p>
+          {$codeHtml}
+          <div class="email-details">{$sectionsHtml}</div>
+          {$footnoteHtml}
+        </div>
+        <div class="email-footer">
+          This message was sent by {$safeAppName}. If you need help, use the contact options on the website.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+HTML;
 }
 
 function jsonResponse(int $statusCode, array $payload): void

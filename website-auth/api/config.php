@@ -13,6 +13,10 @@ return [
         'from_email' => 'noreply@streamsyncpro.co.uk',
         'from_name' => 'Stream Sync Pro',
     ],
+    'contact' => [
+        'to_email' => 'info@streamsyncpro.co.uk',
+        'to_name' => 'Stream Sync Pro Support',
+    ],
     'app' => [
         'name' => 'Stream Sync Pro LIVE',
         'verification_expiry_minutes' => 15,
@@ -23,6 +27,7 @@ return [
         'currency' => 'GBP',
         'minimum_credits' => 1,
         'maximum_credits' => 5000,
+        'signup_credits' => 5,
         'topup_session_expiry_minutes' => 20,
     ],
     'paypal' => [
