@@ -10,6 +10,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getConnectionState() {
     return ipcRenderer.invoke("live:get-state");
   },
+  getAvailableTikTokGifts(username) {
+    return ipcRenderer.invoke("tiktok:get-available-gifts", { username });
+  },
+  getAuthenticatedTikTokEmotes(payload) {
+    return ipcRenderer.invoke("tiktok:get-authenticated-emotes", payload);
+  },
+  beginTikTokSignIn() {
+    return ipcRenderer.invoke("tiktok:sign-in");
+  },
+  signOutTikTok() {
+    return ipcRenderer.invoke("tiktok:sign-out");
+  },
   getAppVersion() {
     return ipcRenderer.invoke("app:get-version");
   },
@@ -24,6 +36,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   updateCommandFeedbackOverlayState(payload) {
     return ipcRenderer.invoke("overlay:update-command-feedback-state", payload);
+  },
+  getOverlayDesignerInfo() {
+    return ipcRenderer.invoke("overlay:get-designer-info");
+  },
+  updateOverlayDesignerState(payload) {
+    return ipcRenderer.invoke("overlay:update-designer-state", payload);
   },
   openExternal(url) {
     return ipcRenderer.invoke("app:open-external", { url });
@@ -52,14 +70,20 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getTtsVoices(payload) {
     return ipcRenderer.invoke("tts:get-voices", payload);
   },
+  getElevenLabsUsage(payload) {
+    return ipcRenderer.invoke("tts:get-elevenlabs-usage", payload);
+  },
   speakToFile(payload) {
     return ipcRenderer.invoke("tts:speak-to-file", payload);
   },
   deleteTtsFile(filePath) {
     return ipcRenderer.invoke("tts:delete-file", { filePath });
   },
-  getSoundAlertCatalog(refresh = false) {
-    return ipcRenderer.invoke("sound-alerts:get-catalog", { refresh });
+  getSoundAlertCatalog(options = false) {
+    const payload = typeof options === "object" && options !== null
+      ? options
+      : { refresh: Boolean(options) };
+    return ipcRenderer.invoke("sound-alerts:get-catalog", payload);
   },
   resolveSoundAlertAudio(soundId) {
     return ipcRenderer.invoke("sound-alerts:resolve-audio", { soundId });

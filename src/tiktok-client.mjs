@@ -11,8 +11,35 @@ let currentConnection = null;
 let connectionState = {
   connected: false,
   username: "",
-  roomId: null
+  roomId: null,
+  viewerCount: null
 };
+
+function extractViewerCount(source) {
+  const candidates = [
+    source?.viewerCount,
+    source?.userCount,
+    source?.memberCount,
+    source?.roomInfo?.viewerCount,
+    source?.roomInfo?.userCount,
+    source?.roomInfo?.memberCount,
+    source?.roomInfo?.stats?.viewerCount,
+    source?.roomInfo?.stats?.userCount,
+    source?.roomInfo?.stats?.memberCount,
+    source?.stats?.viewerCount,
+    source?.stats?.userCount,
+    source?.stats?.memberCount
+  ];
+
+  for (const candidate of candidates) {
+    const numericValue = Number(candidate);
+    if (Number.isFinite(numericValue) && numericValue >= 0) {
+      return Math.trunc(numericValue);
+    }
+  }
+
+  return null;
+}
 
 function normalizeUsername(username) {
   return username.trim().replace(/^@/, "");
@@ -52,6 +79,256 @@ function getGiftCoinValue(data) {
   return Number.isFinite(unitValue) && unitValue > 0 ? unitValue : 0;
 }
 
+function getGiftImageUrl(data) {
+  const candidates = [
+    data.giftPictureUrl,
+    data.giftImage?.url?.[0],
+    data.giftImage?.urlList?.[0],
+    data.giftImage?.url_list?.[0],
+    data.giftImage?.uri,
+    data.giftPicture?.urlList?.[0],
+    data.giftPicture?.url_list?.[0],
+    data.giftPicture?.url,
+    data.giftIconImage?.url?.[0],
+    data.giftIconImage?.urlList?.[0],
+    data.giftIconImage?.url_list?.[0],
+    data.giftIconImage?.uri,
+    data.giftIcon?.urlList?.[0],
+    data.giftIcon?.url_list?.[0],
+    data.giftIcon?.url,
+    data.giftDetails?.giftImage?.url?.[0],
+    data.giftDetails?.giftImage?.urlList?.[0],
+    data.giftDetails?.giftImage?.url_list?.[0],
+    data.giftDetails?.giftImage?.uri,
+    data.giftDetails?.giftPicture?.urlList?.[0],
+    data.giftDetails?.giftPicture?.url_list?.[0],
+    data.giftDetails?.giftPicture?.url,
+    data.giftDetails?.giftIconImage?.url?.[0],
+    data.giftDetails?.giftIconImage?.urlList?.[0],
+    data.giftDetails?.giftIconImage?.url_list?.[0],
+    data.giftDetails?.giftIconImage?.uri,
+    data.giftDetails?.icon?.urlList?.[0],
+    data.giftDetails?.icon?.url_list?.[0],
+    data.giftDetails?.icon?.url,
+    data.gift?.giftImage?.url?.[0],
+    data.gift?.giftImage?.urlList?.[0],
+    data.gift?.giftImage?.url_list?.[0],
+    data.gift?.giftImage?.uri,
+    data.gift?.giftPicture?.urlList?.[0],
+    data.gift?.giftPicture?.url_list?.[0],
+    data.gift?.giftPicture?.url,
+    data.gift?.giftIconImage?.url?.[0],
+    data.gift?.giftIconImage?.urlList?.[0],
+    data.gift?.giftIconImage?.url_list?.[0],
+    data.gift?.giftIconImage?.uri,
+    data.gift?.icon?.urlList?.[0],
+    data.gift?.icon?.url_list?.[0],
+    data.gift?.icon?.url,
+    data.unlightedGiftIcon
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim().replace(/^http:\/\//i, "https://");
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function getEmoteImageUrl(data) {
+  const candidates = [
+    data?.emoteImageUrl,
+    data?.image?.imageUrl,
+    data?.image?.url?.[0],
+    data?.image?.urlList?.[0],
+    data?.image?.url_list?.[0],
+    data?.emote?.image?.imageUrl,
+    data?.emote?.image?.url?.[0],
+    data?.emote?.image?.urlList?.[0],
+    data?.emote?.image?.url_list?.[0]
+  ];
+
+  for (const candidate of candidates) {
+    const value = String(candidate ?? "").trim().replace(/^http:\/\//i, "https://");
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function normalizeObservedEmoteEntry(entry) {
+  const emoteId = String(
+    entry?.emoteId ??
+    entry?.emote?.emoteId ??
+    entry?.id ??
+    ""
+  ).trim();
+  const emoteName = String(
+    entry?.emoteName ??
+    entry?.name ??
+    entry?.title ??
+    ""
+  ).trim();
+  const emoteImageUrl = getEmoteImageUrl(entry);
+
+  if (!emoteId && !emoteName) {
+    return null;
+  }
+
+  return {
+    emoteId,
+    emoteName,
+    emoteImageUrl
+  };
+}
+
+function inferEmoteMetric(entry) {
+  const sourceValue = String(
+    entry?.emoteUploadInfo?.emoteUploadSource ??
+    entry?.emotePrivateType ??
+    entry?.emoteScene ??
+    entry?.source ??
+    ""
+  ).toLowerCase();
+
+  if (sourceValue.includes("subscriber") || sourceValue.includes("subscription") || sourceValue === "1" || sourceValue === "0") {
+    return "subEmote";
+  }
+
+  return "fanEmote";
+}
+
+function getObservedEmotes(data) {
+  const rawEntries = Array.isArray(data?.emotes)
+    ? data.emotes
+    : Array.isArray(data?.emoteList)
+      ? data.emoteList
+      : [];
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const rawEntry of rawEntries) {
+    const entry = normalizeObservedEmoteEntry(rawEntry);
+    if (!entry) {
+      continue;
+    }
+
+    const dedupeKey = String(entry.emoteId || entry.emoteName).toLowerCase();
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    normalized.push(entry);
+  }
+
+  return normalized;
+}
+
+function collectAuthenticatedEmoteCandidates(value, results, visited = new WeakSet()) {
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  if (visited.has(value)) {
+    return;
+  }
+  visited.add(value);
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      collectAuthenticatedEmoteCandidates(item, results, visited);
+    }
+    return;
+  }
+
+  const candidate = normalizeObservedEmoteEntry(value);
+  const hasEmoteShape = candidate && (
+    value.emoteUploadInfo ||
+    value.emoteType !== undefined ||
+    value.emoteScene !== undefined ||
+    value.emotePrivateType !== undefined ||
+    value.rewardCondition !== undefined
+  );
+
+  if (candidate && hasEmoteShape) {
+    results.push({
+      metric: inferEmoteMetric(value),
+      ...candidate
+    });
+  }
+
+  for (const nestedValue of Object.values(value)) {
+    collectAuthenticatedEmoteCandidates(nestedValue, results, visited);
+  }
+}
+
+function normalizeAuthenticatedEmoteResults(entries = []) {
+  const normalized = [];
+  const seen = new Set();
+
+  for (const entry of entries) {
+    const metric = entry?.metric === "fanEmote" ? "fanEmote" : "subEmote";
+    const emoteId = String(entry?.emoteId ?? "").trim();
+    const emoteName = String(entry?.emoteName ?? "").trim();
+    const emoteImageUrl = getEmoteImageUrl(entry);
+    const dedupeKey = `${metric}|${String(emoteId || emoteName).toLowerCase()}`;
+    if ((!emoteId && !emoteName) || seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    normalized.push({
+      metric,
+      emoteId,
+      emoteName,
+      emoteImageUrl
+    });
+  }
+
+  return normalized.sort((left, right) => {
+    const metricCompare = left.metric.localeCompare(right.metric);
+    if (metricCompare !== 0) {
+      return metricCompare;
+    }
+    return String(left.emoteName || left.emoteId).localeCompare(String(right.emoteName || right.emoteId));
+  });
+}
+
+function normalizeGiftCatalogEntry(entry) {
+  const giftName = String(
+    entry?.giftName ??
+    entry?.name ??
+    entry?.describe ??
+    ""
+  ).trim();
+  const giftId = String(
+    entry?.giftId ??
+    entry?.id ??
+    entry?.gift?.id ??
+    ""
+  ).trim();
+  const giftImageUrl = getGiftImageUrl(entry);
+  const coinValue = getGiftCoinValue(entry);
+
+  if (!giftName) {
+    return null;
+  }
+
+  return {
+    giftId,
+    giftName,
+    giftImageUrl,
+    coinValue,
+    source: "roomCatalog"
+  };
+}
+
 function getRoleFlags(data) {
   const userIdentity = data.userIdentity ?? {};
 
@@ -74,7 +351,8 @@ export async function disconnectFromLive() {
   connectionState = {
     connected: false,
     username: "",
-    roomId: null
+    roomId: null,
+    viewerCount: null
   };
 
   return connectionState;
@@ -82,6 +360,132 @@ export async function disconnectFromLive() {
 
 export function getConnectionState() {
   return connectionState;
+}
+
+export async function fetchAvailableGiftsForUsername(username) {
+  const normalizedUsername = normalizeUsername(String(username ?? ""));
+  if (!normalizedUsername) {
+    return {
+      gifts: [],
+      liveActive: false,
+      error: "Enter a TikTok username first."
+    };
+  }
+
+  const tempConnection = new TikTokLiveConnection(normalizedUsername, {
+    processInitialData: false,
+    fetchRoomInfoOnConnect: false,
+    enableExtendedGiftInfo: false,
+    enableRequestPolling: false
+  });
+
+  try {
+    const isLive = await tempConnection.fetchIsLive();
+    if (!isLive) {
+      return {
+        gifts: [],
+        liveActive: false,
+        error: `TikTok LIVE is not active for @${normalizedUsername} right now.`
+      };
+    }
+
+    await tempConnection.fetchRoomInfo();
+    const gifts = await tempConnection.fetchAvailableGifts();
+    if (!Array.isArray(gifts)) {
+      return {
+        gifts: [],
+        liveActive: true,
+        error: "TikTok did not return a gift catalog for this LIVE."
+      };
+    }
+
+    return {
+      gifts: gifts
+        .map(normalizeGiftCatalogEntry)
+        .filter(Boolean),
+      liveActive: true,
+      error: ""
+    };
+  } catch {
+    return {
+      gifts: [],
+      liveActive: false,
+      error: `Unable to fetch TikTok gift catalog for @${normalizedUsername}.`
+    };
+  } finally {
+    try {
+      await tempConnection.disconnect();
+    } catch {
+      // Ignore cleanup errors for temporary gift catalog lookups.
+    }
+  }
+}
+
+export async function fetchAuthenticatedEmotesForUsername({ username, sessionId, ttTargetIdc } = {}) {
+  const normalizedUsername = normalizeUsername(String(username ?? ""));
+  const normalizedSessionId = String(sessionId ?? "").trim();
+  const normalizedTargetIdc = String(ttTargetIdc ?? "").trim();
+
+  if (!normalizedUsername) {
+    return {
+      emotes: [],
+      liveActive: false,
+      message: "Enter a TikTok username first."
+    };
+  }
+
+  if (!normalizedSessionId || !normalizedTargetIdc) {
+    return {
+      emotes: [],
+      liveActive: false,
+      message: "Both sessionid and tt-target-idc are required."
+    };
+  }
+
+  const tempConnection = new TikTokLiveConnection(normalizedUsername, {
+    processInitialData: false,
+    fetchRoomInfoOnConnect: false,
+    enableExtendedGiftInfo: false,
+    enableRequestPolling: false,
+    sessionId: normalizedSessionId,
+    ttTargetIdc: normalizedTargetIdc
+  });
+
+  try {
+    const isLive = await tempConnection.fetchIsLive();
+    if (!isLive) {
+      return {
+        emotes: [],
+        liveActive: false,
+        message: `TikTok LIVE is not active for @${normalizedUsername} right now.`
+      };
+    }
+
+    const roomInfo = await tempConnection.fetchRoomInfo();
+    const candidates = [];
+    collectAuthenticatedEmoteCandidates(roomInfo, candidates);
+    const emotes = normalizeAuthenticatedEmoteResults(candidates);
+
+    return {
+      emotes,
+      liveActive: true,
+      message: emotes.length
+        ? `Loaded ${emotes.length} authenticated TikTok emote${emotes.length === 1 ? "" : "s"} for @${normalizedUsername}.`
+        : `TikTok did not expose any creator emotes in the authenticated room data for @${normalizedUsername}.`
+    };
+  } catch (error) {
+    return {
+      emotes: [],
+      liveActive: false,
+      message: String(error?.message ?? "Unable to fetch authenticated TikTok emotes.")
+    };
+  } finally {
+    try {
+      await tempConnection.disconnect();
+    } catch {
+      // Ignore cleanup errors for temporary emote lookups.
+    }
+  }
 }
 
 function delay(ms) {
@@ -103,8 +507,44 @@ function shouldRetryConnection(error) {
   );
 }
 
+function sanitizeConnectorStatusMessage(message, username = "") {
+  const rawMessage = String(message ?? "").trim();
+  const normalizedUsername = normalizeUsername(String(username ?? ""));
+  const lowerMessage = rawMessage.toLowerCase();
+  const userLabel = normalizedUsername ? ` for @${normalizedUsername}` : "";
+
+  if (!rawMessage) {
+    return rawMessage;
+  }
+
+  if (
+    lowerMessage.includes("failed to retrieve room info for live status from main page") ||
+    lowerMessage.includes("falling back to api source")
+  ) {
+    return `TikTok is still resolving live details${userLabel}. Please wait a moment and try again.`;
+  }
+
+  if (
+    lowerMessage.includes("failed to retrieve room id") ||
+    lowerMessage.includes("failed to retrieve roominfo") ||
+    lowerMessage.includes("failed to retrieve room info")
+  ) {
+    return `TikTok room details are not available yet${userLabel}. Please try again in a moment.`;
+  }
+
+  if (
+    lowerMessage.includes("user might not be live") ||
+    lowerMessage.includes("is currently offline") ||
+    lowerMessage.includes("live has ended")
+  ) {
+    return `TikTok LIVE is not active${userLabel} right now.`;
+  }
+
+  return rawMessage;
+}
+
 function formatConnectionError(error, username) {
-  const rawMessage = String(error?.info ?? error?.message ?? error ?? "").trim();
+  const rawMessage = sanitizeConnectorStatusMessage(error?.info ?? error?.message ?? error ?? "", username);
 
   if (
     rawMessage.toLowerCase().includes("websocket connection failed") &&
@@ -129,6 +569,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
 
   connection.on(WebcastEvent.CHAT, (data) => {
     const roleFlags = getRoleFlags(data);
+    const emotes = getObservedEmotes(data);
 
     listeners.onChat({
       id: data.commentId ?? randomUUID(),
@@ -137,6 +578,27 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
       ...roleFlags,
       message: data.comment ?? "",
+      emotes,
+      timestamp: new Date().toISOString()
+    });
+  });
+
+  connection.on(WebcastEvent.EMOTE, (data) => {
+    const roleFlags = getRoleFlags(data);
+    const emotes = getObservedEmotes(data);
+    const primaryEmote = emotes[0] ?? null;
+
+    listeners.onChat({
+      id: data.common?.msgId ?? randomUUID(),
+      type: "subEmote",
+      user: data.user?.uniqueId ?? "unknown",
+      nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
+      ...roleFlags,
+      message: "sent a subscriber emote",
+      emotes,
+      emoteId: primaryEmote?.emoteId ?? "",
+      emoteName: primaryEmote?.emoteName ?? "",
+      emoteImageUrl: primaryEmote?.emoteImageUrl ?? "",
       timestamp: new Date().toISOString()
     });
   });
@@ -156,6 +618,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
     const giftCount = getGiftCount(data);
     const giftName = getGiftName(data);
     const coinValue = getGiftCoinValue(data);
+    const giftImageUrl = getGiftImageUrl(data);
     const countSuffix = giftCount > 1 ? ` x${giftCount}` : "";
 
     listeners.onChat({
@@ -166,12 +629,39 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       ...roleFlags,
       message: `sent ${giftName}${countSuffix}`,
       giftName,
+      giftId: String(
+        data.giftId ??
+        data.giftDetails?.id ??
+        data.gift?.id ??
+        ""
+      ).trim(),
+      giftImageUrl,
       giftCount,
       coinValue,
       totalCoins: coinValue * giftCount,
       timestamp: new Date().toISOString()
     });
   });
+
+  if (WebcastEvent.MEMBER) {
+    connection.on(WebcastEvent.MEMBER, (data) => {
+      const roleFlags = getRoleFlags(data);
+      listeners.onChat({
+        id: data.msgId ?? randomUUID(),
+        type: "join",
+        user: data.user?.uniqueId ?? data.uniqueId ?? "unknown",
+        nickname:
+          data.user?.nickname ??
+          data.nickname ??
+          data.user?.uniqueId ??
+          data.uniqueId ??
+          "unknown",
+        ...roleFlags,
+        message: "joined the stream",
+        timestamp: new Date().toISOString()
+      });
+    });
+  }
 
   connection.on(WebcastEvent.FOLLOW, (data) => {
     const roleFlags = getRoleFlags(data);
@@ -235,10 +725,30 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
     });
   });
 
+  connection.on(WebcastEvent.ROOM_USER, (data) => {
+    const viewerCount = extractViewerCount(data);
+    if (viewerCount === null) {
+      return;
+    }
+
+    connectionState = {
+      ...connectionState,
+      viewerCount
+    };
+
+    listeners.onStatus({
+      level: "info",
+      message: `Viewer count updated: ${viewerCount}.`,
+      suppressToast: true,
+      connectionState: { ...connectionState }
+    });
+  });
+
   connection.on(ControlEvent.CONNECTED, (state) => {
     listeners.onStatus({
       level: "success",
-      message: `Connected to room ${state.roomId}.`
+      message: `Connected to room ${state.roomId}.`,
+      connectionState: { ...connectionState }
     });
   });
 
@@ -246,7 +756,8 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
     connectionState = {
       connected: false,
       username: normalizedUsername,
-      roomId: null
+      roomId: null,
+      viewerCount: null
     };
 
     if (streamEndedDisconnecting) {
@@ -276,7 +787,10 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
   connection.on(ControlEvent.ERROR, (error) => {
     listeners.onStatus({
       level: "error",
-      message: error?.info ?? error?.message ?? "TikTok connection error."
+      message: sanitizeConnectorStatusMessage(
+        error?.info ?? error?.message ?? "TikTok connection error.",
+        normalizedUsername
+      )
     });
   });
 }
@@ -338,8 +852,22 @@ export async function connectToLive(username, listeners) {
         connectionState = {
           connected: true,
           username: normalizedUsername,
-          roomId: resolvedRoomId
+          roomId: resolvedRoomId,
+          viewerCount: null
         };
+
+        try {
+          const roomInfo = await connection.fetchRoomInfo();
+          const viewerCount = extractViewerCount(roomInfo);
+          if (viewerCount !== null) {
+            connectionState = {
+              ...connectionState,
+              viewerCount
+            };
+          }
+        } catch {
+          // Ignore room info fetch issues here; live count updates can still arrive through events.
+        }
 
       return connectionState;
     } catch (error) {
@@ -365,7 +893,8 @@ export async function connectToLive(username, listeners) {
   connectionState = {
     connected: false,
     username: normalizedUsername,
-    roomId: null
+    roomId: null,
+    viewerCount: null
   };
 
   throw new Error(formatConnectionError(lastError, normalizedUsername));

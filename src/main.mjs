@@ -1,7 +1,8 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import { execFile } from "node:child_process";
 import { createServer } from "node:http";
 import log from "electron-log";
+import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +12,8 @@ import electronUpdater from "electron-updater";
 import {
   connectToLive,
   disconnectFromLive,
+  fetchAvailableGiftsForUsername,
+  fetchAuthenticatedEmotesForUsername,
   getConnectionState
 } from "./tiktok-client.mjs";
 
@@ -22,10 +25,16 @@ const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
 const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
 const DEFAULT_GITHUB_REPO = "streamsyncpro";
 const QUEUE_OVERLAY_PREFERRED_PORT = 46321;
+const TIKTOK_AUTH_PARTITION = "persist:ssp-tiktok-auth";
+const TIKTOK_LOGIN_URL = "https://www.tiktok.com/login";
 const MYINSTANTS_CATEGORY_URL = "https://www.myinstants.com/en/categories/sound%20effects/us/";
+const MYINSTANTS_SEARCH_URL = "https://www.myinstants.com/en/search/";
 const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MYINSTANTS_MAX_PAGES = 50;
+const MYINSTANTS_SEARCH_MAX_PAGES = 8;
 const DEFAULT_CUSTOM_EVENT_RULES = [];
+const SETTINGS_READ_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const SETTINGS_READ_RETRY_DELAYS_MS = [120, 250, 500, 900];
 const ELEVENLABS_FREE_VOICE_OPTIONS = [
   { id: "JBFqnCBsd6RMkjVDRZzb", name: "George", category: "default" },
   { id: "EXAVITQu4vr4xnSDxMaL", name: "Bella", category: "default" },
@@ -41,6 +50,7 @@ let updater = null;
 let hasCheckedForUpdatesOnLaunch = false;
 let queueOverlayServer = null;
 let queueOverlayPort = null;
+let tiktokAuthWindow = null;
 let queueOverlayState = {
   connected: false,
   username: "",
@@ -52,16 +62,56 @@ let commandFeedbackOverlayState = {
   message: "",
   commandType: "",
   username: "",
+  title: "Viewer Feedback",
+  accentColor: "#53dcff",
+  sourceType: "command",
   updatedAt: null,
   visibleUntil: null,
   durationMs: 6000
 };
+let overlayDesignerState = {
+  activeTemplateId: "",
+  templates: [],
+  runtime: {},
+  updatedAt: null
+};
+const overlayDesignerClients = new Set();
 let myInstantsCatalogCache = {
   fetchedAt: 0,
   sounds: []
 };
+const myInstantsSoundLookup = new Map();
 const myInstantsAudioUrlCache = new Map();
 let lastCpuUsageSample = null;
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      createWindow();
+      return;
+    }
+
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+
+    mainWindow.show();
+    mainWindow.focus();
+  });
+}
+
+function hasNativeUpdateConfig() {
+  if (!app.isPackaged) {
+    return false;
+  }
+
+  const updateConfigPath = path.join(process.resourcesPath, "app-update.yml");
+  return fsSync.existsSync(updateConfigPath);
+}
 
 function getOverlayUrlBundle(pathname) {
   if (!queueOverlayPort) {
@@ -154,6 +204,8 @@ let settings = {
   rememberedUsername: "",
   rememberUsername: false,
   rememberedUsernames: [],
+  tiktokSessionId: "",
+  tiktokTargetIdc: "",
   translationEnabled: false,
   translationTargetLanguage: "en",
   translationProviderUrl: "",
@@ -178,17 +230,27 @@ let settings = {
     subscribers: false,
     moderators: false
   },
-  ttsUserVoiceAssignments: {
-    builtin: {},
-    elevenlabs: {}
-  },
-  userNotes: {},
-  customEventRules: DEFAULT_CUSTOM_EVENT_RULES,
-  commandFeedbackOverlayDurationMs: 6000,
+    ttsUserVoiceAssignments: {
+      builtin: {},
+      elevenlabs: {}
+    },
+    userNotes: {},
+    knownTikTokGifts: [],
+    knownTikTokEmotes: [],
+    cardCollapseState: {},
+    dashboardCardVisibility: {
+      welcome: true,
+      "incoming-chat": true
+    },
+    customEventRules: DEFAULT_CUSTOM_EVENT_RULES,
+    commandFeedbackOverlayDurationMs: 6000,
   commandFeedbackTemplates: {
     myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
     listcommands: "{user}, available chat commands: {commandList}"
-  }
+  },
+  votingEnabled: false,
+  votingStartRole: "everyone",
+  votingOverlayOrientation: "horizontal"
 };
 
 log.initialize();
@@ -231,6 +293,108 @@ function getCommandFeedbackOverlayUrl() {
   return getOverlayUrlBundle("/command-feedback-overlay").url;
 }
 
+function getOverlayDesignerPreviewUrl(templateId = "") {
+  const baseUrl = getOverlayUrlBundle("/overlay-designer-preview").url;
+  if (!baseUrl) {
+    return "";
+  }
+
+  const requestUrl = new URL(baseUrl);
+  if (templateId) {
+    requestUrl.searchParams.set("template", templateId);
+  }
+  return requestUrl.toString();
+}
+
+function normalizeOverlayDesignerHex(value, fallback) {
+  const normalized = String(value ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+function sanitizeOverlayDesignerElement(element = {}, index = 0) {
+  const normalizedType = String(element.type ?? "text").trim() || "text";
+  return {
+    id: String(element.id ?? `overlay-element-${Date.now()}-${index}`),
+    type: normalizedType,
+    name: String(element.name ?? normalizedType).trim() || normalizedType,
+    content: String(element.content ?? "").trim(),
+    source: String(element.source ?? "").trim(),
+    x: Math.max(0, Number(element.x) || 0),
+    y: Math.max(0, Number(element.y) || 0),
+    width: Math.max(40, Number(element.width) || 220),
+    height: Math.max(32, Number(element.height) || 72),
+    rotation: Math.max(-360, Math.min(360, Number(element.rotation) || 0)),
+    opacity: Math.max(0, Math.min(1, Number(element.opacity) || 1)),
+    fontFamily: String(element.fontFamily ?? "Poppins, Segoe UI, sans-serif").trim() || "Poppins, Segoe UI, sans-serif",
+    fontSize: Math.max(10, Number(element.fontSize) || 28),
+    fontWeight: Math.max(100, Math.min(900, Number(element.fontWeight) || 700)),
+    letterSpacing: Math.max(-4, Math.min(24, Number(element.letterSpacing) || 0)),
+    color: normalizeOverlayDesignerHex(element.color, "#f6fbff"),
+    glowColor: normalizeOverlayDesignerHex(element.glowColor, "#53dcff"),
+    backgroundColor: normalizeOverlayDesignerHex(element.backgroundColor, "#10243d"),
+    backgroundOpacity: Math.max(0, Math.min(1, Number(element.backgroundOpacity) || 0)),
+    borderColor: normalizeOverlayDesignerHex(element.borderColor, "#2a466b"),
+    borderWidth: Math.max(0, Math.min(24, Number(element.borderWidth) || 0)),
+    borderRadius: Math.max(0, Math.min(200, Number(element.borderRadius) || 18)),
+    blur: Math.max(0, Math.min(40, Number(element.blur) || 0)),
+    animation: String(element.animation ?? "none").trim() || "none",
+    binding: String(element.binding ?? "").trim(),
+    visible: element.visible !== false,
+    locked: Boolean(element.locked),
+    zIndex: Math.max(1, Number(element.zIndex) || index + 1)
+  };
+}
+
+function sanitizeOverlayDesignerTemplate(template = {}, index = 0) {
+  const normalizedId = String(template.id ?? `template-${Date.now()}-${index}`).trim() || `template-${Date.now()}-${index}`;
+  const elements = Array.isArray(template.elements)
+    ? template.elements.map((element, elementIndex) => sanitizeOverlayDesignerElement(element, elementIndex))
+    : [];
+
+  return {
+    id: normalizedId,
+    name: String(template.name ?? `Overlay Template ${index + 1}`).trim() || `Overlay Template ${index + 1}`,
+    width: Math.max(320, Number(template.width) || 1920),
+    height: Math.max(320, Number(template.height) || 1080),
+    backgroundColor: normalizeOverlayDesignerHex(template.backgroundColor, "#08111f"),
+    backgroundOpacity: Math.max(0, Math.min(1, Number(template.backgroundOpacity) || 0.45)),
+    backgroundImage: String(template.backgroundImage ?? "").trim(),
+    backgroundVideo: String(template.backgroundVideo ?? "").trim(),
+    autoLoad: String(template.autoLoad ?? "").trim(),
+    elements: elements
+      .sort((left, right) => left.zIndex - right.zIndex)
+      .map((element, elementIndex) => ({
+        ...element,
+        zIndex: elementIndex + 1
+      }))
+  };
+}
+
+function sanitizeOverlayDesignerStatePayload(payload = {}) {
+  const templates = Array.isArray(payload.templates)
+    ? payload.templates.map((template, index) => sanitizeOverlayDesignerTemplate(template, index))
+    : [];
+  const activeTemplateId = String(payload.activeTemplateId ?? templates[0]?.id ?? "").trim();
+
+  return {
+    activeTemplateId,
+    templates,
+    runtime: payload.runtime && typeof payload.runtime === "object" ? payload.runtime : {},
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function broadcastOverlayDesignerState() {
+  const eventPayload = `data: ${JSON.stringify({ ok: true, state: overlayDesignerState })}\n\n`;
+  for (const client of overlayDesignerClients) {
+    try {
+      client.write(eventPayload);
+    } catch {
+      overlayDesignerClients.delete(client);
+    }
+  }
+}
+
 async function serveQueueOverlayHtml(response) {
   try {
     const html = await fs.readFile(path.join(__dirname, "queue-overlay.html"), "utf8");
@@ -261,6 +425,21 @@ async function serveCommandFeedbackOverlayHtml(response) {
   }
 }
 
+async function serveOverlayDesignerPreviewHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "overlay-designer-preview.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve overlay designer preview HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Overlay designer preview unavailable.");
+  }
+}
+
 function buildQueueOverlayServer() {
   return createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -272,6 +451,11 @@ function buildQueueOverlayServer() {
 
     if (requestUrl.pathname === "/command-feedback-overlay") {
       await serveCommandFeedbackOverlayHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/overlay-designer-preview") {
+      await serveOverlayDesignerPreviewHtml(response);
       return;
     }
 
@@ -298,6 +482,35 @@ function buildQueueOverlayServer() {
         overlayUrl: getCommandFeedbackOverlayUrl(),
         state: commandFeedbackOverlayState
       }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/overlay-designer-state") {
+      const requestedTemplateId = String(requestUrl.searchParams.get("template") ?? "").trim();
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getOverlayDesignerPreviewUrl(requestedTemplateId),
+        state: overlayDesignerState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/overlay-designer-stream") {
+      response.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-store",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*"
+      });
+      response.write(`data: ${JSON.stringify({ ok: true, state: overlayDesignerState })}\n\n`);
+      overlayDesignerClients.add(response);
+      request.on("close", () => {
+        overlayDesignerClients.delete(response);
+      });
       return;
     }
 
@@ -344,15 +557,17 @@ async function startQueueOverlayServer() {
   }
 }
 
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 780,
-    minWidth: 960,
-    minHeight: 640,
-    autoHideMenuBar: true,
-    backgroundColor: "#071124",
-    webPreferences: {
+  function createWindow() {
+    mainWindow = new BrowserWindow({
+      width: 1200,
+      height: 780,
+      minWidth: 860,
+      minHeight: 620,
+      resizable: true,
+      maximizable: true,
+      autoHideMenuBar: true,
+      backgroundColor: "#071124",
+      webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false
@@ -395,6 +610,173 @@ function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function readSettingsFileWithRetry() {
+  const settingsPath = getSettingsPath();
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await fs.readFile(settingsPath, "utf8");
+    } catch (error) {
+      const code = String(error?.code || "").trim().toUpperCase();
+      if (code === "ENOENT") {
+        throw error;
+      }
+      if (!SETTINGS_READ_RETRY_CODES.has(code) || attempt >= SETTINGS_READ_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+      await delay(SETTINGS_READ_RETRY_DELAYS_MS[attempt]);
+      attempt += 1;
+    }
+  }
+}
+
+function areSettingsLikelyDefaults(source = settings) {
+  return !source?.authRememberMe
+    && !String(source?.authRememberedEmail ?? "").trim()
+    && !source?.authUser
+    && !source?.rememberUsername
+    && !String(source?.rememberedUsername ?? "").trim();
+}
+
+function getTikTokAuthSession() {
+  return session.fromPartition(TIKTOK_AUTH_PARTITION);
+}
+
+async function getTikTokAuthCookies() {
+  const authSession = getTikTokAuthSession();
+  const cookies = await authSession.cookies.get({});
+  const sessionIdCookie = cookies.find((cookie) => cookie.name === "sessionid");
+  const ttTargetIdcCookie = cookies.find((cookie) => cookie.name === "tt-target-idc");
+
+  return {
+    sessionId: String(sessionIdCookie?.value ?? "").trim(),
+    ttTargetIdc: String(ttTargetIdcCookie?.value ?? "").trim()
+  };
+}
+
+async function clearTikTokAuthSessionCookies() {
+  const authSession = getTikTokAuthSession();
+  const cookies = await authSession.cookies.get({});
+
+  for (const cookie of cookies) {
+    const protocol = cookie.secure ? "https://" : "http://";
+    const domain = String(cookie.domain ?? "").replace(/^\./, "");
+    if (!domain) {
+      continue;
+    }
+    const url = `${protocol}${domain}${cookie.path || "/"}`;
+    try {
+      await authSession.cookies.remove(url, cookie.name);
+    } catch (error) {
+      log.warn("Failed to remove TikTok auth cookie", { name: cookie.name, url, error: error?.message ?? error });
+    }
+  }
+
+  try {
+    await authSession.clearStorageData();
+  } catch (error) {
+    log.warn("Failed to clear TikTok auth storage", error);
+  }
+}
+
+async function openTikTokSignInWindow() {
+  if (tiktokAuthWindow && !tiktokAuthWindow.isDestroyed()) {
+    tiktokAuthWindow.focus();
+  }
+
+  await clearTikTokAuthSessionCookies();
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const authSession = getTikTokAuthSession();
+
+    const finish = (result, error = null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      authSession.cookies.removeListener("changed", handleCookieChange);
+      tiktokAuthWindow?.webContents.removeListener("did-navigate", handleNavigation);
+      tiktokAuthWindow?.webContents.removeListener("did-frame-finish-load", handleNavigation);
+      tiktokAuthWindow?.webContents.removeListener("did-fail-load", handleLoadFailure);
+      if (tiktokAuthWindow && !tiktokAuthWindow.isDestroyed()) {
+        tiktokAuthWindow.close();
+      }
+      tiktokAuthWindow = null;
+
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve(result);
+    };
+
+    const tryResolveCookies = async () => {
+      const cookies = await getTikTokAuthCookies();
+      if (cookies.sessionId && cookies.ttTargetIdc) {
+        finish(cookies);
+      }
+    };
+
+    const handleCookieChange = () => {
+      void tryResolveCookies().catch((error) => {
+        log.warn("Failed while checking TikTok auth cookies", error);
+      });
+    };
+
+    const handleNavigation = () => {
+      void tryResolveCookies().catch((error) => {
+        log.warn("Failed while checking TikTok auth navigation", error);
+      });
+    };
+
+    const handleLoadFailure = (_event, errorCode, errorDescription) => {
+      if (errorCode === -3) {
+        return;
+      }
+      finish(null, new Error(errorDescription || "Unable to load the TikTok sign-in page."));
+    };
+
+    tiktokAuthWindow = new BrowserWindow({
+      width: 980,
+      height: 760,
+      minWidth: 840,
+      minHeight: 620,
+      parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+      modal: false,
+      autoHideMenuBar: true,
+      backgroundColor: "#071124",
+      title: "Sign in to TikTok",
+      webPreferences: {
+        partition: TIKTOK_AUTH_PARTITION,
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+
+    tiktokAuthWindow.setMenuBarVisibility(false);
+    tiktokAuthWindow.on("closed", () => {
+      if (!settled) {
+        finish(null, new Error("TikTok sign-in was cancelled before it completed."));
+      }
+    });
+
+    authSession.cookies.on("changed", handleCookieChange);
+    tiktokAuthWindow.webContents.on("did-navigate", handleNavigation);
+    tiktokAuthWindow.webContents.on("did-frame-finish-load", handleNavigation);
+    tiktokAuthWindow.webContents.on("did-fail-load", handleLoadFailure);
+    tiktokAuthWindow.loadURL(TIKTOK_LOGIN_URL).catch((error) => {
+      finish(null, error);
+    });
+  });
+}
+
 function normalizeCustomEventRules(source = []) {
   if (!Array.isArray(source)) {
     return [];
@@ -405,22 +787,32 @@ function normalizeCustomEventRules(source = []) {
         id: String(rule?.id ?? `rule-${index + 1}`),
         enabled: rule?.enabled !== false,
         name: String(rule?.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
-        metric: ["follows", "likes", "shares", "coins"].includes(rule?.metric) ? rule.metric : "follows",
+        metric: ["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule?.metric) ? rule.metric : "follows",
         threshold: Math.max(1, Number(rule?.threshold) || 1),
         soundId: String(rule?.soundId ?? "").trim(),
         webhookUrl: String(rule?.webhookUrl ?? "").trim(),
         queueId: Math.min(10, Math.max(1, Number(rule?.queueId) || 1)),
+        userCooldownSeconds: Math.max(0, Number(rule?.userCooldownSeconds) || 0),
         triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser"].includes(rule?.triggerAudience)
           ? rule.triggerAudience
           : "everyone",
-        triggerUsername: String(rule?.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase()
+        triggerUsername: String(rule?.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase(),
+        triggerEmoteId: String(rule?.triggerEmoteId ?? "").trim(),
+        triggerEmoteName: String(rule?.triggerEmoteName ?? "").trim(),
+        triggerEmoteImageUrl: String(rule?.triggerEmoteImageUrl ?? "").trim(),
+        triggerGiftName: String(rule?.triggerGiftName ?? "").trim(),
+        triggerGiftImageUrl: String(rule?.triggerGiftImageUrl ?? "").trim(),
+        feedbackOverlayEnabled: Boolean(rule?.feedbackOverlayEnabled),
+        feedbackOverlayTitle: String(rule?.feedbackOverlayTitle ?? "").trim(),
+        feedbackOverlayMessage: String(rule?.feedbackOverlayMessage ?? "").trim(),
+        feedbackOverlayAccentColor: String(rule?.feedbackOverlayAccentColor ?? "").trim()
       }))
       .slice(0, 50);
   }
 
 async function loadSettings() {
   try {
-    const raw = await fs.readFile(getSettingsPath(), "utf8");
+    const raw = await readSettingsFileWithRetry();
     settings = {
       ...settings,
       ...JSON.parse(raw)
@@ -603,7 +995,16 @@ function getMyInstantsCategoryPageUrl(pageNumber) {
   return `${MYINSTANTS_CATEGORY_URL}?page=${pageNumber}`;
 }
 
-function extractMyInstantsEntriesFromHtml(html) {
+function getMyInstantsSearchPageUrl(query, pageNumber) {
+  const url = new URL(MYINSTANTS_SEARCH_URL);
+  url.searchParams.set("name", query);
+  if (pageNumber > 1) {
+    url.searchParams.set("page", String(pageNumber));
+  }
+  return url.toString();
+}
+
+function extractMyInstantsEntriesFromHtml(html, baseUrl = MYINSTANTS_CATEGORY_URL) {
   const entryRegex = /<a[^>]+href="(\/en\/instant\/[^"]+)"[^>]*>([^<]+)<\/a>/gi;
   const entries = [];
   const seen = new Set();
@@ -620,11 +1021,32 @@ function extractMyInstantsEntriesFromHtml(html) {
     entries.push({
       id: relativePath,
       title,
-      pageUrl: new URL(relativePath, MYINSTANTS_CATEGORY_URL).toString()
+      pageUrl: new URL(relativePath, baseUrl).toString()
     });
   }
 
   return entries;
+}
+
+function rememberMyInstantsSounds(sounds) {
+  if (!Array.isArray(sounds)) {
+    return;
+  }
+
+  for (const sound of sounds) {
+    const id = String(sound?.id ?? "").trim();
+    const pageUrl = String(sound?.pageUrl ?? "").trim();
+    if (!id || !pageUrl) {
+      continue;
+    }
+
+    myInstantsSoundLookup.set(id, {
+      ...sound,
+      id,
+      title: String(sound?.title ?? "").trim(),
+      pageUrl
+    });
+  }
 }
 
 async function fetchMyInstantsCatalog(forceRefresh = false) {
@@ -635,6 +1057,7 @@ async function fetchMyInstantsCatalog(forceRefresh = false) {
     myInstantsCatalogCache.sounds.length > 0 &&
     now - myInstantsCatalogCache.fetchedAt < MYINSTANTS_CACHE_TTL_MS
   ) {
+    rememberMyInstantsSounds(myInstantsCatalogCache.sounds);
     return myInstantsCatalogCache.sounds;
   }
 
@@ -679,7 +1102,56 @@ async function fetchMyInstantsCatalog(forceRefresh = false) {
     fetchedAt: now,
     sounds
   };
+  rememberMyInstantsSounds(sounds);
 
+  return sounds;
+}
+
+async function searchMyInstantsCatalog(query) {
+  const normalizedQuery = String(query ?? "").trim();
+  if (normalizedQuery.length < 2) {
+    return [];
+  }
+
+  const seen = new Set();
+  const sounds = [];
+  let consecutiveEmptyPages = 0;
+
+  for (let pageNumber = 1; pageNumber <= MYINSTANTS_SEARCH_MAX_PAGES; pageNumber += 1) {
+    const pageUrl = getMyInstantsSearchPageUrl(normalizedQuery, pageNumber);
+    const response = await fetch(pageUrl);
+    if (response.status === 404 && pageNumber > 1) {
+      break;
+    }
+
+    if (!response.ok) {
+      throw new Error(`MyInstants search request failed with status ${response.status}.`);
+    }
+
+    const html = await response.text();
+    const pageEntries = extractMyInstantsEntriesFromHtml(html, pageUrl);
+
+    if (pageEntries.length === 0) {
+      consecutiveEmptyPages += 1;
+      if (consecutiveEmptyPages >= 2) {
+        break;
+      }
+      continue;
+    }
+
+    consecutiveEmptyPages = 0;
+
+    for (const entry of pageEntries) {
+      if (seen.has(entry.id)) {
+        continue;
+      }
+
+      seen.add(entry.id);
+      sounds.push(entry);
+    }
+  }
+
+  rememberMyInstantsSounds(sounds);
   return sounds;
 }
 
@@ -692,8 +1164,8 @@ async function resolveMyInstantsAudioUrl(soundId) {
     return myInstantsAudioUrlCache.get(soundId);
   }
 
-  const catalog = await fetchMyInstantsCatalog(false);
-  const sound = catalog.find((entry) => entry.id === soundId);
+  const sound = myInstantsSoundLookup.get(soundId)
+    ?? (await fetchMyInstantsCatalog(false)).find((entry) => entry.id === soundId);
 
   if (!sound?.pageUrl) {
     throw new Error("That sound could not be found in the MyInstants catalog.");
@@ -927,6 +1399,61 @@ async function listElevenLabsVoices(payload = {}) {
   ]);
 }
 
+async function getElevenLabsUsageDetails(payload = {}) {
+  const apiKey = String(payload?.apiKey ?? "").trim();
+  if (!apiKey) {
+    throw new Error("Enter your ElevenLabs API key to load usage details.");
+  }
+
+  async function fetchUsageShape(url, nestedSubscription = false) {
+    const response = await fetch(url, {
+      headers: getElevenLabsHeaders({ apiKey })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`${url} returned ${response.status}. ${errorText || "Unable to load ElevenLabs usage details."}`);
+    }
+
+    const result = await response.json();
+    return nestedSubscription ? (result?.subscription ?? null) : result;
+  }
+
+  let result = null;
+  try {
+    result = await fetchUsageShape("https://api.elevenlabs.io/v1/user/subscription", false);
+  } catch (primaryError) {
+    try {
+      result = await fetchUsageShape("https://api.elevenlabs.io/v1/user", true);
+    } catch {
+      throw primaryError;
+    }
+  }
+
+  if (!result || typeof result !== "object") {
+    throw new Error("ElevenLabs did not return subscription usage details.");
+  }
+
+  const used = Number(result?.character_count ?? 0);
+  const limit = Number(result?.character_limit ?? 0);
+  const remaining = Number.isFinite(limit) && limit >= 0
+    ? Math.max(0, limit - Math.max(0, used))
+    : null;
+
+  return {
+    tier: String(result?.tier ?? "").trim() || "unknown",
+    status: String(result?.status ?? "").trim() || "unknown",
+    used: Number.isFinite(used) ? used : 0,
+    limit: Number.isFinite(limit) ? limit : null,
+    remaining,
+    nextResetUnix: Number.isFinite(Number(result?.next_character_count_reset_unix))
+      ? Number(result.next_character_count_reset_unix)
+      : null,
+    canExtend: Boolean(result?.can_extend_character_limit ?? result?.allowed_to_extend_character_limit ?? false),
+    maxCreditLimitExtension: result?.max_credit_limit_extension ?? null
+  };
+}
+
 async function synthesizeWindowsSpeechToFile({ text, voiceName, rate, pitch }) {
   await ensureTtsScript();
 
@@ -1005,7 +1532,7 @@ async function synthesizeSpeechToFile(payload = {}) {
 }
 
 function getUpdater() {
-  if (!updateConfig) {
+  if (!updateConfig || !hasNativeUpdateConfig()) {
     updater = null;
     return null;
   }
@@ -1033,10 +1560,10 @@ function getUpdater() {
 }
 
 function configureAutoUpdater() {
-  if (!app.isPackaged) {
+  if (!app.isPackaged || !hasNativeUpdateConfig()) {
     sendToRenderer("update-status", {
       status: "idle",
-      message: "Auto-update checks run only in packaged builds."
+      message: "Automatic updates are unavailable in this local build."
     });
     return;
   }
@@ -1123,7 +1650,7 @@ function registerAutoUpdaterEvents(activeUpdater) {
 }
 
 async function checkForUpdatesOnLaunch() {
-  if (hasCheckedForUpdatesOnLaunch || !app.isPackaged) {
+  if (hasCheckedForUpdatesOnLaunch || !app.isPackaged || !hasNativeUpdateConfig()) {
     return;
   }
 
@@ -1138,10 +1665,10 @@ async function checkForUpdatesOnLaunch() {
 
 app.whenReady().then(() => {
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
       createWindow();
-      configureAutoUpdater();
     }
+    configureAutoUpdater();
   });
 
   return loadSettings().then(() => {
@@ -1180,7 +1707,35 @@ ipcMain.handle("live:get-state", async () => {
   return getConnectionState();
 });
 
+ipcMain.handle("tiktok:get-available-gifts", async (_event, payload = {}) => {
+  return fetchAvailableGiftsForUsername(payload.username);
+});
+
+ipcMain.handle("tiktok:get-authenticated-emotes", async (_event, payload = {}) => {
+  return fetchAuthenticatedEmotesForUsername({
+    username: payload.username,
+    sessionId: payload.sessionId,
+    ttTargetIdc: payload.ttTargetIdc
+  });
+});
+
+ipcMain.handle("tiktok:sign-in", async () => {
+  return openTikTokSignInWindow();
+});
+
+ipcMain.handle("tiktok:sign-out", async () => {
+  await clearTikTokAuthSessionCookies();
+  return { ok: true };
+});
+
 ipcMain.handle("app:get-settings", async () => {
+  if (areSettingsLikelyDefaults(settings)) {
+    try {
+      await loadSettings();
+    } catch (error) {
+      log.warn("Deferred settings reload failed", error);
+    }
+  }
   return settings;
 });
 
@@ -1221,6 +1776,9 @@ ipcMain.handle("overlay:update-command-feedback-state", async (_event, payload) 
     message: String(payload?.message ?? "").trim(),
     commandType: String(payload?.commandType ?? "").trim(),
     username: String(payload?.username ?? "").trim(),
+    title: String(payload?.title ?? "").trim() || "Viewer Feedback",
+    accentColor: /^#[0-9a-fA-F]{6}$/.test(String(payload?.accentColor ?? "").trim()) ? String(payload.accentColor).trim() : "#53dcff",
+    sourceType: String(payload?.sourceType ?? "").trim() || "command",
     updatedAt,
     visibleUntil: new Date(Date.now() + durationMs).toISOString(),
     durationMs
@@ -1229,6 +1787,24 @@ ipcMain.handle("overlay:update-command-feedback-state", async (_event, payload) 
   return {
     ok: true,
     state: commandFeedbackOverlayState
+  };
+});
+
+ipcMain.handle("overlay:get-designer-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/overlay-designer-preview");
+  return {
+    ...overlayUrls,
+    port: queueOverlayPort,
+    state: overlayDesignerState
+  };
+});
+
+ipcMain.handle("overlay:update-designer-state", async (_event, payload) => {
+  overlayDesignerState = sanitizeOverlayDesignerStatePayload(payload);
+  broadcastOverlayDesignerState();
+  return {
+    ok: true,
+    state: overlayDesignerState
   };
 });
 
@@ -1320,6 +1896,10 @@ ipcMain.handle("tts:get-voices", async (_event, payload) => {
   return listWindowsTtsVoices();
 });
 
+ipcMain.handle("tts:get-elevenlabs-usage", async (_event, payload) => {
+  return getElevenLabsUsageDetails(payload ?? {});
+});
+
  ipcMain.handle("tts:speak-to-file", async (_event, payload) => {
   return {
     filePath: await synthesizeSpeechToFile(payload)
@@ -1339,6 +1919,11 @@ ipcMain.handle("tts:delete-file", async (_event, payload) => {
 });
 
 ipcMain.handle("sound-alerts:get-catalog", async (_event, payload) => {
+  const searchQuery = String(payload?.search ?? payload?.query ?? "").trim();
+  if (searchQuery) {
+    return searchMyInstantsCatalog(searchQuery);
+  }
+
   return fetchMyInstantsCatalog(Boolean(payload?.refresh));
 });
 

@@ -14,6 +14,7 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
+define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.11'));
 $message = '';
 $messageType = 'info';
 
@@ -865,6 +866,7 @@ function renderLogin(string $message, string $messageType): void
     .eyebrow{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--magenta);margin-bottom:8px}
     .title{font-family:"Space Grotesk",Segoe UI,Arial,sans-serif;font-weight:700;font-size:29px;letter-spacing:-.03em;line-height:1.02}
     .subtitle{margin-top:8px;color:var(--muted);font-size:14px;line-height:1.6}
+    .version-pill{display:inline-flex;align-items:center;width:max-content;margin-top:12px;padding:6px 10px;border-radius:999px;border:1px solid rgba(89,170,255,.22);background:rgba(8,18,36,.82);color:#bfd4f4;font-size:12px;font-weight:800}
     .body{padding:22px;display:grid;gap:14px}
     label{display:grid;gap:8px;font-size:14px;color:#c5d8f4}
     input{height:46px;border-radius:14px;border:1px solid rgba(89,170,255,.18);background:#081224;color:#fff;padding:0 14px;outline:none}
@@ -880,6 +882,7 @@ function renderLogin(string $message, string $messageType): void
       <div class="eyebrow">Admin Access</div>
       <div class="title">Stream Sync Pro</div>
       <div class="subtitle">Secure dashboard access for account management, credits, lockouts, and admin controls.</div>
+      <div class="version-pill">Website version <?php echo htmlspecialchars(SSP_WEBSITE_VERSION, ENT_QUOTES, 'UTF-8'); ?></div>
     </div>
     <div class="body">
       <?php if ($message !== ''): ?>
@@ -920,6 +923,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .title{font-family:"Space Grotesk",Segoe UI,Arial,sans-serif;font-size:30px;font-weight:700;line-height:1.02;letter-spacing:-.03em}
     .subtitle{margin-top:8px;color:var(--muted);font-size:15px;line-height:1.65}
     .top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:20px}
+    .version-pill{display:inline-flex;align-items:center;width:max-content;margin-top:12px;padding:6px 10px;border-radius:999px;border:1px solid rgba(89,170,255,.22);background:rgba(8,18,36,.82);color:#bfd4f4;font-size:12px;font-weight:800}
     .top a{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 18px;border-radius:14px;text-decoration:none;font-weight:800;background:rgba(16,24,44,.86);border:1px solid rgba(144,104,255,.34);color:var(--text)}
     .msg{padding:12px 14px;border-radius:14px;font-size:14px;margin-bottom:16px;border:1px solid transparent}
     .msg.success{background:rgba(97,243,164,.12);border-color:rgba(97,243,164,.15);color:#bff7d4}
@@ -1025,6 +1029,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
         <div class="eyebrow">Admin Dashboard</div>
         <div class="title">User Accounts</div>
         <div class="subtitle">Manage verification, lockouts, credits, and account access from one place.</div>
+        <div class="version-pill">Website version <?php echo htmlspecialchars(SSP_WEBSITE_VERSION, ENT_QUOTES, 'UTF-8'); ?></div>
       </div>
       <a href="?logout=1">Sign Out</a>
     </div>

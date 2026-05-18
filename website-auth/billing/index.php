@@ -34,6 +34,7 @@ try {
 }
 
 $billing = getBillingPageConfig($config, $pdo ?? null);
+$appVersion = (string) ($config['app']['version'] ?? '1.0.11');
 $paypal = [
     'clientId' => (string) (($config['paypal']['client_id'] ?? '')),
     'environment' => strtolower((string) (($config['paypal']['environment'] ?? 'live'))),
@@ -169,6 +170,20 @@ $paypal = [
       .lead, .helper {
         color: var(--muted);
         line-height: 1.7;
+      }
+
+      .version-pill {
+        display: inline-flex;
+        align-items: center;
+        width: max-content;
+        margin: 2px 0 10px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(88, 220, 255, 0.22);
+        background: rgba(8, 18, 36, 0.82);
+        color: #bfd4f4;
+        font-size: 12px;
+        font-weight: 800;
       }
 
       .status {
@@ -317,6 +332,7 @@ $paypal = [
           <div class="card-body">
             <p class="eyebrow">Stream Sync Pro LIVE</p>
             <h1>Top up your credits</h1>
+            <p class="version-pill">Website version <?= htmlspecialchars($appVersion, ENT_QUOTES, 'UTF-8') ?></p>
             <p class="lead">Choose the number of credits you want to buy and we’ll calculate the total automatically at the current rate.</p>
 
             <?php if ($pageError !== ''): ?>

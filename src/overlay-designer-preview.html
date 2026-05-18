@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stream Sync Pro Overlay Designer Preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: transparent;
+        font-family: Poppins, "Segoe UI", sans-serif;
+      }
+
+      body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+
+      #overlay-root {
+        position: relative;
+        overflow: hidden;
+        transform-origin: top left;
+        background: transparent;
+      }
+
+      .overlay-element {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #f6fbff;
+        text-align: center;
+      }
+
+      .overlay-element-inner {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.65rem 0.9rem;
+      }
+
+      .overlay-element-progress {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+
+      .overlay-element-progress-bar {
+        width: 100%;
+        height: 18px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        overflow: hidden;
+      }
+
+      .overlay-element-progress-bar > span {
+        display: block;
+        height: 100%;
+        width: 68%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #53dcff, #8b5cf6);
+      }
+
+      .overlay-element-media,
+      .overlay-element-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .overlay-html {
+        width: 100%;
+        height: 100%;
+      }
+
+      .vote-widget {
+        width: var(--vote-widget-width, 100%);
+        height: var(--vote-widget-height, 100%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+        align-items: stretch;
+        justify-content: flex-start;
+        text-align: left;
+        color: inherit;
+        font: inherit;
+        min-width: 0;
+      }
+
+      .vote-widget-options {
+        display: grid;
+        gap: 0.45rem;
+      }
+
+      .vote-widget-option {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.55rem 0.7rem;
+        border-radius: 14px;
+        background: var(--overlay-surface-soft, rgba(255, 255, 255, 0.08));
+        color: inherit;
+        box-shadow: none;
+      }
+
+      .vote-widget-option.active {
+        box-shadow:
+          0 0 0 1px rgba(83, 220, 255, 0.34),
+          0 0 18px rgba(83, 220, 255, 0.18);
+        animation: overlaySpinPulse 180ms linear both;
+      }
+
+      .vote-widget-option.winner {
+        background: linear-gradient(135deg, var(--overlay-surface-soft, rgba(255, 255, 255, 0.08)), rgba(87, 255, 197, 0.18));
+        box-shadow:
+          inset 0 0 0 1px rgba(124, 255, 197, 0.32),
+          0 0 16px rgba(124, 255, 197, 0.14);
+        animation: overlayWinnerReveal 520ms ease both;
+      }
+
+      .hidden-placeholder {
+        opacity: 0.72;
+      }
+
+      .overlay-widget-title {
+        font: inherit;
+        font-weight: 800;
+        color: inherit;
+      }
+
+      .overlay-widget-copy,
+      .overlay-widget-value {
+        color: inherit;
+        font: inherit;
+      }
+
+      .vote-widget-option .overlay-widget-copy {
+        flex: 1 1 auto;
+        min-width: 0;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+      }
+
+      .vote-widget-option .overlay-widget-value {
+        flex: 0 0 auto;
+        text-align: right;
+      }
+
+      .overlay-vote-winner-banner {
+        padding: 0.7rem 0.85rem;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(10, 36, 30, 0.9), rgba(12, 50, 39, 0.92));
+        color: inherit;
+        box-shadow: inset 0 0 0 1px rgba(124, 255, 197, 0.22);
+        animation: overlayWinnerReveal 620ms ease both;
+      }
+
+      .overlay-anim-pulse {
+        animation: overlayPulse 1.8s ease-in-out infinite;
+      }
+
+      .overlay-anim-float {
+        animation: overlayFloat 3.2s ease-in-out infinite;
+      }
+
+      .overlay-anim-slide-in {
+        animation: overlaySlideIn 0.6s ease both;
+      }
+
+      .overlay-anim-pop {
+        animation: overlayPop 0.45s ease both;
+      }
+
+      @keyframes overlayPulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.03); }
+      }
+
+      @keyframes overlayFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+      }
+
+      @keyframes overlaySlideIn {
+        from { opacity: 0; transform: translateY(18px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes overlayPop {
+        from { opacity: 0; transform: scale(0.92); }
+        to { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes overlayWinnerReveal {
+        from { opacity: 0; transform: translateY(10px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes overlaySpinPulse {
+        from { transform: translateY(0) scale(0.99); }
+        to { transform: translateY(0) scale(1); }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="overlay-root"></div>
+
+    <script>
+      const root = document.getElementById("overlay-root");
+      const templateParam = new URLSearchParams(window.location.search).get("template") || "";
+      let latestState = null;
+
+      function pickTemplate(state) {
+        const templates = Array.isArray(state?.templates) ? state.templates : [];
+        const requestedId = templateParam || String(state?.activeTemplateId || "").trim();
+        return templates.find((template) => template.id === requestedId) || templates[0] || null;
+      }
+
+      function hexToRgba(hex, opacity) {
+        const normalized = String(hex || "").trim();
+        if (!/^#[0-9a-fA-F]{6}$/.test(normalized)) {
+          return `rgba(0,0,0,${opacity})`;
+        }
+        const r = parseInt(normalized.slice(1, 3), 16);
+        const g = parseInt(normalized.slice(3, 5), 16);
+        const b = parseInt(normalized.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, Number(opacity) || 0))})`;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll("\"", "&quot;")
+          .replaceAll("'", "&#39;");
+      }
+
+      function renderText(template, runtime) {
+        const chat = runtime?.chatMessage || {};
+        const alert = runtime?.alert || {};
+        const counters = runtime?.counters || {};
+        const vote = runtime?.activeVote || {};
+        return String(template || "")
+          .replace(/\{username\}/gi, runtime?.username || chat.username || alert.username || "viewer")
+          .replace(/\{message\}/gi, chat.message || "Waiting for chat")
+          .replace(/\{giftsent\}/gi, alert.giftSent || "gift")
+          .replace(/\{gift sent\}/gi, alert.giftSent || "gift")
+          .replace(/\{likes\}/gi, String(counters.likes ?? 0))
+          .replace(/\{comments\}/gi, String(counters.comments ?? 0))
+          .replace(/\{follows\}/gi, String(counters.follows ?? 0))
+          .replace(/\{gifts\}/gi, String(counters.gifts ?? 0))
+          .replace(/\{shares\}/gi, String(counters.shares ?? 0))
+          .replace(/\{coins\}/gi, String(counters.coins ?? 0))
+          .replace(/\{viewercount\}/gi, runtime?.viewerCount || "--")
+          .replace(/\{viewer count\}/gi, runtime?.viewerCount || "--")
+          .replace(/\{firstvoteoption\}/gi, Array.isArray(vote.options) ? (vote.options[0]?.label || "") : "");
+      }
+
+      function getVotePhaseLabel(phase) {
+        switch (String(phase || "").toLowerCase()) {
+          case "open":
+            return "Voting Open";
+          case "spinning":
+            return "Spinning";
+          case "result":
+            return "Winner Selected";
+          default:
+            return "Waiting";
+        }
+      }
+
+      function getVoteTimerLabel(vote, phase) {
+        if (phase === "open") {
+          const endAt = vote?.countdownEndsAt ? new Date(vote.countdownEndsAt).getTime() : 0;
+          const secondsLeft = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+          return `${secondsLeft}s left`;
+        }
+        if (phase === "spinning") {
+          return "Choosing winner...";
+        }
+        if (phase === "result") {
+          return "Vote complete";
+        }
+        return "Waiting";
+      }
+
+      function buildVoteWidgetMarkup(runtime, element) {
+        const vote = runtime?.activeVote || {};
+        const active = Boolean(vote?.active);
+        const options = Array.isArray(vote.options) ? vote.options : [];
+        const phase = String(vote.phase || "idle");
+        const winningIndex = Math.max(0, Number(vote?.winningOptionIndex ?? 0));
+        const winnerLabel = String(vote?.winningOptionLabel ?? "").trim();
+        const spinEndsAt = vote?.spinEndsAt ? new Date(vote.spinEndsAt).getTime() : 0;
+        const now = Date.now();
+        let activeSpinIndex = -1;
+        if (phase === "spinning" && options.length > 0) {
+          const steps = Math.max(0, Math.floor(now / 140));
+          activeSpinIndex = now < spinEndsAt ? (steps % options.length) : winningIndex;
+        }
+
+        if (!active || !options.length || phase === "idle") {
+          return "";
+        }
+
+        const widgetStyle = String(element?.widgetStyle || "defaultOverlay");
+        const accent = escapeHtml(element?.glowColor || "#53dcff");
+        const accent2 = escapeHtml(element?.borderColor || "#8b5cf6");
+        const muted = escapeHtml(element?.mutedTextColor || "#9fb8d6");
+        const success = escapeHtml(element?.successColor || "#7cffc5");
+        const totalVotes = Math.max(0, Number(vote?.totalVotes ?? options.reduce((sum, option) => sum + Math.max(0, Number(option?.votes ?? 0)), 0)));
+        const useAutoWidth = Boolean(element?.autoWidth);
+        const useAutoHeight = Boolean(element?.autoHeight);
+        const isVertical = String(vote?.orientation ?? "").toLowerCase() === "vertical";
+        const optionGridColumns = isVertical
+          ? "1fr"
+          : useAutoWidth
+            ? `repeat(${Math.max(1, options.length)}, minmax(220px, max-content))`
+            : `repeat(${Math.max(1, options.length)}, minmax(0,1fr))`;
+
+        if (widgetStyle === "defaultOverlay") {
+          return `
+            <div class="vote-widget" style="--vote-widget-width:${useAutoWidth ? "max-content" : "100%"};--vote-widget-height:${useAutoHeight ? "max-content" : "100%"};max-width:${useAutoWidth ? "none" : "100%"};">
+              <div style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:700;color:${accent2};">Live Voting</div>
+              <strong class="overlay-widget-title" style="line-height:1.1;">${escapeHtml(vote.question || "Vote")}</strong>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                <span style="display:inline-flex;align-items:center;padding:9px 12px;border-radius:999px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:inherit;">${escapeHtml(getVotePhaseLabel(phase))}</span>
+                <span style="display:inline-flex;align-items:center;padding:9px 12px;border-radius:999px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:${accent};">${escapeHtml(getVoteTimerLabel(vote, phase))}</span>
+                <span style="display:inline-flex;align-items:center;padding:9px 12px;border-radius:999px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:${phase === "result" ? success : muted};">${phase === "result" ? `${totalVotes} vote${totalVotes === 1 ? "" : "s"}` : "Votes hidden"}</span>
+              </div>
+              <div style="color:${muted};font:inherit;font-size:15px;line-height:1.45;">${escapeHtml(vote.instructions || "Type !vote [number] in chat to vote.")}</div>
+              <div class="vote-widget-options" style="grid-template-columns:${optionGridColumns};gap:12px;width:${useAutoWidth ? "max-content" : "100%"};max-width:${useAutoWidth ? "none" : "100%"};">
+                ${options.map((option) => {
+                  const optionIndex = Math.max(0, Number(option?.index ?? 0) - 1);
+                  const isWinner = phase === "result" && optionIndex === winningIndex;
+                  const isActive = phase === "spinning" && optionIndex === activeSpinIndex;
+                  const percent = Math.max(0, Math.min(100, Number(option?.percent ?? 0)));
+                  const votes = Math.max(0, Number(option?.votes ?? 0));
+                  return `
+                    <div class="vote-widget-option${isActive ? " active" : ""}${isWinner ? " winner" : ""}" style="position:relative;display:flex;flex-direction:column;gap:10px;padding:12px 14px 18px;border-radius:20px;background:var(--overlay-surface-soft, rgba(255,255,255,0.08));box-shadow:${isWinner ? `0 0 0 1px ${success}, 0 0 16px rgba(124,255,197,0.16)` : isActive ? `0 0 0 1px ${accent}, 0 0 18px rgba(83,220,255,0.18)` : "none"};min-width:${useAutoWidth ? "220px" : "0"};">
+                      <div style="display:flex;gap:10px;align-items:flex-start;justify-content:space-between;min-width:0;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;flex:0 0 auto;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.08);font-size:14px;font-weight:800;">${option.index}</span>
+                        <span class="overlay-widget-copy" style="font-weight:800;line-height:1.12;font-size:0.8em;flex:1 1 auto;min-width:0;white-space:normal;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(option.label)}</span>
+                        <span class="overlay-widget-value" style="opacity:${phase === "result" ? "1" : "0"};color:${muted};font-size:12px;letter-spacing:0.08em;text-transform:uppercase;">${phase === "result" ? `${votes} · ${percent}%` : ""}</span>
+                      </div>
+                      <div style="position:absolute;left:0;right:0;bottom:0;height:6px;background:linear-gradient(90deg, ${accent}, ${accent2});transform-origin:left center;transform:scaleX(${phase === "result" ? Math.max(0.06, percent / 100) : 0.08});"></div>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+              ${phase === "result" && winnerLabel
+                ? `<div class="overlay-vote-winner-banner" style="background:linear-gradient(180deg, rgba(10,36,30,0.96) 0%, rgba(9,28,23,0.96) 100%);box-shadow:0 0 0 1px rgba(124,255,197,0.22);"><div style="color:${success};text-transform:uppercase;letter-spacing:0.12em;font-size:11px;font-weight:700;">Winning Answer</div><strong class="overlay-widget-title" style="display:block;margin-top:8px;">${escapeHtml(winnerLabel)}</strong></div>`
+                : ""}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="vote-widget" style="--vote-widget-width:${useAutoWidth ? "max-content" : "100%"};--vote-widget-height:${useAutoHeight ? "max-content" : "100%"};max-width:${useAutoWidth ? "none" : "100%"};">
+            <strong class="overlay-widget-title">${escapeHtml(vote.question || "Vote")}</strong>
+            <div class="vote-widget-options" style="grid-template-columns:${optionGridColumns};width:${useAutoWidth ? "max-content" : "100%"};max-width:${useAutoWidth ? "none" : "100%"};">
+              ${options.length
+                ? options.map((option) => `
+                    <div class="vote-widget-option${phase === "spinning" && (Number(option?.index ?? 0) - 1) === activeSpinIndex ? " active" : ""}${phase === "result" && (Number(option?.index ?? 0) - 1) === winningIndex ? " winner" : ""}">
+                      <span class="overlay-widget-copy">${option.index}. ${escapeHtml(option.label)}</span>
+                      <span class="overlay-widget-value ${phase === "result" ? "" : "hidden-placeholder"}">${phase === "result" ? `${option.percent}%` : ""}</span>
+                    </div>
+                  `).join("")
+                : ``}
+            </div>
+            ${phase === "result" && winnerLabel
+              ? `<div class="overlay-vote-winner-banner"><strong class="overlay-widget-title">Winner: ${escapeHtml(winnerLabel)}</strong></div>`
+              : ""}
+          </div>
+        `;
+      }
+
+      function buildElementMarkup(element, runtime) {
+        switch (element.type) {
+          case "progressBar":
+            return `
+              <div class="overlay-element-progress">
+                <span class="overlay-widget-copy">${escapeHtml(renderText(element.content || "Progress", runtime))}</span>
+                <div class="overlay-element-progress-bar"><span style="background: linear-gradient(90deg, var(--overlay-accent, #53dcff), var(--overlay-accent-2, #b266ff));"></span></div>
+              </div>
+            `;
+          case "image":
+            return element.source
+              ? `<img class="overlay-element-media" src="${escapeHtml(element.source)}" alt="${escapeHtml(element.name || "Image")}" />`
+              : `<div class="overlay-html">Image source</div>`;
+          case "video":
+            return element.source
+              ? `<video class="overlay-element-video" src="${escapeHtml(element.source)}" muted autoplay loop playsinline></video>`
+              : `<div class="overlay-html">Video source</div>`;
+          case "customHtml":
+            return `<div class="overlay-html">${element.content || "<div>Custom HTML widget</div>"}</div>`;
+          case "votingWidget":
+            return buildVoteWidgetMarkup(runtime, element);
+          default:
+            return `<div>${escapeHtml(renderText(element.content || element.name || "", runtime))}</div>`;
+        }
+      }
+
+      function getOverlayAnimationSessionKey(template, runtime) {
+        const templateId = String(template?.id || "template");
+        const vote = runtime?.activeVote || {};
+        if (vote?.active) {
+          return `${templateId}::vote::${String(vote.question || "")}::${String(vote.countdownEndsAt || "")}::${String(vote.spinEndsAt || "")}`;
+        }
+        const alert = runtime?.alert || {};
+        if (alert?.username || alert?.giftSent) {
+          return `${templateId}::alert::${String(alert.username || "")}::${String(alert.giftSent || "")}`;
+        }
+        const chat = runtime?.chatMessage || {};
+        if (chat?.username || chat?.message) {
+          return `${templateId}::chat::${String(chat.username || "")}::${String(chat.message || "")}`;
+        }
+        return `${templateId}::default`;
+      }
+
+      function renderState(state) {
+        latestState = state;
+        const template = pickTemplate(state);
+        if (!template) {
+          root.innerHTML = "";
+          return;
+        }
+
+        const runtime = state?.runtime || {};
+        root.style.width = `${Math.max(320, Number(template.width) || 1920)}px`;
+        root.style.height = `${Math.max(320, Number(template.height) || 1080)}px`;
+        root.style.backgroundColor = hexToRgba(template.backgroundColor || "#08111f", template.backgroundOpacity ?? 0.45);
+        root.style.backgroundImage = template.backgroundImage
+          ? `linear-gradient(${hexToRgba("#08111f", 1 - (template.backgroundOpacity ?? 0.45))}, ${hexToRgba("#08111f", 1 - (template.backgroundOpacity ?? 0.45))}), url("${String(template.backgroundImage).replaceAll("\"", "%22")}")`
+          : "none";
+        root.style.backgroundSize = template.backgroundImage ? "cover" : "auto";
+        const animationSessionKey = getOverlayAnimationSessionKey(template, runtime);
+        if (root.dataset.overlayAnimationSessionKey !== animationSessionKey) {
+          root.dataset.overlayAnimationSessionKey = animationSessionKey;
+          root.dataset.playedEntryAnimations = "[]";
+        }
+        const playedEntryAnimations = new Set(JSON.parse(root.dataset.playedEntryAnimations || "[]"));
+
+        const elements = Array.isArray(template.elements) ? [...template.elements].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0)) : [];
+        root.innerHTML = elements.map((element) => {
+          const widgetMarkup = buildElementMarkup(element, runtime);
+          const isOneShotEntryAnimation = element.animation === "slide-in" || element.animation === "pop";
+          const shouldApplyAnimation = element.animation && element.animation !== "none" && (!isOneShotEntryAnimation || !playedEntryAnimations.has(String(element.id || "")));
+          const animationClass = shouldApplyAnimation ? `overlay-anim-${element.animation}` : "";
+          if (shouldApplyAnimation && isOneShotEntryAnimation) {
+            playedEntryAnimations.add(String(element.id || ""));
+          }
+          const shouldShowElement = !(element.type === "votingWidget" && !String(widgetMarkup).trim());
+          return `
+            <div
+              class="overlay-element ${animationClass}"
+              style="
+                left:${Math.max(0, Number(element.x) || 0)}px;
+                top:${Math.max(0, Number(element.y) || 0)}px;
+                width:${element.autoWidth ? "auto" : `${Math.max(40, Number(element.width) || 220)}px`};
+                height:${element.autoHeight ? "auto" : `${Math.max(40, Number(element.height) || 80)}px`};
+                min-width:${element.autoWidth ? "40px" : "0"};
+                min-height:${element.autoHeight ? "40px" : "0"};
+                z-index:${Math.max(1, Number(element.zIndex) || 1)};
+                transform:rotate(${Math.max(-360, Math.min(360, Number(element.rotation) || 0))}deg);
+                opacity:${Math.max(0, Math.min(1, Number(element.opacity) || 1))};
+                font-family:${escapeHtml(element.fontFamily || "Poppins, Segoe UI, sans-serif")};
+                font-size:${Math.max(10, Number(element.fontSize) || 28)}px;
+                font-weight:${Math.max(100, Math.min(900, Number(element.fontWeight) || 700))};
+                letter-spacing:${Math.max(-4, Math.min(24, Number(element.letterSpacing) || 0))}px;
+                color:${escapeHtml(element.color || "#f6fbff")};
+                --overlay-accent:${escapeHtml(element.glowColor || "#53dcff")};
+                --overlay-accent-2:${escapeHtml(element.borderColor || "#8b5cf6")};
+                --overlay-surface-soft:${hexToRgba(element.backgroundColor || "#10243d", Math.max(0.12, Math.min(0.82, Number(element.backgroundOpacity) || 0.18)))};
+                --overlay-border-soft:${hexToRgba(element.borderColor || "#2a466b", 0.32)};
+                background:${hexToRgba(element.backgroundColor || "#10243d", element.backgroundOpacity ?? 0)};
+                border:${Math.max(0, Math.min(24, Number(element.borderWidth) || 0))}px solid ${escapeHtml(element.borderColor || "#2a466b")};
+                border-radius:${Math.max(0, Math.min(240, Number(element.borderRadius) || 18))}px;
+                box-shadow:0 0 ${Math.max(8, (Number(element.blur) || 0) * 2)}px ${escapeHtml(element.glowColor || "#53dcff")};
+                backdrop-filter:${Number(element.blur) > 0 ? `blur(${Number(element.blur)}px)` : "none"};
+                display:${element.visible === false || !shouldShowElement ? "none" : "flex"};
+                align-items:${element.autoHeight ? "stretch" : "center"};
+                justify-content:${element.autoWidth || element.autoHeight ? "flex-start" : "center"};
+              "
+            >
+              <div class="overlay-element-inner" style="width:${element.autoWidth ? "auto" : "100%"};height:${element.autoHeight ? "auto" : "100%"};">${widgetMarkup}</div>
+            </div>
+          `;
+        }).join("");
+        root.dataset.playedEntryAnimations = JSON.stringify([...playedEntryAnimations]);
+      }
+
+      async function loadState() {
+        const requestUrl = `/api/overlay-designer-state${templateParam ? `?template=${encodeURIComponent(templateParam)}` : ""}`;
+        const response = await fetch(requestUrl, { cache: "no-store" });
+        const payload = await response.json();
+        renderState(payload.state || {});
+      }
+
+      function subscribeToUpdates() {
+        const streamUrl = `/api/overlay-designer-stream${templateParam ? `?template=${encodeURIComponent(templateParam)}` : ""}`;
+        const source = new EventSource(streamUrl);
+        source.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            renderState(payload.state || latestState || {});
+          } catch {
+            // Ignore malformed events and keep the last good state.
+          }
+        };
+        source.onerror = () => {
+          source.close();
+          setTimeout(subscribeToUpdates, 1500);
+        };
+      }
+
+      loadState().finally(subscribeToUpdates);
+      window.setInterval(() => {
+        if (latestState) {
+          renderState(latestState);
+        }
+      }, 120);
+    </script>
+  </body>
+</html>

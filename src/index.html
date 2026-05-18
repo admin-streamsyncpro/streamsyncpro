@@ -9,8 +9,10 @@
     <title>Stream Sync Pro LIVE</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body>
-    <div id="connection-status" class="status-toast" aria-live="polite"></div>
+  <body class="fixed-dashboard-layout">
+    <div id="status-toast-layer" class="status-toast-layer" aria-live="polite">
+      <div id="connection-status" class="status-toast"></div>
+    </div>
 
     <main class="app-shell">
       <section id="auth-shell" class="auth-shell">
@@ -139,6 +141,31 @@
       </section>
 
       <section id="dashboard-shell" class="dashboard-shell" hidden>
+        <section class="workspace-nav-bar card" aria-label="Workspace navigation">
+          <div class="workspace-nav-bar-inner">
+            <nav class="workspace-nav-list">
+              <button type="button" id="open-controls-layer-button" class="workspace-nav-button" title="Controls" aria-label="Controls">
+                <span aria-hidden="true">🎛</span>
+              </button>
+              <button type="button" id="open-overlays-layer-button" class="workspace-nav-button" title="Controls and overlays" aria-label="Controls and overlays">
+                <span aria-hidden="true">🖥</span>
+              </button>
+              <button type="button" id="open-event-actions-layer-button" class="workspace-nav-button" title="Event actions" aria-label="Event actions">
+                <span aria-hidden="true">⚡</span>
+              </button>
+              <button type="button" id="open-layout-customizer-button" class="workspace-nav-button" title="Customize view" aria-label="Customize view">
+                <span aria-hidden="true">🧩</span>
+              </button>
+              <button type="button" id="topup-credits-button" class="workspace-nav-button" title="Top up credits" aria-label="Top up credits">
+                <span aria-hidden="true">💳</span>
+              </button>
+              <button type="button" id="signout-button" class="workspace-nav-button danger" title="Sign out" aria-label="Sign out">
+                <span aria-hidden="true">⎋</span>
+              </button>
+            </nav>
+          </div>
+        </section>
+
         <!-- Header -->
         <header class="dashboard-header card">
           <section class="brand-block">
@@ -151,21 +178,14 @@
           </section>
 
           <section class="header-controls">
-            <div class="profile-actions-row">
-              <label class="field compact-inline-field profile-select-field">
-                <span>Profile</span>
-                <select id="settings-profile-select"></select>
-              </label>
-              <button type="button" id="settings-profile-create-button" class="ghost compact-button">New profile</button>
-              <button type="button" id="settings-profile-delete-button" class="ghost compact-button">Delete profile</button>
-              <button type="button" id="settings-profile-import-button" class="ghost compact-button">Import settings</button>
-              <button type="button" id="settings-profile-export-button" class="ghost compact-button">Export settings</button>
-            </div>
-
             <form id="connect-form" class="header-connect-form">
-              <label class="field header-field">
-                <span>TikTok username</span>
-                <div class="header-connect-row">
+              <div class="header-connect-row">
+                <label class="field compact-inline-field profile-select-field">
+                  <span>Profile menu</span>
+                  <select id="settings-profile-select"></select>
+                </label>
+                <label class="field header-field">
+                  <span>TikTok username</span>
                   <input
                     id="username"
                     name="username"
@@ -174,156 +194,164 @@
                     list="remembered-usernames"
                     required
                   />
-                  <datalist id="remembered-usernames"></datalist>
-                  <button type="submit" id="connect-button">Connect</button>
-                </div>
-              </label>
-
-              <label class="toggle-row remember-toggle">
-                <input id="remember-username" type="checkbox" />
-                <span>Remember username</span>
-              </label>
+                </label>
+                <label class="field compact-inline-field remember-field">
+                  <span>Remember me</span>
+                  <span class="toggle-row remember-toggle-inline">
+                    <input id="remember-username" type="checkbox" />
+                    <span>Save</span>
+                  </span>
+                </label>
+                <button type="submit" id="connect-button">Connect</button>
+                <datalist id="remembered-usernames"></datalist>
+              </div>
             </form>
           </section>
-        </header>
+          </header>
 
-        <section class="status-overview-card card compact-status">
-          <div class="card-header section-head">
-            <div>
-              <p class="eyebrow">Status</p>
-              <h2 class="section-title">Session and account overview</h2>
-            </div>
-          </div>
-          <div class="card-body">
-            <div class="status-card-layout">
-              <div class="status-pill-group">
-                <span id="connection-pill" class="status-pill info">Disconnected</span>
-                <span id="translation-pill" class="status-pill muted">Translation Off</span>
-                <span id="tts-pill" class="status-pill muted">TTS Off</span>
-                <span id="signed-in-pill" class="status-pill accent">Signed in</span>
-                <span id="credits-pill" class="status-pill info">Credits: 0</span>
-                <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
-              </div>
-              <div class="status-actions-row">
-                <button type="button" id="topup-credits-button" class="ghost compact-button">Top up credits</button>
-                <button type="button" id="signout-button" class="ghost compact-button">Sign Out</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Welcome -->
-        <section class="welcome-card card">
-          <div class="card-header section-head">
-            <div>
-              <p class="eyebrow">Welcome</p>
-            </div>
-          </div>
-
-          <div class="card-body welcome-copy">
-            <p>
-              Welcome to the ultimate toolkit for taking your live streams to the next level.
-            </p>
-            <p>
-              Packed with powerful interactive features, this platform helps creators turn every stream into a high-energy, engaging experience. From fan-favorite tools like Text-to-Speech and custom sound alerts to smart automations, event triggers, and connected device integrations, everything is built to keep your audience entertained and involved.
-            </p>
-            <p>
-              Boost engagement, energize your community, and transform every live session into something unforgettable.
-            </p>
-          </div>
-        </section>
-
-        <!-- Main Layout -->
-        <section class="dashboard-grid">
-          <!-- Chat Feed -->
-          <section class="chat-panel card">
-            <div class="card-header panel-heading">
-              <div>
-                <p class="eyebrow">Live feed</p>
-                <h2>Incoming Chat</h2>
-              </div>
-              <span id="chat-count" class="count-pill">0 messages</span>
-            </div>
-
-            <div class="card-body">
-              <div class="chat-toolbar">
-                <label class="field toolbar-search">
-                  <span class="sr-only">Search chat</span>
-                  <input
-                    id="chat-search"
-                    type="search"
-                    placeholder="Search messages or usernames"
-                    autocomplete="off"
-                  />
-                </label>
-
-                <div class="toolbar-actions">
-                  <button type="button" id="pause-scroll-button" class="ghost toolbar-button">
-                    Pause Scroll
-                  </button>
-                  <button type="button" id="clear-chat-button" class="ghost toolbar-button">
-                    Clear
-                  </button>
-                  <button type="button" id="export-chat-button" class="ghost toolbar-button">
-                    Export
-                  </button>
-                </div>
-              </div>
-
-              <div class="chat-stage">
-                <div id="chat-empty" class="chat-empty">
-                  Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
-                </div>
-                <div id="chat-list" class="chat-list" aria-live="polite"></div>
-
-              </div>
-            </div>
-          </section>
-
-          <!-- Right Sidebar -->
-          <aside class="sidebar-stack">
-            <div class="sidebar-tabs card">
-              <button type="button" id="controls-tab-button" class="sidebar-tab-button active">Controls</button>
-              <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
-            </div>
-
-            <div id="controls-tab-panel" class="sidebar-tab-panel active">
-            <!-- Stream Status -->
-            <section class="sidebar-card card">
+          <div class="dashboard-scroll-region">
+            <section class="status-overview-card card compact-status">
               <div class="card-header section-head">
                 <div>
-                  <p class="eyebrow">Overview</p>
-                  <h3 class="section-title">Stream Status</h3>
-                </div>
+                  <p class="eyebrow">Status</p>
+                  <h2 class="section-title">Session, account and stream overview</h2>
               </div>
-
+            </div>
               <div class="card-body">
-                <div class="stats-grid">
-                  <article class="stat-tile">
-                    <span class="stat-label">Viewers</span>
-                    <strong id="stat-viewers">--</strong>
+                <div class="status-card-layout">
+                  <div class="status-pill-group">
+                    <span id="connection-pill" class="status-pill info">Disconnected</span>
+                    <span id="translation-pill" class="status-pill muted">Translation Off</span>
+                  <span id="tts-pill" class="status-pill muted">TTS Off</span>
+                  <span id="signed-in-pill" class="status-pill accent">Signed in</span>
+                    <span id="credits-pill" class="status-pill info">Credits: 0</span>
+                    <span id="session-check-pill" class="status-pill muted">Session check: Waiting</span>
+                  </div>
+                </div>
+                <div class="status-stats-grid compact-icon-stats">
+                  <article class="status-stat-chip">
+                    <span class="status-stat-icon" aria-hidden="true">👁</span>
+                    <span class="status-stat-copy">
+                      <span class="status-stat-label">Viewers</span>
+                      <strong id="stat-viewers">--</strong>
+                    </span>
                   </article>
-                  <article class="stat-tile">
-                    <span class="stat-label">Messages/min</span>
-                    <strong id="stat-messages-per-minute">0</strong>
+                  <article class="status-stat-chip">
+                    <span class="status-stat-icon" aria-hidden="true">💬</span>
+                    <span class="status-stat-copy">
+                      <span class="status-stat-label">Messages/min</span>
+                      <strong id="stat-messages-per-minute">0</strong>
+                    </span>
                   </article>
-                  <article class="stat-tile">
-                    <span class="stat-label">Gifts</span>
-                    <strong id="stat-gifts">0</strong>
+                  <article class="status-stat-chip">
+                    <span class="status-stat-icon" aria-hidden="true">🎁</span>
+                    <span class="status-stat-copy">
+                      <span class="status-stat-label">Gifts</span>
+                      <strong id="stat-gifts">0</strong>
+                    </span>
                   </article>
-                  <article class="stat-tile">
-                    <span class="stat-label">New followers</span>
-                    <strong id="stat-followers">0</strong>
+                  <article class="status-stat-chip">
+                    <span class="status-stat-icon" aria-hidden="true">➕</span>
+                    <span class="status-stat-copy">
+                      <span class="status-stat-label">New followers</span>
+                      <strong id="stat-followers">0</strong>
+                    </span>
                   </article>
-                  <article class="stat-tile">
-                    <span class="stat-label">Queued actions</span>
-                    <strong id="stat-queue">0</strong>
+                  <article class="status-stat-chip">
+                    <span class="status-stat-icon" aria-hidden="true">▶</span>
+                    <span class="status-stat-copy">
+                      <span class="status-stat-label">Queued actions</span>
+                      <strong id="stat-queue">0</strong>
+                    </span>
                   </article>
                 </div>
               </div>
             </section>
 
-              <section class="sidebar-card card">
+          <!-- Welcome -->
+          <section class="welcome-card card" data-dashboard-card="welcome">
+            <div class="card-header section-head">
+              <div>
+                <p class="eyebrow">Welcome</p>
+              </div>
+            </div>
+
+            <div class="card-body welcome-copy">
+              <p>
+                Welcome to the ultimate toolkit for taking your live streams to the next level.
+              </p>
+              <p>
+                Packed with powerful interactive features, this platform helps creators turn every stream into a high-energy, engaging experience. From fan-favorite tools like Text-to-Speech and custom sound alerts to smart automations, event triggers, and connected device integrations, everything is built to keep your audience entertained and involved.
+              </p>
+              <p>
+                Boost engagement, energize your community, and transform every live session into something unforgettable.
+              </p>
+            </div>
+          </section>
+
+          <section id="dashboard-addon-cards" class="dashboard-addon-grid" hidden></section>
+
+          <!-- Main Layout -->
+          <section class="dashboard-grid">
+            <!-- Chat Feed -->
+            <section class="chat-panel card" data-dashboard-card="incoming-chat">
+              <div class="card-header panel-heading">
+                <div>
+                  <p class="eyebrow">Live feed</p>
+                  <h2>Incoming Chat</h2>
+                </div>
+                <span id="chat-count" class="count-pill">0 messages</span>
+              </div>
+
+              <div class="card-body">
+                <div class="chat-toolbar">
+                  <label class="field toolbar-search">
+                    <span class="sr-only">Search chat</span>
+                    <input
+                      id="chat-search"
+                      type="search"
+                      placeholder="Search messages or usernames"
+                      autocomplete="off"
+                    />
+                  </label>
+
+                  <div class="toolbar-actions">
+                    <button type="button" id="pause-scroll-button" class="ghost toolbar-button">
+                      Pause Scroll
+                    </button>
+                    <button type="button" id="clear-chat-button" class="ghost toolbar-button">
+                      Clear
+                    </button>
+                    <button type="button" id="export-chat-button" class="ghost toolbar-button">
+                      Export
+                    </button>
+                  </div>
+                </div>
+
+                <div class="chat-stage">
+                  <div id="chat-empty" class="chat-empty">
+                    Waiting for live chat. Connect to a TikTok LIVE stream to start receiving messages.
+                  </div>
+                  <div id="chat-list" class="chat-list" aria-live="polite"></div>
+
+                </div>
+              </div>
+            </section>
+
+            <!-- Right Sidebar Layer -->
+            <div id="sidebar-layer" class="sidebar-layer" hidden>
+              <aside class="sidebar-stack">
+                <div class="sidebar-layer-head">
+                  <h2 id="sidebar-layer-title">Stream Controls</h2>
+                  <button type="button" id="sidebar-layer-close" class="ghost compact-button">Close</button>
+                </div>
+              <div class="sidebar-tabs card">
+                <button type="button" id="controls-tab-button" class="sidebar-tab-button active">Controls</button>
+                <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
+              </div>
+
+              <div id="controls-tab-panel" class="sidebar-tab-panel active">
+              <section class="sidebar-card card" data-main-screen-card="controls-queued-actions">
                 <div class="card-header section-head">
                   <div>
                     <p class="eyebrow">Playback</p>
@@ -351,52 +379,8 @@
                 </div>
               </section>
 
-              <section class="sidebar-card card">
-                <div class="card-header section-head">
-                  <div>
-                    <p class="eyebrow">Overlay</p>
-                    <h3 class="section-title">Queue Overlay</h3>
-                  </div>
-                </div>
-
-                <div class="card-body">
-                    <p class="section-copy">Use this hosted browser-source URL in TikTok, OBS, or your preferred overlay tool to show viewers what is playing and what is queued next.</p>
-                    <label class="field">
-                      <span>Overlay queue</span>
-                      <select id="queue-overlay-queue">
-                      <option value="1">Queue 1</option>
-                      <option value="2">Queue 2</option>
-                      <option value="3">Queue 3</option>
-                      <option value="4">Queue 4</option>
-                      <option value="5">Queue 5</option>
-                      <option value="6">Queue 6</option>
-                      <option value="7">Queue 7</option>
-                      <option value="8">Queue 8</option>
-                      <option value="9">Queue 9</option>
-                        <option value="10">Queue 10</option>
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span>Overlay mode</span>
-                      <select id="queue-overlay-mode">
-                        <option value="full">Full queue</option>
-                        <option value="compact">Compact now playing</option>
-                      </select>
-                    </label>
-                    <label class="field">
-                      <span>Overlay URL</span>
-                      <input id="queue-overlay-url" type="text" readonly value="Loading..." />
-                    </label>
-                  <div class="queue-overlay-actions">
-                    <button type="button" id="queue-overlay-copy" class="ghost compact-button">Copy URL</button>
-                    <button type="button" id="queue-overlay-open" class="ghost compact-button">Open Overlay</button>
-                  </div>
-                  <p id="queue-overlay-status" class="status info">Preparing queue overlay...</p>
-                </div>
-              </section>
-
               <!-- Translation -->
-              <section class="sidebar-card card">
+              <section class="sidebar-card card" data-main-screen-card="controls-auto-translate">
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Translation</p>
@@ -466,8 +450,101 @@
               </div>
             </section>
 
-            <!-- Text To Speech -->
             <section class="sidebar-card card">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Advanced</p>
+                  <h3 class="section-title">TikTok Session</h3>
+                </div>
+              </div>
+
+                <div class="card-body">
+                  <div class="settings-grid">
+                    <p class="section-copy">
+                      Optional advanced mode for trying authenticated TikTok emote discovery. Sign in to TikTok
+                      through the app, then refresh emotes for the currently connected or entered creator.
+                    </p>
+
+                    <div class="actions">
+                      <button type="button" id="tiktok-signin-button" class="ghost">Sign in to TikTok</button>
+                      <button type="button" id="tiktok-signout-button" class="ghost">Sign out of TikTok</button>
+                      <button type="button" id="tiktok-refresh-emotes-button" class="ghost">Refresh emotes from TikTok</button>
+                    </div>
+
+                    <p id="tiktok-session-status" class="status info">
+                      Sign in to TikTok if you want to try authenticated emote discovery.
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+            <section class="sidebar-card card" data-main-screen-card="controls-interactive-voting">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Interactive</p>
+                  <h3 class="section-title">Voting</h3>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <div class="settings-grid">
+                  <label class="toggle-switch">
+                    <input id="voting-enabled" type="checkbox" />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Enable live voting commands</strong>
+                      <small>Allow viewers to start and join timed votes from chat using <code>!castvote</code> and <code>!vote</code>.</small>
+                    </span>
+                  </label>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Who can start votes</span>
+                      <select id="voting-start-role">
+                        <option value="everyone">Everyone</option>
+                        <option value="subscribers">Subscribers only</option>
+                        <option value="moderators">Moderators only</option>
+                      </select>
+                    </label>
+
+                    <label class="field">
+                      <span>Overlay layout</span>
+                      <select id="voting-overlay-orientation">
+                        <option value="horizontal">Horizontal spin bar</option>
+                        <option value="vertical">Vertical spin bar</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="actions">
+                    <button type="button" id="voting-test-button" class="ghost">Test voting overlay</button>
+                  </div>
+
+                  <p class="section-copy">Use the hosted voting overlay URL below in TikTok, OBS, or your preferred browser-source tool. The layout follows the voting orientation setting above.</p>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="vote-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="vote-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="vote-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="vote-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="vote-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="vote-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+
+                  <p class="section-copy">Start a vote from chat with <code>!castvote "Question" "Option 1, Option 2, Option 3" 10</code>. Viewers vote with <code>!vote 2</code>.</p>
+                  <p id="voting-status" class="status info">Voting commands are off.</p>
+                  <p id="vote-overlay-status" class="status info">Preparing voting overlay...</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- Text To Speech -->
+            <section class="sidebar-card card tts-card" data-main-screen-card="controls-text-to-speech">
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Voice</p>
@@ -477,23 +554,24 @@
 
               <div class="card-body">
                 <div class="settings-grid">
-                  <label class="toggle-switch">
-                    <input id="tts-enabled" type="checkbox" />
-                    <span class="switch-ui"></span>
-                    <span class="switch-copy">
-                      <strong>Read incoming chat aloud</strong>
-                      <small>Speak live comments using your selected voice profile.</small>
-                    </span>
-                  </label>
+                  <div class="tts-toggle-grid">
+                    <label class="toggle-switch">
+                      <input id="tts-enabled" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Read incoming chat aloud</strong>
+                        <small>Speak live comments using your selected voice profile.</small>
+                      </span>
+                    </label>
 
-                  <label class="toggle-switch">
-                    <input id="tts-include-username" type="checkbox" checked />
-                    <span class="switch-ui"></span>
-                    <span class="switch-copy">
-                      <strong>Include username</strong>
-                      <small>Say the display name before each spoken message.</small>
-                    </span>
-                  </label>
+                    <label class="toggle-switch">
+                      <input id="tts-include-username" type="checkbox" checked />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Include username</strong>
+                        <small>Say the display name before each spoken message.</small>
+                      </span>
+                    </label>
 
                     <label class="toggle-switch">
                       <input id="tts-read-gifts" type="checkbox" />
@@ -504,6 +582,17 @@
                       </span>
                     </label>
 
+                    <label class="toggle-switch">
+                      <input id="tts-random-voice" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Random voice per message</strong>
+                        <small>Use a random available TTS voice for each spoken message unless that user picked their own.</small>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div class="field-grid tts-support-grid">
                     <label class="field">
                       <span>Gift alert minimum coins</span>
                       <input
@@ -516,7 +605,24 @@
                       <small class="field-hint">Only read gifts aloud when total coin value meets or exceeds this amount.</small>
                     </label>
 
-                    <div class="field-grid">
+                    <label class="field">
+                      <span>TTS queue</span>
+                      <select id="tts-queue">
+                        <option value="1">Queue 1</option>
+                        <option value="2">Queue 2</option>
+                        <option value="3">Queue 3</option>
+                        <option value="4">Queue 4</option>
+                        <option value="5">Queue 5</option>
+                        <option value="6">Queue 6</option>
+                        <option value="7">Queue 7</option>
+                        <option value="8">Queue 8</option>
+                        <option value="9">Queue 9</option>
+                        <option value="10">Queue 10</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="field-grid tts-provider-grid">
                       <label class="field">
                         <span>TTS provider</span>
                         <select id="tts-provider">
@@ -541,7 +647,7 @@
                           autocomplete="off"
                           placeholder="Enter your ElevenLabs API key"
                         />
-                        <small class="field-hint">An API key is required to generate speech with ElevenLabs in both modes. Paid mode also loads your saved account voices.</small>
+                        <small class="field-hint">An API key is required in both modes. This toggle changes app behavior, but usage details come from the ElevenLabs account linked to your API key.</small>
                       </label>
 
                       <label class="field tts-elevenlabs-only is-hidden" id="tts-eleven-model-field">
@@ -559,34 +665,9 @@
                         <select id="tts-voice"></select>
                         <small class="field-hint">Users can assign themselves a numbered voice with <code>!myttsvoice 3</code> in chat.</small>
                       </label>
-
-                    <label class="toggle-switch">
-                      <input id="tts-random-voice" type="checkbox" />
-                      <span class="switch-ui"></span>
-                      <span class="switch-copy">
-                        <strong>Random voice per message</strong>
-                        <small>Use a random available TTS voice for each spoken message unless that user picked their own.</small>
-                      </span>
-                    </label>
-
-                    <label class="field">
-                      <span>TTS queue</span>
-                      <select id="tts-queue">
-                        <option value="1">Queue 1</option>
-                        <option value="2">Queue 2</option>
-                        <option value="3">Queue 3</option>
-                        <option value="4">Queue 4</option>
-                        <option value="5">Queue 5</option>
-                        <option value="6">Queue 6</option>
-                        <option value="7">Queue 7</option>
-                        <option value="8">Queue 8</option>
-                        <option value="9">Queue 9</option>
-                        <option value="10">Queue 10</option>
-                      </select>
-                    </label>
                   </div>
 
-                  <div class="slider-grid">
+                  <div class="slider-grid tts-slider-grid">
                     <label class="field">
                       <span>Speech rate</span>
                       <input
@@ -627,89 +708,49 @@
                     </label>
                   </div>
 
-                    <div class="actions">
+                    <div class="actions tts-actions">
                       <button type="button" id="tts-test-button" class="ghost">Test voice</button>
                       <button type="button" id="tts-manage-user-voices-button" class="ghost">Manage user voices</button>
-                    </div>
-
-                    <div class="command-feedback-panel">
-                      <div class="panel-inline-head">
-                        <div>
-                          <p class="eyebrow">Viewer Feedback</p>
-                          <h4 class="section-title section-title-small">Command Feedback Overlay</h4>
-                        </div>
-                      </div>
-
-                      <p class="helper-text">Show a simple browser-source feedback card when supported chat commands are used, and customise the response wording below.</p>
-
-                      <div class="settings-grid">
-                        <label class="field">
-                          <span>Overlay duration (ms)</span>
-                          <input id="command-feedback-duration" type="number" min="1000" step="500" value="6000" />
-                        </label>
-                        <label class="field">
-                          <span>Overlay URL</span>
-                          <input id="command-feedback-overlay-url" type="text" readonly value="Loading..." />
-                        </label>
-                      </div>
-
-                      <div class="queue-overlay-actions">
-                        <button type="button" id="command-feedback-overlay-copy" class="ghost compact-button">Copy URL</button>
-                        <button type="button" id="command-feedback-overlay-open" class="ghost compact-button">Open Overlay</button>
-                      </div>
-
-                      <label class="field">
-                        <span>`!myttsvoice` feedback</span>
-                        <textarea id="command-feedback-template-myttsvoice" rows="3" placeholder="{user} has selected {voiceLabel} for their personalised TTS voice."></textarea>
-                        <small class="field-hint">Available tokens: <code>{user}</code>, <code>{voiceLabel}</code>, <code>{voiceNumber}</code></small>
-                      </label>
-
-                      <label class="field">
-                        <span>`!listcomands` feedback</span>
-                        <textarea id="command-feedback-template-listcommands" rows="3" placeholder="{user}, available chat commands: {commandList}"></textarea>
-                        <small class="field-hint">Available tokens: <code>{user}</code>, <code>{commandList}</code></small>
-                      </label>
-
-                      <p id="command-feedback-status" class="status info">Preparing command feedback overlay...</p>
                     </div>
 
                     <p id="tts-status" class="status info">
                       TTS is off.
                     </p>
+
+                    <section id="tts-elevenlabs-usage-panel" class="tts-usage-panel is-hidden" aria-live="polite">
+                      <div class="tts-usage-head">
+                        <strong>ElevenLabs account usage</strong>
+                        <div class="tts-usage-head-actions">
+                          <span id="tts-elevenlabs-plan" class="count-pill">Plan --</span>
+                          <button type="button" id="tts-elevenlabs-refresh" class="ghost compact-button">Refresh usage</button>
+                        </div>
+                      </div>
+                      <div class="tts-usage-grid">
+                        <article class="tts-usage-stat">
+                          <span class="tts-usage-label">Used</span>
+                          <strong id="tts-elevenlabs-used">--</strong>
+                        </article>
+                        <article class="tts-usage-stat">
+                          <span class="tts-usage-label">Limit</span>
+                          <strong id="tts-elevenlabs-limit">--</strong>
+                        </article>
+                        <article class="tts-usage-stat">
+                          <span class="tts-usage-label">Remaining</span>
+                          <strong id="tts-elevenlabs-remaining">--</strong>
+                        </article>
+                        <article class="tts-usage-stat">
+                          <span class="tts-usage-label">Reset</span>
+                          <strong id="tts-elevenlabs-reset">--</strong>
+                        </article>
+                      </div>
+                      <p id="tts-elevenlabs-usage-status" class="status info">Enter your ElevenLabs API key to load usage details.</p>
+                    </section>
                 </div>
               </div>
             </section>
-
-            </div>
-
-            <div id="event-actions-tab-panel" class="sidebar-tab-panel">
-            <section class="sidebar-card card">
-              <div class="card-header section-head">
-                <div>
-                  <p class="eyebrow">Custom Automation</p>
-                  <h3 class="section-title">Event Actions</h3>
-                </div>
-                <button type="button" id="add-custom-rule-button" class="ghost compact-button">
-                  New Rule
-                </button>
-              </div>
-
-              <div class="card-body">
-                <p class="helper-text">
-                  Create custom triggers based on cumulative follows, likes, shares, or coins for the current live session, then fire a sound, a webhook, or both.
-                </p>
-
-                <div id="custom-rule-list" class="custom-rule-list"></div>
-
-                <p id="custom-rule-status" class="status info">
-                  No custom trigger rules yet.
-                </p>
-              </div>
-            </section>
-            </div>
 
             <!-- Audience Filters -->
-            <section class="sidebar-card card">
+            <section class="sidebar-card card" data-main-screen-card="controls-audience-filters">
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Audience</p>
@@ -742,35 +783,377 @@
                 </p>
               </div>
             </section>
-          </aside>
-        </section>
 
-        <!-- Footer Status -->
-        <section class="footer-card card">
-          <div class="card-header section-head">
-            <div>
-              <p class="eyebrow">Build and Updates</p>
-              <h3 class="section-title">Deployment Status</h3>
+              <section class="sidebar-card card">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Hosted Overlays</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Manage browser-source overlay URLs, template assignments, and designer access alongside the rest of your live controls in one place.</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-queue-overlay">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Queue Overlay</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Use this hosted browser-source URL in TikTok, OBS, or your preferred overlay tool to show viewers what is playing and what is queued next.</p>
+                  <label class="field">
+                    <span>Overlay queue</span>
+                    <select id="queue-overlay-queue">
+                      <option value="1">Queue 1</option>
+                      <option value="2">Queue 2</option>
+                      <option value="3">Queue 3</option>
+                      <option value="4">Queue 4</option>
+                      <option value="5">Queue 5</option>
+                      <option value="6">Queue 6</option>
+                      <option value="7">Queue 7</option>
+                      <option value="8">Queue 8</option>
+                      <option value="9">Queue 9</option>
+                      <option value="10">Queue 10</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Overlay mode</span>
+                    <select id="queue-overlay-mode">
+                      <option value="full">Full queue</option>
+                      <option value="compact">Compact now playing</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="queue-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="queue-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="queue-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="queue-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="queue-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="queue-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+                  <p id="queue-overlay-status" class="status info">Preparing queue overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-chat-overlay">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Chat Overlay</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Show a hosted on-stream feed of the latest live chat messages for the currently signed-in user.</p>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="chat-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="chat-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="chat-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="chat-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="chat-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="chat-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+                  <p id="chat-overlay-status" class="status info">Preparing chat overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-gift-overlay">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Gift Overlay</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Show the latest gifts, counts, and coin totals in a hosted overlay card for viewers.</p>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="gift-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="gift-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="gift-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="gift-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="gift-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="gift-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+                  <p id="gift-overlay-status" class="status info">Preparing gift overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-like-leaderboard">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Like Leaderboard</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Show the top users by total live likes in a hosted leaderboard overlay for viewers.</p>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="likes-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="likes-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="likes-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="likes-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="likes-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="likes-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+                  <p id="likes-overlay-status" class="status info">Preparing like leaderboard overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-viewer-stats">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Viewer Stats Leaderboard</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Show a hosted leaderboard ranked by total live likes, gifts, comments, shares, and follows for the current session.</p>
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Filter audience</span>
+                      <select id="viewer-stats-overlay-filter">
+                        <option value="everyone">Everyone</option>
+                        <option value="subscriber">Subscribers</option>
+                        <option value="moderator">Moderators</option>
+                        <option value="username">Username</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Username filter</span>
+                      <input id="viewer-stats-overlay-username" type="text" placeholder="@viewername" />
+                    </label>
+                  </div>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="viewer-stats-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="viewer-stats-overlay-template-select"></select>
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="viewer-stats-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="viewer-stats-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="viewer-stats-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="viewer-stats-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+                  <p id="viewer-stats-overlay-status" class="status info">Preparing viewer stats overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-command-feedback">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Viewer Feedback</p>
+                    <h3 class="section-title">Command Feedback Overlay</h3>
+                  </div>
+                </div>
+
+                <div class="card-body command-feedback-panel">
+                  <p class="helper-text">Show a simple browser-source feedback card when supported chat commands are used, and customise the response wording below.</p>
+
+                  <div class="settings-grid">
+                    <label class="field">
+                      <span>Overlay duration (ms)</span>
+                      <input id="command-feedback-duration" type="number" min="1000" step="500" value="6000" />
+                    </label>
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="command-feedback-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <label class="field">
+                    <span>Custom template</span>
+                    <select id="command-feedback-overlay-template-select"></select>
+                  </label>
+                  </div>
+
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="command-feedback-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="command-feedback-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="command-feedback-overlay-customize" class="ghost compact-button">Customize</button>
+                    <button type="button" id="command-feedback-overlay-reset" class="ghost compact-button">Reset</button>
+                  </div>
+
+                  <label class="field">
+                    <span>`!myttsvoice` feedback</span>
+                    <textarea id="command-feedback-template-myttsvoice" rows="3" placeholder="{user} has selected {voiceLabel} for their personalised TTS voice."></textarea>
+                    <small class="field-hint">Available tokens: <code>{user}</code>, <code>{voiceLabel}</code>, <code>{voiceNumber}</code></small>
+                  </label>
+
+                  <label class="field">
+                    <span>`!listcomands` feedback</span>
+                    <textarea id="command-feedback-template-listcommands" rows="3" placeholder="{user}, available chat commands: {commandList}"></textarea>
+                    <small class="field-hint">Available tokens: <code>{user}</code>, <code>{commandList}</code></small>
+                  </label>
+
+                  <p id="command-feedback-status" class="status info">Preparing command feedback overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card" data-main-screen-card="overlays-designer">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Overlay Designer</h3>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Build reusable overlay templates here. This card uses a local editor preview, while the hosted overlay URLs above stay public website URLs when a template is assigned to them.</p>
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Active template</span>
+                      <select id="overlay-designer-template-select"></select>
+                    </label>
+                    <label class="field">
+                      <span>Local editor preview URL</span>
+                      <div class="overlay-inline-url-row">
+                        <input id="overlay-designer-url" type="text" readonly value="Loading..." />
+                        <div class="overlay-inline-icon-actions" role="group" aria-label="Overlay designer actions">
+                          <button type="button" id="overlay-designer-open-button" class="ghost icon-button compact-icon-button" title="Open Designer" aria-label="Open Designer">&#9998;</button>
+                          <button type="button" id="overlay-designer-copy-button" class="ghost icon-button compact-icon-button" title="Copy Local Preview" aria-label="Copy Local Preview">&#10697;</button>
+                          <button type="button" id="overlay-designer-preview-button" class="ghost icon-button compact-icon-button" title="Open Local Preview" aria-label="Open Local Preview">&#8599;</button>
+                          <button type="button" id="overlay-designer-test-button" class="ghost icon-button compact-icon-button" title="Test Local Preview" aria-label="Test Local Preview">&#9654;</button>
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+                  <p id="overlay-designer-status" class="status info">Preparing overlay designer...</p>
+                </div>
+              </section>
             </div>
-          </div>
 
-          <div class="card-body">
-            <div class="footer-grid">
-              <div class="footer-copy">
-                <p class="status-card-title">
-                  Running version <span id="app-version-inline">Loading...</span>
-                </p>
-                <p class="status-card-copy">
-                  Automatic GitHub release checks are enabled on launch, and downloaded updates install after restart.
-                </p>
+            <div id="event-actions-tab-panel" class="sidebar-tab-panel">
+            <section class="sidebar-card card" data-main-screen-card="event-actions-main">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Custom Automation</p>
+                  <h3 class="section-title">Event Actions</h3>
+                </div>
+                <button type="button" id="add-custom-rule-button" class="ghost compact-button">
+                  New Rule
+                </button>
               </div>
 
-              <p id="update-status" class="status info compact-status">
-                Automatic updates are configured for GitHub Releases.
-              </p>
+                <div class="card-body">
+                  <p class="helper-text">
+                    Create custom triggers based on joins, follows, comments, likes, shares, gift coin value, emotes, or a specific gift for the current live session, then fire a sound, a webhook, or both.
+                  </p>
+
+                  <div class="event-actions-toolbar" role="group" aria-label="Filter event actions">
+                    <label class="field event-actions-toolbar-field">
+                      <span>Search event actions</span>
+                      <input
+                        id="custom-rule-search"
+                        type="search"
+                        placeholder="Search by name, audience, gift, or trigger"
+                        autocomplete="off"
+                      />
+                    </label>
+
+                    <label class="field event-actions-toolbar-field">
+                      <span>Who can trigger</span>
+                      <select id="custom-rule-audience-filter">
+                        <option value="all">All audiences</option>
+                        <option value="everyone">Everyone</option>
+                        <option value="follower">Follower</option>
+                        <option value="subscriber">Subscriber</option>
+                        <option value="moderator">Moderator</option>
+                        <option value="topGifter">Top gifter</option>
+                        <option value="specificUser">Specific user</option>
+                      </select>
+                    </label>
+
+                    <label class="field event-actions-toolbar-field">
+                      <span>What triggers</span>
+                      <select id="custom-rule-trigger-filter">
+                        <option value="all">All triggers</option>
+                        <option value="join">Join</option>
+                        <option value="firstActivity">First user activity</option>
+                        <option value="anyComment">Any comment</option>
+                        <option value="follows">Follow</option>
+                        <option value="likes">Likes</option>
+                        <option value="shares">Shares</option>
+                        <option value="coins">Gift coin value</option>
+                        <option value="specificGift">Specific gift</option>
+                        <option value="subEmote">Sub emote</option>
+                        <option value="fanEmote">Fan emote</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div id="custom-rule-list" class="custom-rule-list"></div>
+
+                  <p id="custom-rule-status" class="status info">
+                  No custom trigger rules yet.
+                </p>
+              </div>
+            </section>
             </div>
-          </div>
-        </section>
+              </aside>
+            </div>
+            </section>
+
+          <!-- Footer Status -->
+          <section class="footer-card card">
+            <div class="card-header section-head">
+              <div>
+                <p class="eyebrow">Build and Updates</p>
+                <h3 class="section-title">Deployment Status</h3>
+              </div>
+            </div>
+
+            <div class="card-body">
+              <div class="footer-grid">
+                <div class="footer-copy">
+                  <p class="status-card-title">
+                    Running version <span id="app-version-inline">Loading...</span>
+                  </p>
+                  <p class="status-card-copy">
+                    Automatic GitHub release checks are enabled on launch, and downloaded updates install after restart.
+                  </p>
+                </div>
+
+                <p id="update-status" class="status info compact-status">
+                  Automatic updates are configured for GitHub Releases.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
 
         <div id="chat-notes-panel" class="chat-notes-overlay" hidden>
           <section class="chat-notes-panel" role="dialog" aria-modal="true" aria-labelledby="chat-notes-title">
@@ -790,6 +1173,22 @@
                 placeholder="Add a saved note for this viewer"
               ></textarea>
             </label>
+
+            <div class="field-grid">
+              <label class="field">
+                <span>Birthday</span>
+                <input id="chat-notes-birthday" type="date" />
+                <small class="field-hint">Saved for yearly birthday reminders and birthday actions.</small>
+              </label>
+
+              <label class="field">
+                <span>Birthday action</span>
+                <select id="chat-notes-birthday-action">
+                  <option value="">No birthday action</option>
+                </select>
+                <small class="field-hint">Optional: trigger a saved Event Action once per session when this viewer chats on their birthday.</small>
+              </label>
+            </div>
 
             <div class="chat-notes-actions">
               <button type="button" id="chat-notes-save">Save note</button>
@@ -858,6 +1257,367 @@
             </div>
           </section>
         </div>
+
+        <div id="layout-customizer-modal" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel settings-profile-modal" role="dialog" aria-modal="true" aria-labelledby="layout-customizer-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">Dashboard Layout</p>
+                <h3 id="layout-customizer-title" class="section-title">Customize main screen</h3>
+              </div>
+              <button type="button" id="layout-customizer-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <p class="helper-text">Show or hide the optional main-screen cards. Header, launcher, and status always stay visible.</p>
+
+              <div class="filter-grid">
+                <label class="filter-tile">
+                  <input id="layout-show-welcome" type="checkbox" />
+                  <span>Welcome card</span>
+                </label>
+                <label class="filter-tile">
+                  <input id="layout-show-incoming-chat" type="checkbox" />
+                  <span>Incoming chat card</span>
+                </label>
+              </div>
+
+              <div class="field-stack">
+                <p class="helper-text">Pin extra cards from the merged Controls area and Event Actions onto the main screen.</p>
+                <div id="layout-main-card-options" class="filter-grid"></div>
+              </div>
+
+              <div class="chat-notes-actions">
+                <button type="button" id="layout-customizer-save" class="ghost compact-button">Save layout</button>
+            </div>
+          </section>
+        </div>
+
+        <div id="overlay-designer-modal" class="overlay-designer-modal" hidden>
+          <div class="overlay-designer-shell">
+            <header class="overlay-designer-header">
+              <div>
+                <p class="eyebrow">Overlay Studio</p>
+                <h2>Overlay Designer</h2>
+              </div>
+              <div class="overlay-designer-toolbar">
+                <label class="field compact-field">
+                  <span>Template</span>
+                  <select id="overlay-designer-modal-template-select"></select>
+                </label>
+                <label class="field compact-field">
+                  <span>Canvas</span>
+                  <select id="overlay-designer-canvas-preset">
+                    <option value="1920x1080">1920x1080</option>
+                    <option value="1080x1920">1080x1920</option>
+                    <option value="1280x720">1280x720</option>
+                    <option value="1080x1080">1080x1080</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </label>
+                <label class="field compact-field">
+                  <span>Zoom</span>
+                  <select id="overlay-designer-zoom">
+                    <option value="0.5">50%</option>
+                    <option value="0.75">75%</option>
+                    <option value="1" selected>100%</option>
+                    <option value="1.25">125%</option>
+                    <option value="1.5">150%</option>
+                  </select>
+                </label>
+                <button type="button" id="overlay-designer-new-template" class="ghost compact-button">New</button>
+                <button type="button" id="overlay-designer-duplicate-template" class="ghost compact-button">Duplicate</button>
+                <button type="button" id="overlay-designer-delete-template" class="ghost compact-button">Delete</button>
+                <button type="button" id="overlay-designer-export-template" class="ghost compact-button">Export</button>
+                <button type="button" id="overlay-designer-import-template" class="ghost compact-button">Import</button>
+                <button type="button" id="overlay-designer-undo" class="ghost compact-button">Undo</button>
+                <button type="button" id="overlay-designer-redo" class="ghost compact-button">Redo</button>
+                <button type="button" id="overlay-designer-close" class="ghost compact-button">Close</button>
+              </div>
+            </header>
+
+            <div class="overlay-designer-body">
+              <aside class="overlay-designer-sidebar left">
+                <section class="overlay-designer-panel">
+                  <div class="card-header section-head compact-head">
+                    <div>
+                      <p class="eyebrow">Elements</p>
+                      <h3 class="section-title">Add Widgets</h3>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="designer-element-palette">
+                      <button type="button" data-overlay-add="text" class="ghost compact-button">Text</button>
+                      <button type="button" data-overlay-add="viewerCount" class="ghost compact-button">Viewer Count</button>
+                      <button type="button" data-overlay-add="chatMessage" class="ghost compact-button">Chat Message</button>
+                      <button type="button" data-overlay-add="ttsNotification" class="ghost compact-button">TTS Notice</button>
+                      <button type="button" data-overlay-add="alert" class="ghost compact-button">Alert</button>
+                      <button type="button" data-overlay-add="votingWidget" class="ghost compact-button">Voting Widget</button>
+                      <button type="button" data-overlay-add="progressBar" class="ghost compact-button">Progress Bar</button>
+                      <button type="button" data-overlay-add="image" class="ghost compact-button">Image</button>
+                      <button type="button" data-overlay-add="video" class="ghost compact-button">Video</button>
+                      <button type="button" data-overlay-add="emoji" class="ghost compact-button">Emoji</button>
+                      <button type="button" data-overlay-add="eventCounter" class="ghost compact-button">Event Counter</button>
+                      <button type="button" data-overlay-add="timer" class="ghost compact-button">Timer</button>
+                      <button type="button" data-overlay-add="spinWheel" class="ghost compact-button">Spin Wheel</button>
+                      <button type="button" data-overlay-add="customHtml" class="ghost compact-button">Custom HTML</button>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="overlay-designer-panel">
+                  <div class="card-header section-head compact-head">
+                    <div>
+                      <p class="eyebrow">Layers</p>
+                      <h3 class="section-title">Stack</h3>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div id="overlay-designer-layer-list" class="overlay-designer-layer-list"></div>
+                  </div>
+                </section>
+              </aside>
+
+              <main class="overlay-designer-center">
+                <section class="overlay-designer-panel overlay-designer-stage-panel">
+                  <div class="overlay-designer-stage-toolbar">
+                    <label class="toggle-switch mini-toggle">
+                      <input id="overlay-designer-show-grid" type="checkbox" checked />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy"><strong>Grid</strong></span>
+                    </label>
+                    <label class="toggle-switch mini-toggle">
+                      <input id="overlay-designer-snap-grid" type="checkbox" checked />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy"><strong>Snap</strong></span>
+                    </label>
+                    <label class="toggle-switch mini-toggle">
+                      <input id="overlay-designer-show-safezone" type="checkbox" checked />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy"><strong>Safe zone</strong></span>
+                    </label>
+                    <label class="toggle-switch mini-toggle">
+                      <input id="overlay-designer-light-theme" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy"><strong>Light UI</strong></span>
+                    </label>
+                  </div>
+                  <div id="overlay-designer-stage-wrap" class="overlay-designer-stage-wrap">
+                    <div id="overlay-designer-stage" class="overlay-designer-stage"></div>
+                  </div>
+                </section>
+              </main>
+
+              <aside class="overlay-designer-sidebar right">
+                <section class="overlay-designer-panel">
+                  <div class="card-header section-head compact-head">
+                    <div>
+                      <p class="eyebrow">Template</p>
+                      <h3 class="section-title">Canvas & Background</h3>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div class="settings-grid">
+                      <label class="field">
+                        <span>Template name</span>
+                        <input id="overlay-designer-template-name" type="text" />
+                      </label>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span>Width</span>
+                          <input id="overlay-designer-canvas-width" type="number" min="320" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Height</span>
+                          <input id="overlay-designer-canvas-height" type="number" min="320" step="1" />
+                        </label>
+                      </div>
+                      <label class="field">
+                        <span>Background color</span>
+                        <input id="overlay-designer-background-color" type="color" value="#08111f" />
+                      </label>
+                      <label class="field">
+                        <span>Background opacity</span>
+                        <input id="overlay-designer-background-opacity" type="range" min="0" max="1" step="0.05" value="0.45" />
+                      </label>
+                      <label class="field">
+                        <span>Background image or GIF URL</span>
+                        <input id="overlay-designer-background-image" type="text" placeholder="https://..." />
+                      </label>
+                      <label class="field">
+                        <span>Background video URL</span>
+                        <input id="overlay-designer-background-video" type="text" placeholder="https://..." />
+                      </label>
+                      <label class="field">
+                        <span>Auto-load scene or event</span>
+                        <input id="overlay-designer-auto-load" type="text" placeholder="Optional scene or event name" />
+                      </label>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="overlay-designer-panel">
+                  <div class="card-header section-head compact-head">
+                    <div>
+                      <p class="eyebrow">Element</p>
+                      <h3 class="section-title">Properties</h3>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div id="overlay-designer-empty-state" class="status info">Select an element to edit its properties.</div>
+                    <div id="overlay-designer-inspector" class="settings-grid" hidden>
+                      <label class="field">
+                        <span>Name</span>
+                        <input id="overlay-element-name" type="text" />
+                      </label>
+                      <label class="field">
+                        <span>Content / text</span>
+                        <textarea id="overlay-element-content" rows="3"></textarea>
+                      </label>
+                      <label class="field">
+                        <span>Source URL or custom HTML</span>
+                        <textarea id="overlay-element-source" rows="3"></textarea>
+                      </label>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span>X</span>
+                          <input id="overlay-element-x" type="number" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Y</span>
+                          <input id="overlay-element-y" type="number" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Width</span>
+                          <input id="overlay-element-width" type="number" min="20" step="1" />
+                          <label class="toggle-row">
+                            <input id="overlay-element-auto-width" type="checkbox" />
+                            <span>Auto width</span>
+                          </label>
+                        </label>
+                        <label class="field">
+                          <span>Height</span>
+                          <input id="overlay-element-height" type="number" min="20" step="1" />
+                          <label class="toggle-row">
+                            <input id="overlay-element-auto-height" type="checkbox" />
+                            <span>Auto height</span>
+                          </label>
+                        </label>
+                        <label class="field">
+                          <span>Rotation</span>
+                          <input id="overlay-element-rotation" type="number" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Opacity</span>
+                          <input id="overlay-element-opacity" type="range" min="0.1" max="1" step="0.05" />
+                        </label>
+                      </div>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span>Font family</span>
+                          <input id="overlay-element-font-family" type="text" />
+                        </label>
+                        <label class="field">
+                          <span>Font size</span>
+                          <input id="overlay-element-font-size" type="number" min="8" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Font weight</span>
+                          <input id="overlay-element-font-weight" type="number" min="100" max="900" step="100" />
+                        </label>
+                        <label class="field">
+                          <span>Letter spacing</span>
+                          <input id="overlay-element-letter-spacing" type="number" step="0.1" />
+                        </label>
+                        <label class="field">
+                          <span>Text color</span>
+                          <input id="overlay-element-color" type="color" />
+                        </label>
+                        <label class="field">
+                          <span>Glow color</span>
+                          <input id="overlay-element-glow-color" type="color" />
+                        </label>
+                      </div>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span>Background color</span>
+                          <input id="overlay-element-background-color" type="color" />
+                        </label>
+                        <label class="field">
+                          <span>Background opacity</span>
+                          <input id="overlay-element-background-opacity" type="range" min="0" max="1" step="0.05" />
+                        </label>
+                        <label class="field">
+                          <span>Border color</span>
+                          <input id="overlay-element-border-color" type="color" />
+                        </label>
+                        <label class="field">
+                          <span>Border width</span>
+                          <input id="overlay-element-border-width" type="number" min="0" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Border radius</span>
+                          <input id="overlay-element-border-radius" type="number" min="0" step="1" />
+                        </label>
+                        <label class="field">
+                          <span>Blur</span>
+                          <input id="overlay-element-blur" type="number" min="0" step="1" />
+                        </label>
+                      </div>
+                      <div class="field-grid">
+                        <label class="field">
+                          <span>Animation</span>
+                          <select id="overlay-element-animation">
+                            <option value="none">None</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="float">Float</option>
+                            <option value="slide-in">Slide in</option>
+                            <option value="pop">Pop</option>
+                          </select>
+                        </label>
+                        <label class="field">
+                          <span>Binding</span>
+                          <select id="overlay-element-binding">
+                            <option value="static">Static content</option>
+                            <option value="viewerCount">Viewer count</option>
+                            <option value="chatMessage">Latest chat</option>
+                            <option value="ttsNotification">TTS notification</option>
+                            <option value="alert">Latest alert</option>
+                            <option value="votingWidget">Voting widget</option>
+                            <option value="follows">Follow counter</option>
+                            <option value="likes">Like counter</option>
+                            <option value="comments">Comment counter</option>
+                            <option value="shares">Share counter</option>
+                            <option value="coins">Coin counter</option>
+                            <option value="gifts">Gift counter</option>
+                          </select>
+                        </label>
+                      </div>
+                      <div id="overlay-voting-widget-style-fields" class="field-grid is-hidden">
+                        <label class="field">
+                          <span>Voting widget style</span>
+                          <select id="overlay-element-widget-style">
+                            <option value="defaultOverlay">Default overlay style</option>
+                            <option value="simple">Simple widget style</option>
+                          </select>
+                        </label>
+                        <label class="field">
+                          <span>Muted text color</span>
+                          <input id="overlay-element-muted-text-color" type="color" />
+                        </label>
+                        <label class="field">
+                          <span>Success color</span>
+                          <input id="overlay-element-success-color" type="color" />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          </div>
+        </div>
+
+        <input id="overlay-designer-import-input" type="file" accept=".json,application/json" hidden />
       </section>
     </main>
 

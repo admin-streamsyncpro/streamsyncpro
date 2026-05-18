@@ -50,7 +50,11 @@ function routeRequest(PDO $pdo, array $config): void
     $requestPath = '/' . ltrim($requestPath, '/');
 
     if ($requestMethod === 'GET' && $requestPath === '/health') {
-        jsonResponse(200, ['ok' => true, 'service' => 'website-auth']);
+        jsonResponse(200, [
+            'ok' => true,
+            'service' => 'website-auth',
+            'version' => (string) ($config['app']['version'] ?? ''),
+        ]);
     }
 
     if ($requestMethod === 'GET' && $requestPath === '/overlay/queue-state') {
@@ -60,6 +64,31 @@ function routeRequest(PDO $pdo, array $config): void
 
     if ($requestMethod === 'GET' && $requestPath === '/overlay/command-feedback-state') {
         handleGetCommandFeedbackOverlayState($pdo, $_GET);
+        return;
+    }
+
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/chat-state') {
+        handleGetChatOverlayState($pdo, $_GET);
+        return;
+    }
+
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/gift-state') {
+        handleGetGiftOverlayState($pdo, $_GET);
+        return;
+    }
+
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/likes-state') {
+        handleGetLikesOverlayState($pdo, $_GET);
+        return;
+    }
+
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/viewer-stats-state') {
+        handleGetViewerStatsOverlayState($pdo, $_GET);
+        return;
+    }
+
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/vote-state') {
+        handleGetVoteOverlayState($pdo, $_GET);
         return;
     }
 
@@ -109,11 +138,26 @@ function routeRequest(PDO $pdo, array $config): void
         case '/auth/create-topup-session':
             handleCreateTopupSession($pdo, $config, $input);
             return;
+        case '/auth/create-overlay-sessions':
+            handleCreateOverlaySessions($pdo, $input);
+            return;
         case '/auth/create-queue-overlay-session':
             handleCreateQueueOverlaySession($pdo, $input);
             return;
         case '/auth/create-command-feedback-overlay-session':
             handleCreateCommandFeedbackOverlaySession($pdo, $input);
+            return;
+        case '/auth/create-chat-overlay-session':
+            handleCreateChatOverlaySession($pdo, $input);
+            return;
+        case '/auth/create-gift-overlay-session':
+            handleCreateGiftOverlaySession($pdo, $input);
+            return;
+        case '/auth/create-likes-overlay-session':
+            handleCreateLikesOverlaySession($pdo, $input);
+            return;
+        case '/auth/create-viewer-stats-overlay-session':
+            handleCreateViewerStatsOverlaySession($pdo, $input);
             return;
         case '/contact/submit':
             handleContactSubmit($pdo, $config, $input);
@@ -135,6 +179,21 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/overlay/update-command-feedback-state':
             handleUpdateCommandFeedbackOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-chat-state':
+            handleUpdateChatOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-gift-state':
+            handleUpdateGiftOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-likes-state':
+            handleUpdateLikesOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-viewer-stats-state':
+            handleUpdateViewerStatsOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-vote-state':
+            handleUpdateVoteOverlayState($pdo, $input);
             return;
         default:
             jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
@@ -241,12 +300,19 @@ function ensureSchema(PDO $pdo, array $config = []): void
     $pdo->exec(
         'CREATE TABLE IF NOT EXISTS auth_user_overlay_state (
             user_id INT UNSIGNED NOT NULL PRIMARY KEY,
+            overlay_public_id VARCHAR(80) NULL,
             overlay_token_hash VARCHAR(255) NULL,
             overlay_token_expires_at DATETIME NULL,
             queue_state_json LONGTEXT NULL,
             command_feedback_json LONGTEXT NULL,
+            chat_overlay_json LONGTEXT NULL,
+            gift_overlay_json LONGTEXT NULL,
+            likes_overlay_json LONGTEXT NULL,
+            viewer_stats_overlay_json LONGTEXT NULL,
+            vote_overlay_json LONGTEXT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT fk_overlay_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
+            UNIQUE KEY uniq_overlay_public_id (overlay_public_id),
             INDEX idx_overlay_token_expiry (overlay_token_hash, overlay_token_expires_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
@@ -297,7 +363,14 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_users', 'billing_link_token_hash', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_hash VARCHAR(255) NULL AFTER forced_logout_at');
     ensureColumn($pdo, 'auth_users', 'billing_link_token_expires_at', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_expires_at DATETIME NULL AFTER billing_link_token_hash');
     ensureColumn($pdo, 'auth_credit_transactions', 'discount_amount', 'ALTER TABLE auth_credit_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER amount_value');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD COLUMN overlay_public_id VARCHAR(80) NULL AFTER user_id');
     ensureColumn($pdo, 'auth_user_overlay_state', 'command_feedback_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN command_feedback_json LONGTEXT NULL AFTER queue_state_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'chat_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN chat_overlay_json LONGTEXT NULL AFTER command_feedback_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'gift_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN gift_overlay_json LONGTEXT NULL AFTER chat_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'likes_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN likes_overlay_json LONGTEXT NULL AFTER gift_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'viewer_stats_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN viewer_stats_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'vote_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN vote_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
+    ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
 
@@ -310,6 +383,22 @@ function ensureColumn(PDO $pdo, string $table, string $column, string $sql): voi
     $statement->execute([
         ':table_name' => $table,
         ':column_name' => $column,
+    ]);
+
+    if ((int) $statement->fetchColumn() === 0) {
+        $pdo->exec($sql);
+    }
+}
+
+function ensureIndex(PDO $pdo, string $table, string $index, string $sql): void
+{
+    $statement = $pdo->prepare(
+        'SELECT COUNT(*) FROM information_schema.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table_name AND INDEX_NAME = :index_name'
+    );
+    $statement->execute([
+        ':table_name' => $table,
+        ':index_name' => $index,
     ]);
 
     if ((int) $statement->fetchColumn() === 0) {
@@ -926,9 +1015,14 @@ function handleCreateTopupSession(PDO $pdo, array $config, array $input): void
     ]);
 }
 
-function handleCreateQueueOverlaySession(PDO $pdo, array $input): void
+function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken = null): array
 {
-    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $existingState = findOverlayStateByUserId($pdo, (int) $user['id']);
+    $overlayPublicId = trim((string) ($existingState['overlay_public_id'] ?? ''));
+    if ($overlayPublicId === '') {
+        $overlayPublicId = 'ovl_' . bin2hex(random_bytes(12));
+    }
+
     $overlayToken = bin2hex(random_bytes(24));
     $overlayTokenHash = hash('sha256', $overlayToken);
     $expiresAt = createExpiryTimestamp(60 * 24 * 30);
@@ -936,71 +1030,152 @@ function handleCreateQueueOverlaySession(PDO $pdo, array $input): void
     $statement = $pdo->prepare(
         'INSERT INTO auth_user_overlay_state (
             user_id,
+            overlay_public_id,
             overlay_token_hash,
             overlay_token_expires_at,
-            queue_state_json
+            queue_state_json,
+            command_feedback_json,
+            chat_overlay_json,
+            gift_overlay_json,
+            likes_overlay_json,
+            viewer_stats_overlay_json,
+            vote_overlay_json
         ) VALUES (
             :user_id,
+            :overlay_public_id,
             :overlay_token_hash,
             :overlay_token_expires_at,
-            :queue_state_json
+            :queue_state_json,
+            :command_feedback_json,
+            :chat_overlay_json,
+            :gift_overlay_json,
+            :likes_overlay_json,
+            :viewer_stats_overlay_json,
+            :vote_overlay_json
         )
         ON DUPLICATE KEY UPDATE
-            overlay_token_hash = VALUES(overlay_token_hash),
-            overlay_token_expires_at = VALUES(overlay_token_expires_at),
-            queue_state_json = COALESCE(auth_user_overlay_state.queue_state_json, VALUES(queue_state_json))'
+            overlay_public_id = COALESCE(auth_user_overlay_state.overlay_public_id, VALUES(overlay_public_id)),
+            overlay_token_hash = COALESCE(auth_user_overlay_state.overlay_token_hash, VALUES(overlay_token_hash)),
+            overlay_token_expires_at = COALESCE(auth_user_overlay_state.overlay_token_expires_at, VALUES(overlay_token_expires_at)),
+            queue_state_json = COALESCE(auth_user_overlay_state.queue_state_json, VALUES(queue_state_json)),
+            command_feedback_json = COALESCE(auth_user_overlay_state.command_feedback_json, VALUES(command_feedback_json)),
+            chat_overlay_json = COALESCE(auth_user_overlay_state.chat_overlay_json, VALUES(chat_overlay_json)),
+            gift_overlay_json = COALESCE(auth_user_overlay_state.gift_overlay_json, VALUES(gift_overlay_json)),
+            likes_overlay_json = COALESCE(auth_user_overlay_state.likes_overlay_json, VALUES(likes_overlay_json)),
+            viewer_stats_overlay_json = COALESCE(auth_user_overlay_state.viewer_stats_overlay_json, VALUES(viewer_stats_overlay_json)),
+            vote_overlay_json = COALESCE(auth_user_overlay_state.vote_overlay_json, VALUES(vote_overlay_json))'
     );
     $statement->execute([
         ':user_id' => (int) $user['id'],
+        ':overlay_public_id' => $overlayPublicId,
         ':overlay_token_hash' => $overlayTokenHash,
         ':overlay_token_expires_at' => $expiresAt,
         ':queue_state_json' => json_encode(defaultQueueOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':command_feedback_json' => json_encode(defaultCommandFeedbackOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':chat_overlay_json' => json_encode(defaultChatOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':gift_overlay_json' => json_encode(defaultGiftOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':likes_overlay_json' => json_encode(defaultLikesOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':viewer_stats_overlay_json' => json_encode(defaultViewerStatsOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':vote_overlay_json' => json_encode(defaultVoteOverlayState(), JSON_UNESCAPED_SLASHES),
     ]);
 
+    $publicIdParam = rawurlencode($overlayPublicId);
+    $siteBaseUrl = getSiteBaseUrl();
+    $payload = [
+        'ok' => true,
+        'queueUrl' => $siteBaseUrl . '/overlay/queue.php?id=' . $publicIdParam,
+        'commandFeedbackUrl' => $siteBaseUrl . '/overlay/command-feedback.php?id=' . $publicIdParam,
+        'chatUrl' => $siteBaseUrl . '/overlay/chat.php?id=' . $publicIdParam,
+        'giftUrl' => $siteBaseUrl . '/overlay/gift.php?id=' . $publicIdParam,
+        'likesUrl' => $siteBaseUrl . '/overlay/likes.php?id=' . $publicIdParam,
+        'viewerStatsUrl' => $siteBaseUrl . '/overlay/viewer-stats.php?id=' . $publicIdParam,
+        'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
+        'publicId' => $overlayPublicId,
+        'expiresAt' => $expiresAt,
+    ];
+
+    if ($sessionToken !== null) {
+        $payload['user'] = sanitizeUser($user, $sessionToken);
+    }
+
+    return $payload;
+}
+
+function handleCreateOverlaySessions(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    jsonResponse(200, createOverlaySessionBundle($pdo, $user, $sessionToken));
+}
+
+function handleCreateQueueOverlaySession(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
     jsonResponse(200, [
         'ok' => true,
-        'url' => getSiteBaseUrl() . '/overlay/queue.php?token=' . rawurlencode($overlayToken),
-        'expiresAt' => $expiresAt,
-        'user' => sanitizeUser($user, $sessionToken),
+        'url' => $bundle['queueUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
     ]);
 }
 
 function handleCreateCommandFeedbackOverlaySession(PDO $pdo, array $input): void
 {
     [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
-    $overlayToken = bin2hex(random_bytes(24));
-    $overlayTokenHash = hash('sha256', $overlayToken);
-    $expiresAt = createExpiryTimestamp(60 * 24 * 30);
-
-    $statement = $pdo->prepare(
-        'INSERT INTO auth_user_overlay_state (
-            user_id,
-            overlay_token_hash,
-            overlay_token_expires_at,
-            command_feedback_json
-        ) VALUES (
-            :user_id,
-            :overlay_token_hash,
-            :overlay_token_expires_at,
-            :command_feedback_json
-        )
-        ON DUPLICATE KEY UPDATE
-            overlay_token_hash = VALUES(overlay_token_hash),
-            overlay_token_expires_at = VALUES(overlay_token_expires_at),
-            command_feedback_json = COALESCE(auth_user_overlay_state.command_feedback_json, VALUES(command_feedback_json))'
-    );
-    $statement->execute([
-        ':user_id' => (int) $user['id'],
-        ':overlay_token_hash' => $overlayTokenHash,
-        ':overlay_token_expires_at' => $expiresAt,
-        ':command_feedback_json' => json_encode(defaultCommandFeedbackOverlayState(), JSON_UNESCAPED_SLASHES),
-    ]);
-
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
     jsonResponse(200, [
         'ok' => true,
-        'url' => getSiteBaseUrl() . '/overlay/command-feedback.php?token=' . rawurlencode($overlayToken),
-        'expiresAt' => $expiresAt,
-        'user' => sanitizeUser($user, $sessionToken),
+        'url' => $bundle['commandFeedbackUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
+    ]);
+}
+
+function handleCreateChatOverlaySession(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
+    jsonResponse(200, [
+        'ok' => true,
+        'url' => $bundle['chatUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
+    ]);
+}
+
+function handleCreateGiftOverlaySession(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
+    jsonResponse(200, [
+        'ok' => true,
+        'url' => $bundle['giftUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
+    ]);
+}
+
+function handleCreateLikesOverlaySession(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
+    jsonResponse(200, [
+        'ok' => true,
+        'url' => $bundle['likesUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
+    ]);
+}
+
+function handleCreateViewerStatsOverlaySession(PDO $pdo, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $bundle = createOverlaySessionBundle($pdo, $user, $sessionToken);
+    jsonResponse(200, [
+        'ok' => true,
+        'url' => $bundle['viewerStatsUrl'],
+        'expiresAt' => $bundle['expiresAt'],
+        'user' => $bundle['user'],
     ]);
 }
 
@@ -1060,9 +1235,149 @@ function handleUpdateCommandFeedbackOverlayState(PDO $pdo, array $input): void
     ]);
 }
 
+function handleUpdateChatOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeChatOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            chat_overlay_json
+        ) VALUES (
+            :user_id,
+            :chat_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            chat_overlay_json = VALUES(chat_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':chat_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
+function handleUpdateGiftOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeGiftOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            gift_overlay_json
+        ) VALUES (
+            :user_id,
+            :gift_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            gift_overlay_json = VALUES(gift_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':gift_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
+function handleUpdateLikesOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeLikesOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            likes_overlay_json
+        ) VALUES (
+            :user_id,
+            :likes_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            likes_overlay_json = VALUES(likes_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':likes_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
+function handleUpdateViewerStatsOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeViewerStatsOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            viewer_stats_overlay_json
+        ) VALUES (
+            :user_id,
+            :viewer_stats_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            viewer_stats_overlay_json = VALUES(viewer_stats_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':viewer_stats_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
+function handleUpdateVoteOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeVoteOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            vote_overlay_json
+        ) VALUES (
+            :user_id,
+            :vote_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            vote_overlay_json = VALUES(vote_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':vote_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
 function handleGetQueueOverlayState(PDO $pdo, array $query): void
 {
-    [$user, $overlayState] = requireValidQueueOverlayToken($pdo, trim((string) ($query['token'] ?? '')));
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
     $state = defaultQueueOverlayState();
     $decodedState = json_decode((string) ($overlayState['queue_state_json'] ?? ''), true);
     if (is_array($decodedState)) {
@@ -1079,11 +1394,96 @@ function handleGetQueueOverlayState(PDO $pdo, array $query): void
 
 function handleGetCommandFeedbackOverlayState(PDO $pdo, array $query): void
 {
-    [$user, $overlayState] = requireValidQueueOverlayToken($pdo, trim((string) ($query['token'] ?? '')));
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
     $state = defaultCommandFeedbackOverlayState();
     $decodedState = json_decode((string) ($overlayState['command_feedback_json'] ?? ''), true);
     if (is_array($decodedState)) {
         $state = sanitizeCommandFeedbackOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetChatOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultChatOverlayState();
+    $decodedState = json_decode((string) ($overlayState['chat_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeChatOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetGiftOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultGiftOverlayState();
+    $decodedState = json_decode((string) ($overlayState['gift_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeGiftOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetLikesOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultLikesOverlayState();
+    $decodedState = json_decode((string) ($overlayState['likes_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeLikesOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetViewerStatsOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultViewerStatsOverlayState();
+    $decodedState = json_decode((string) ($overlayState['viewer_stats_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeViewerStatsOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetVoteOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultVoteOverlayState();
+    $decodedState = json_decode((string) ($overlayState['vote_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeVoteOverlayStatePayload($decodedState);
     }
 
     jsonResponse(200, [
@@ -2020,10 +2420,61 @@ function findUserByForcedLogoutTokenHash(PDO $pdo, string $sessionTokenHash, int
     return $user ?: null;
 }
 
-function requireValidQueueOverlayToken(PDO $pdo, string $overlayToken): array
+function findOverlayStateByUserId(PDO $pdo, int $userId): ?array
 {
+    $statement = $pdo->prepare('SELECT * FROM auth_user_overlay_state WHERE user_id = :user_id LIMIT 1');
+    $statement->execute([':user_id' => $userId]);
+    $overlayState = $statement->fetch();
+
+    return is_array($overlayState) ? $overlayState : null;
+}
+
+function requireValidOverlayAccess(PDO $pdo, array $query): array
+{
+    $overlayPublicId = trim((string) ($query['id'] ?? ''));
+    if ($overlayPublicId !== '') {
+        $statement = $pdo->prepare(
+            'SELECT
+                s.*,
+                u.id AS auth_user_id,
+                u.email,
+                u.display_name,
+                u.is_verified,
+                u.is_locked,
+                u.credits,
+                u.locked_reason
+             FROM auth_user_overlay_state s
+             INNER JOIN auth_users u ON u.id = s.user_id
+             WHERE s.overlay_public_id = :overlay_public_id
+             LIMIT 1'
+        );
+        $statement->execute([':overlay_public_id' => $overlayPublicId]);
+        $overlayState = $statement->fetch();
+
+        if (!$overlayState) {
+            jsonResponse(401, ['ok' => false, 'error' => 'This overlay link is invalid. Reopen it from the app.']);
+        }
+
+        $user = [
+            'id' => (int) ($overlayState['auth_user_id'] ?? 0),
+            'email' => (string) ($overlayState['email'] ?? ''),
+            'display_name' => (string) ($overlayState['display_name'] ?? ''),
+            'is_verified' => (int) ($overlayState['is_verified'] ?? 0),
+            'is_locked' => (int) ($overlayState['is_locked'] ?? 0),
+            'credits' => (int) ($overlayState['credits'] ?? 0),
+            'locked_reason' => (string) ($overlayState['locked_reason'] ?? ''),
+        ];
+
+        if ((int) ($user['is_locked'] ?? 0) === 1) {
+            jsonResponse(423, ['ok' => false, 'error' => 'This account is locked and its overlay is unavailable.']);
+        }
+
+        return [$user, $overlayState];
+    }
+
+    $overlayToken = trim((string) ($query['token'] ?? ''));
     if ($overlayToken === '') {
-        jsonResponse(401, ['ok' => false, 'error' => 'Overlay token is missing. Reopen the overlay URL from the app.']);
+        jsonResponse(401, ['ok' => false, 'error' => 'Overlay id is missing. Reopen the overlay URL from the app.']);
     }
 
     $overlayTokenHash = hash('sha256', $overlayToken);
@@ -2078,6 +2529,7 @@ function defaultQueueOverlayState(): array
         'username' => '',
         'queueCount' => 0,
         'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => null,
         'items' => [],
     ];
 }
@@ -2088,9 +2540,165 @@ function defaultCommandFeedbackOverlayState(): array
         'message' => '',
         'commandType' => '',
         'username' => '',
+        'title' => 'Viewer Feedback',
+        'accentColor' => '#53dcff',
+        'sourceType' => 'command',
         'updatedAt' => gmdate('Y-m-d H:i:s'),
         'visibleUntil' => '',
         'durationMs' => 6000,
+        'designerTemplate' => null,
+    ];
+}
+
+function defaultChatOverlayState(): array
+{
+    return [
+        'connected' => false,
+        'username' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => null,
+        'items' => [],
+    ];
+}
+
+function defaultGiftOverlayState(): array
+{
+    return [
+        'connected' => false,
+        'username' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => null,
+        'items' => [],
+    ];
+}
+
+function defaultLikesOverlayState(): array
+{
+    return [
+        'connected' => false,
+        'username' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => null,
+        'items' => [],
+    ];
+}
+
+function defaultViewerStatsOverlayState(): array
+{
+    return [
+        'connected' => false,
+        'username' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'filterAudience' => 'everyone',
+        'filterUsername' => '',
+        'designerTemplate' => null,
+        'items' => [],
+    ];
+}
+
+function defaultVoteOverlayState(): array
+{
+    return [
+        'active' => false,
+        'phase' => 'idle',
+        'connected' => false,
+        'username' => '',
+        'orientation' => 'horizontal',
+        'question' => '',
+        'countdownSeconds' => 0,
+        'countdownEndsAt' => '',
+        'totalVotes' => 0,
+        'instructions' => 'Type !vote [number] in chat to vote.',
+        'options' => [],
+        'startedBy' => '',
+        'winningOptionIndex' => 0,
+        'winningOptionLabel' => '',
+        'spinEndsAt' => '',
+        'resultVisibleUntil' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => null,
+    ];
+}
+
+function sanitizeOverlayDesignerTemplatePayload($payload): ?array
+{
+    if (!is_array($payload)) {
+        return null;
+    }
+
+    $elements = [];
+    if (isset($payload['elements']) && is_array($payload['elements'])) {
+        foreach (array_slice($payload['elements'], 0, 60) as $index => $element) {
+            if (!is_array($element)) {
+                continue;
+            }
+
+            $color = trim((string) ($element['color'] ?? '#f6fbff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                $color = '#f6fbff';
+            }
+            $glowColor = trim((string) ($element['glowColor'] ?? '#53dcff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $glowColor)) {
+                $glowColor = '#53dcff';
+            }
+            $backgroundColor = trim((string) ($element['backgroundColor'] ?? '#10243d'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $backgroundColor)) {
+                $backgroundColor = '#10243d';
+            }
+            $borderColor = trim((string) ($element['borderColor'] ?? '#2a466b'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $borderColor)) {
+                $borderColor = '#2a466b';
+            }
+
+            $elements[] = [
+                'id' => trim((string) ($element['id'] ?? ('overlay-element-' . $index))),
+                'type' => trim((string) ($element['type'] ?? 'text')) ?: 'text',
+                'name' => trim((string) ($element['name'] ?? 'Overlay Element')) ?: 'Overlay Element',
+                'content' => (string) ($element['content'] ?? ''),
+                'source' => trim((string) ($element['source'] ?? '')),
+                'x' => max(0, (float) ($element['x'] ?? 0)),
+                'y' => max(0, (float) ($element['y'] ?? 0)),
+                'width' => max(40, (float) ($element['width'] ?? 220)),
+                'height' => max(40, (float) ($element['height'] ?? 72)),
+                'rotation' => max(-360, min(360, (float) ($element['rotation'] ?? 0))),
+                'opacity' => max(0, min(1, (float) ($element['opacity'] ?? 1))),
+                'fontFamily' => trim((string) ($element['fontFamily'] ?? 'Poppins, Segoe UI, sans-serif')) ?: 'Poppins, Segoe UI, sans-serif',
+                'fontSize' => max(10, (int) ($element['fontSize'] ?? 28)),
+                'fontWeight' => max(100, min(900, (int) ($element['fontWeight'] ?? 700))),
+                'letterSpacing' => max(-4, min(24, (float) ($element['letterSpacing'] ?? 0))),
+                'color' => $color,
+                'glowColor' => $glowColor,
+                'backgroundColor' => $backgroundColor,
+                'backgroundOpacity' => max(0, min(1, (float) ($element['backgroundOpacity'] ?? 0))),
+                'borderColor' => $borderColor,
+                'borderWidth' => max(0, min(24, (float) ($element['borderWidth'] ?? 0))),
+                'borderRadius' => max(0, min(240, (float) ($element['borderRadius'] ?? 18))),
+                'blur' => max(0, min(40, (float) ($element['blur'] ?? 0))),
+                'animation' => trim((string) ($element['animation'] ?? 'none')) ?: 'none',
+                'binding' => trim((string) ($element['binding'] ?? '')),
+                'visible' => !isset($element['visible']) || !empty($element['visible']),
+                'locked' => !empty($element['locked']),
+                'zIndex' => max(1, (int) ($element['zIndex'] ?? ($index + 1))),
+            ];
+        }
+    }
+
+    $backgroundColor = trim((string) ($payload['backgroundColor'] ?? '#08111f'));
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $backgroundColor)) {
+        $backgroundColor = '#08111f';
+    }
+
+    return [
+        'id' => trim((string) ($payload['id'] ?? 'designer-template')) ?: 'designer-template',
+        'name' => trim((string) ($payload['name'] ?? 'Overlay Template')) ?: 'Overlay Template',
+        'width' => max(320, (int) ($payload['width'] ?? 1920)),
+        'height' => max(320, (int) ($payload['height'] ?? 1080)),
+        'backgroundColor' => $backgroundColor,
+        'backgroundOpacity' => max(0, min(1, (float) ($payload['backgroundOpacity'] ?? 0.45))),
+        'backgroundImage' => trim((string) ($payload['backgroundImage'] ?? '')),
+        'backgroundVideo' => trim((string) ($payload['backgroundVideo'] ?? '')),
+        'autoLoad' => trim((string) ($payload['autoLoad'] ?? '')),
+        'elements' => $elements,
     ];
 }
 
@@ -2119,6 +2727,7 @@ function sanitizeQueueOverlayStatePayload(array $payload): array
         'username' => trim((string) ($payload['username'] ?? '')),
         'queueCount' => max(0, (int) ($payload['queueCount'] ?? count($items))),
         'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
         'items' => $items,
     ];
 }
@@ -2131,13 +2740,236 @@ function sanitizeCommandFeedbackOverlayStatePayload(array $payload): array
         $visibleUntil = gmdate('Y-m-d H:i:s', time() + (int) ceil($durationMs / 1000));
     }
 
+    $accentColor = trim((string) ($payload['accentColor'] ?? ''));
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $accentColor)) {
+        $accentColor = '#53dcff';
+    }
+
     return [
         'message' => trim((string) ($payload['message'] ?? '')),
         'commandType' => trim((string) ($payload['commandType'] ?? '')),
         'username' => trim((string) ($payload['username'] ?? '')),
+        'title' => trim((string) ($payload['title'] ?? '')) ?: 'Viewer Feedback',
+        'accentColor' => $accentColor,
+        'sourceType' => trim((string) ($payload['sourceType'] ?? '')) ?: 'command',
         'updatedAt' => gmdate('Y-m-d H:i:s'),
         'visibleUntil' => $visibleUntil,
         'durationMs' => $durationMs,
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+    ];
+}
+
+function sanitizeChatOverlayStatePayload(array $payload): array
+{
+    $items = [];
+
+    if (isset($payload['items']) && is_array($payload['items'])) {
+        foreach (array_slice($payload['items'], 0, 20) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $message = trim((string) ($item['message'] ?? ''));
+            if ($message === '') {
+                continue;
+            }
+
+            $items[] = [
+                'id' => trim((string) ($item['id'] ?? ('chat-item-' . $index))),
+                'username' => trim((string) ($item['username'] ?? '')),
+                'message' => $message,
+                'originalMessage' => trim((string) ($item['originalMessage'] ?? '')),
+            ];
+        }
+    }
+
+    return [
+        'connected' => !empty($payload['connected']),
+        'username' => trim((string) ($payload['username'] ?? '')),
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+        'items' => $items,
+    ];
+}
+
+function sanitizeGiftOverlayStatePayload(array $payload): array
+{
+    $items = [];
+
+    if (isset($payload['items']) && is_array($payload['items'])) {
+        foreach (array_slice($payload['items'], 0, 20) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $items[] = [
+                'id' => trim((string) ($item['id'] ?? ('gift-item-' . $index))),
+                'username' => trim((string) ($item['username'] ?? '')),
+                'giftName' => trim((string) ($item['giftName'] ?? 'Gift')) ?: 'Gift',
+                'giftImageUrl' => trim((string) ($item['giftImageUrl'] ?? '')),
+                'giftCount' => max(1, (int) ($item['giftCount'] ?? 1)),
+                'totalCoins' => max(0, (int) ($item['totalCoins'] ?? 0)),
+                'message' => trim((string) ($item['message'] ?? '')),
+            ];
+        }
+    }
+
+    return [
+        'connected' => !empty($payload['connected']),
+        'username' => trim((string) ($payload['username'] ?? '')),
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+        'items' => $items,
+    ];
+}
+
+function sanitizeLikesOverlayStatePayload(array $payload): array
+{
+    $items = [];
+
+    if (isset($payload['items']) && is_array($payload['items'])) {
+        foreach (array_slice($payload['items'], 0, 20) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $username = trim((string) ($item['username'] ?? ''));
+            $likes = max(0, (int) ($item['likes'] ?? 0));
+            if ($username === '' || $likes <= 0) {
+                continue;
+            }
+
+            $items[] = [
+                'rank' => max(1, (int) ($item['rank'] ?? ($index + 1))),
+                'username' => $username,
+                'likes' => $likes,
+            ];
+        }
+    }
+
+    usort($items, static function (array $left, array $right): int {
+        $likesComparison = ($right['likes'] ?? 0) <=> ($left['likes'] ?? 0);
+        if ($likesComparison !== 0) {
+            return $likesComparison;
+        }
+
+        return strcmp((string) ($left['username'] ?? ''), (string) ($right['username'] ?? ''));
+    });
+
+    foreach ($items as $index => &$item) {
+        $item['rank'] = $index + 1;
+    }
+    unset($item);
+
+    return [
+        'connected' => !empty($payload['connected']),
+        'username' => trim((string) ($payload['username'] ?? '')),
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+        'items' => array_slice($items, 0, 10),
+    ];
+}
+
+function sanitizeViewerStatsOverlayStatePayload(array $payload): array
+{
+    $items = [];
+
+    if (isset($payload['items']) && is_array($payload['items'])) {
+        foreach (array_slice($payload['items'], 0, 10) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $username = trim((string) ($item['username'] ?? ''));
+            if ($username === '') {
+                continue;
+            }
+
+            $displayName = trim((string) ($item['displayName'] ?? $username));
+            $likes = max(0, (int) ($item['likes'] ?? 0));
+            $comments = max(0, (int) ($item['comments'] ?? 0));
+            $shares = max(0, (int) ($item['shares'] ?? 0));
+            $follows = max(0, (int) ($item['follows'] ?? 0));
+            $coins = max(0, (int) ($item['coins'] ?? 0));
+            $gifts = max(0, (int) ($item['gifts'] ?? 0));
+            $totalScore = max(0, (int) ($item['totalScore'] ?? ($likes + $comments + $shares + $follows + $gifts + $coins)));
+
+            $items[] = [
+                'rank' => $index + 1,
+                'username' => $username,
+                'displayName' => $displayName !== '' ? $displayName : $username,
+                'isSubscriber' => !empty($item['isSubscriber']),
+                'isModerator' => !empty($item['isModerator']),
+                'likes' => $likes,
+                'comments' => $comments,
+                'shares' => $shares,
+                'follows' => $follows,
+                'coins' => $coins,
+                'gifts' => $gifts,
+                'totalScore' => $totalScore,
+            ];
+        }
+    }
+
+    $filterAudience = trim(strtolower((string) ($payload['filterAudience'] ?? 'everyone')));
+    if (!in_array($filterAudience, ['everyone', 'subscriber', 'moderator', 'username'], true)) {
+        $filterAudience = 'everyone';
+    }
+
+    return [
+        'connected' => !empty($payload['connected']),
+        'username' => trim((string) ($payload['username'] ?? '')),
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'filterAudience' => $filterAudience,
+        'filterUsername' => trim((string) ($payload['filterUsername'] ?? '')),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+        'items' => $items,
+    ];
+}
+
+function sanitizeVoteOverlayStatePayload(array $payload): array
+{
+    $options = [];
+
+    if (isset($payload['options']) && is_array($payload['options'])) {
+        foreach (array_slice($payload['options'], 0, 12) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $label = trim((string) ($item['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $options[] = [
+                'index' => max(1, (int) ($item['index'] ?? ($index + 1))),
+                'label' => $label,
+                'votes' => max(0, (int) ($item['votes'] ?? 0)),
+                'percent' => max(0, min(100, (int) ($item['percent'] ?? 0))),
+            ];
+        }
+    }
+
+    return [
+        'active' => !empty($payload['active']),
+        'phase' => in_array(($payload['phase'] ?? ''), ['open', 'spinning', 'result', 'idle'], true) ? (string) $payload['phase'] : 'idle',
+        'connected' => !empty($payload['connected']),
+        'username' => trim((string) ($payload['username'] ?? '')),
+        'orientation' => (($payload['orientation'] ?? '') === 'vertical') ? 'vertical' : 'horizontal',
+        'question' => trim((string) ($payload['question'] ?? '')),
+        'countdownSeconds' => max(0, (int) ($payload['countdownSeconds'] ?? 0)),
+        'countdownEndsAt' => trim((string) ($payload['countdownEndsAt'] ?? '')),
+        'totalVotes' => max(0, (int) ($payload['totalVotes'] ?? 0)),
+        'instructions' => trim((string) ($payload['instructions'] ?? '')) ?: 'Type !vote [number] in chat to vote.',
+        'options' => $options,
+        'startedBy' => trim((string) ($payload['startedBy'] ?? '')),
+        'winningOptionIndex' => max(0, (int) ($payload['winningOptionIndex'] ?? 0)),
+        'winningOptionLabel' => trim((string) ($payload['winningOptionLabel'] ?? '')),
+        'spinEndsAt' => trim((string) ($payload['spinEndsAt'] ?? '')),
+        'resultVisibleUntil' => trim((string) ($payload['resultVisibleUntil'] ?? '')),
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+        'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
     ];
 }
 

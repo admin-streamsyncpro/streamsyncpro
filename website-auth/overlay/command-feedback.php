@@ -1,7 +1,11 @@
 <?php
 declare(strict_types=1);
 
+$overlayId = trim((string) ($_GET['id'] ?? ''));
 $overlayToken = trim((string) ($_GET['token'] ?? ''));
+$overlayAccessQuery = $overlayId !== ''
+    ? 'id=' . rawurlencode($overlayId)
+    : 'token=' . rawurlencode($overlayToken);
 ?>
 <!doctype html>
 <html lang="en">
@@ -9,6 +13,7 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Stream Sync Pro LIVE Command Feedback Overlay</title>
+    <script src="./designer-runtime.js"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -81,6 +86,14 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
         gap: 12px;
       }
 
+      .feedback-title {
+        margin: 6px 0 0;
+        font-size: 20px;
+        line-height: 1.15;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+
       .feedback-message {
         font-size: 27px;
         line-height: 1.22;
@@ -114,9 +127,11 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     </style>
   </head>
   <body>
+    <div id="designer-overlay-root" hidden></div>
     <section id="feedback-card" class="feedback-card">
       <header class="feedback-head">
-        <p class="eyebrow">Viewer Feedback</p>
+        <p id="feedback-eyebrow" class="eyebrow">Viewer Feedback</p>
+        <p id="feedback-title" class="feedback-title">Viewer Feedback</p>
       </header>
       <div class="feedback-body">
         <div id="feedback-message" class="feedback-message"></div>
@@ -128,11 +143,14 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     </section>
 
     <script>
-      const overlayToken = <?php echo json_encode($overlayToken, JSON_UNESCAPED_SLASHES); ?>;
+      const overlayAccessQuery = <?php echo json_encode($overlayAccessQuery, JSON_UNESCAPED_SLASHES); ?>;
+      const designerOverlayRoot = document.getElementById("designer-overlay-root");
       const feedbackCard = document.getElementById("feedback-card");
       const feedbackMessage = document.getElementById("feedback-message");
       const feedbackCommand = document.getElementById("feedback-command");
       const feedbackUser = document.getElementById("feedback-user");
+      const feedbackEyebrow = document.getElementById("feedback-eyebrow");
+      const feedbackTitle = document.getElementById("feedback-title");
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -144,9 +162,32 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
       }
 
       function renderState(state) {
+        if (state?.designerTemplate && window.StreamSyncOverlayDesignerRuntime) {
+          feedbackCard.classList.remove("visible");
+          feedbackCard.style.display = "none";
+          designerOverlayRoot.hidden = false;
+          window.StreamSyncOverlayDesignerRuntime.render(designerOverlayRoot, state.designerTemplate, {
+            username: state?.username || "viewer",
+            ttsNotification: {
+              title: state?.title || "Viewer Feedback",
+              message: state?.message || ""
+            },
+            alert: {
+              username: state?.username || "viewer",
+              giftSent: state?.commandType || "command"
+            }
+          });
+          return;
+        }
+
+        designerOverlayRoot.hidden = true;
+        feedbackCard.style.display = "";
         const message = String(state?.message ?? "").trim();
         const commandType = String(state?.commandType ?? "").trim();
         const username = String(state?.username ?? "").trim();
+        const title = String(state?.title ?? "").trim() || "Viewer Feedback";
+        const accentColor = /^#[0-9a-fA-F]{6}$/.test(String(state?.accentColor ?? "").trim()) ? String(state.accentColor).trim() : "#53dcff";
+        const sourceType = String(state?.sourceType ?? "").trim() || "command";
         const visibleUntilValue = String(state?.visibleUntil ?? "").trim();
         const visibleUntil = visibleUntilValue ? new Date(visibleUntilValue) : null;
         const shouldShow = message && visibleUntil instanceof Date && !Number.isNaN(visibleUntil.getTime()) && visibleUntil.getTime() > Date.now();
@@ -156,19 +197,22 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
           return;
         }
 
+        feedbackCard.style.setProperty("--accent", accentColor);
+        feedbackEyebrow.textContent = sourceType === "custom-action" ? "Custom Action" : "Viewer Feedback";
+        feedbackTitle.textContent = title;
         feedbackMessage.innerHTML = escapeHtml(message);
         feedbackCommand.textContent = commandType || "command";
         feedbackUser.textContent = username || "viewer";
       }
 
       async function loadFeedbackState() {
-        if (!overlayToken) {
+        if (!overlayAccessQuery) {
           renderState({});
           return;
         }
 
         try {
-          const response = await fetch(`/api/overlay/command-feedback-state?token=${encodeURIComponent(overlayToken)}`, {
+          const response = await fetch(`/api/overlay/command-feedback-state?${overlayAccessQuery}`, {
             cache: "no-store"
           });
           const result = await response.json();

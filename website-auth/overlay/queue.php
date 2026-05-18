@@ -1,7 +1,11 @@
 <?php
 declare(strict_types=1);
 
+$overlayId = trim((string) ($_GET['id'] ?? ''));
 $overlayToken = trim((string) ($_GET['token'] ?? ''));
+$overlayAccessQuery = $overlayId !== ''
+    ? 'id=' . rawurlencode($overlayId)
+    : 'token=' . rawurlencode($overlayToken);
 ?>
 <!doctype html>
 <html lang="en">
@@ -9,6 +13,7 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Stream Sync Pro LIVE Queue Overlay</title>
+    <script src="./designer-runtime.js"></script>
     <style>
       :root {
         color-scheme: dark;
@@ -317,7 +322,8 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     </style>
   </head>
   <body>
-    <section class="overlay-shell">
+    <div id="designer-overlay-root" hidden></div>
+    <section id="default-overlay-shell" class="overlay-shell">
       <header class="overlay-head">
         <p class="eyebrow">Queue Overlay</p>
         <div class="overlay-topline">
@@ -361,7 +367,9 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
     </section>
 
     <script>
-      const overlayToken = <?php echo json_encode($overlayToken, JSON_UNESCAPED_SLASHES); ?>;
+      const overlayAccessQuery = <?php echo json_encode($overlayAccessQuery, JSON_UNESCAPED_SLASHES); ?>;
+      const designerOverlayRoot = document.getElementById("designer-overlay-root");
+      const defaultOverlayShell = document.getElementById("default-overlay-shell");
       const params = new URLSearchParams(window.location.search);
       const queueNumber = Math.min(10, Math.max(1, Number(params.get("queue") || "1") || 1));
       const mode = params.get("mode") === "compact" ? "compact" : "full";
@@ -406,6 +414,22 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
       }
 
       function renderState(state) {
+        if (state?.designerTemplate && window.StreamSyncOverlayDesignerRuntime) {
+          defaultOverlayShell.hidden = true;
+          designerOverlayRoot.hidden = false;
+          const firstItem = Array.isArray(state?.items) ? (state.items[0] || null) : null;
+          window.StreamSyncOverlayDesignerRuntime.render(designerOverlayRoot, state.designerTemplate, {
+            username: state?.username || "",
+            viewerCount: String(state?.queueCount ?? 0),
+            ttsNotification: firstItem ? { title: firstItem.label, message: firstItem.kind } : null,
+            chatMessage: firstItem ? { username: state?.username || "", message: firstItem.label } : null,
+            counters: { queue: Number(state?.queueCount ?? 0) }
+          });
+          return;
+        }
+
+        defaultOverlayShell.hidden = false;
+        designerOverlayRoot.hidden = true;
         const connected = Boolean(state?.connected);
         const username = String(state?.username ?? "").trim();
         const items = Array.isArray(state?.items) ? state.items.filter((item) => Number(item?.queueId || 0) === queueNumber) : [];
@@ -458,14 +482,14 @@ $overlayToken = trim((string) ($_GET['token'] ?? ''));
       }
 
       async function loadQueueState() {
-        if (!overlayToken) {
+        if (!overlayAccessQuery) {
           renderState({ connected: false, username: "", items: [] });
-          overlayStatusText.textContent = "Missing token";
+          overlayStatusText.textContent = "Missing overlay id";
           return;
         }
 
         try {
-          const response = await fetch(`/api/overlay/queue-state?token=${encodeURIComponent(overlayToken)}`, {
+          const response = await fetch(`/api/overlay/queue-state?${overlayAccessQuery}`, {
             cache: "no-store"
           });
           const result = await response.json();

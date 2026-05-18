@@ -39,14 +39,13 @@ const ttsPill = document.getElementById("tts-pill");
 const signedInPill = document.getElementById("signed-in-pill");
 const creditsPill = document.getElementById("credits-pill");
 const settingsProfileSelect = document.getElementById("settings-profile-select");
-const settingsProfileCreateButton = document.getElementById("settings-profile-create-button");
-const settingsProfileDeleteButton = document.getElementById("settings-profile-delete-button");
-const settingsProfileImportButton = document.getElementById("settings-profile-import-button");
-const settingsProfileExportButton = document.getElementById("settings-profile-export-button");
 const appVersionLabel = document.getElementById("app-version");
 const appVersionAuth = document.getElementById("app-version-auth");
 const appVersionInline = document.getElementById("app-version-inline");
 const updateStatus = document.getElementById("update-status");
+const openControlsLayerButton = document.getElementById("open-controls-layer-button");
+const openOverlaysLayerButton = document.getElementById("open-overlays-layer-button");
+const openEventActionsLayerButton = document.getElementById("open-event-actions-layer-button");
 const topupCreditsButton = document.getElementById("topup-credits-button");
 
 // Connection controls
@@ -69,6 +68,8 @@ const chatList = document.getElementById("chat-list");
 const chatNotesPanel = document.getElementById("chat-notes-panel");
 const chatNotesTitle = document.getElementById("chat-notes-title");
 const chatNotesInput = document.getElementById("chat-notes-input");
+const chatNotesBirthdayInput = document.getElementById("chat-notes-birthday");
+const chatNotesBirthdayActionSelect = document.getElementById("chat-notes-birthday-action");
 const chatNotesSaveButton = document.getElementById("chat-notes-save");
 const chatNotesDeleteButton = document.getElementById("chat-notes-delete");
 const chatNotesCloseButton = document.getElementById("chat-notes-close");
@@ -86,12 +87,25 @@ const settingsProfileModal = document.getElementById("settings-profile-modal");
 const settingsProfileModalCloseButton = document.getElementById("settings-profile-modal-close");
 const settingsProfileNameInput = document.getElementById("settings-profile-name-input");
 const settingsProfileModalSaveButton = document.getElementById("settings-profile-modal-save");
+const openLayoutCustomizerButton = document.getElementById("open-layout-customizer-button");
+const layoutCustomizerModal = document.getElementById("layout-customizer-modal");
+const layoutCustomizerCloseButton = document.getElementById("layout-customizer-close");
+const layoutCustomizerSaveButton = document.getElementById("layout-customizer-save");
+const layoutShowWelcomeInput = document.getElementById("layout-show-welcome");
+const layoutShowIncomingChatInput = document.getElementById("layout-show-incoming-chat");
+const layoutMainCardOptions = document.getElementById("layout-main-card-options");
+const dashboardAddonCards = document.getElementById("dashboard-addon-cards");
 
 // Sidebar tabs
 const controlsTabButton = document.getElementById("controls-tab-button");
+const overlaysTabButton = document.getElementById("overlays-tab-button");
 const eventActionsTabButton = document.getElementById("event-actions-tab-button");
 const controlsTabPanel = document.getElementById("controls-tab-panel");
+const overlaysTabPanel = document.getElementById("overlays-tab-panel");
 const eventActionsTabPanel = document.getElementById("event-actions-tab-panel");
+const sidebarLayer = document.getElementById("sidebar-layer");
+const sidebarLayerCloseButton = document.getElementById("sidebar-layer-close");
+const sidebarLayerTitle = document.getElementById("sidebar-layer-title");
 
 // Stats
 const statViewers = document.getElementById("stat-viewers");
@@ -107,9 +121,187 @@ const queueActionStatus = document.getElementById("queue-action-status");
 const queueOverlayQueueSelect = document.getElementById("queue-overlay-queue");
 const queueOverlayModeSelect = document.getElementById("queue-overlay-mode");
 const queueOverlayUrlInput = document.getElementById("queue-overlay-url");
+const queueOverlayTemplateSelect = document.getElementById("queue-overlay-template-select");
 const queueOverlayCopyButton = document.getElementById("queue-overlay-copy");
 const queueOverlayOpenButton = document.getElementById("queue-overlay-open");
+const queueOverlayCustomizeButton = document.getElementById("queue-overlay-customize");
+const queueOverlayResetButton = document.getElementById("queue-overlay-reset");
 const queueOverlayStatus = document.getElementById("queue-overlay-status");
+const chatOverlayUrlInput = document.getElementById("chat-overlay-url");
+const chatOverlayTemplateSelect = document.getElementById("chat-overlay-template-select");
+const chatOverlayCopyButton = document.getElementById("chat-overlay-copy");
+const chatOverlayOpenButton = document.getElementById("chat-overlay-open");
+const chatOverlayCustomizeButton = document.getElementById("chat-overlay-customize");
+const chatOverlayResetButton = document.getElementById("chat-overlay-reset");
+const chatOverlayStatus = document.getElementById("chat-overlay-status");
+const giftOverlayUrlInput = document.getElementById("gift-overlay-url");
+const giftOverlayTemplateSelect = document.getElementById("gift-overlay-template-select");
+const giftOverlayCopyButton = document.getElementById("gift-overlay-copy");
+const giftOverlayOpenButton = document.getElementById("gift-overlay-open");
+const giftOverlayCustomizeButton = document.getElementById("gift-overlay-customize");
+const giftOverlayResetButton = document.getElementById("gift-overlay-reset");
+const giftOverlayStatus = document.getElementById("gift-overlay-status");
+const likesOverlayUrlInput = document.getElementById("likes-overlay-url");
+const likesOverlayTemplateSelect = document.getElementById("likes-overlay-template-select");
+const likesOverlayCopyButton = document.getElementById("likes-overlay-copy");
+const likesOverlayOpenButton = document.getElementById("likes-overlay-open");
+const likesOverlayCustomizeButton = document.getElementById("likes-overlay-customize");
+const likesOverlayResetButton = document.getElementById("likes-overlay-reset");
+const viewerStatsOverlayFilterInput = document.getElementById("viewer-stats-overlay-filter");
+const viewerStatsOverlayUsernameInput = document.getElementById("viewer-stats-overlay-username");
+const viewerStatsOverlayUrlInput = document.getElementById("viewer-stats-overlay-url");
+const viewerStatsOverlayTemplateSelect = document.getElementById("viewer-stats-overlay-template-select");
+const viewerStatsOverlayCopyButton = document.getElementById("viewer-stats-overlay-copy");
+const viewerStatsOverlayOpenButton = document.getElementById("viewer-stats-overlay-open");
+const viewerStatsOverlayCustomizeButton = document.getElementById("viewer-stats-overlay-customize");
+const viewerStatsOverlayResetButton = document.getElementById("viewer-stats-overlay-reset");
+const voteOverlayUrlInput = document.getElementById("vote-overlay-url");
+const voteOverlayTemplateSelect = document.getElementById("vote-overlay-template-select");
+const voteOverlayCopyButton = document.getElementById("vote-overlay-copy");
+const voteOverlayOpenButton = document.getElementById("vote-overlay-open");
+const voteOverlayCustomizeButton = document.getElementById("vote-overlay-customize");
+const voteOverlayResetButton = document.getElementById("vote-overlay-reset");
+const overlayDesignerTemplateSelect = document.getElementById("overlay-designer-template-select");
+const overlayDesignerUrlInput = document.getElementById("overlay-designer-url");
+const overlayDesignerOpenButton = document.getElementById("overlay-designer-open-button");
+const overlayDesignerCopyButton = document.getElementById("overlay-designer-copy-button");
+const overlayDesignerPreviewButton = document.getElementById("overlay-designer-preview-button");
+const overlayDesignerTestButton = document.getElementById("overlay-designer-test-button");
+const overlayDesignerStatus = document.getElementById("overlay-designer-status");
+const overlayDesignerModal = document.getElementById("overlay-designer-modal");
+const overlayDesignerModalTemplateSelect = document.getElementById("overlay-designer-modal-template-select");
+const overlayDesignerCanvasPreset = document.getElementById("overlay-designer-canvas-preset");
+const overlayDesignerZoom = document.getElementById("overlay-designer-zoom");
+const overlayDesignerNewTemplateButton = document.getElementById("overlay-designer-new-template");
+const overlayDesignerDuplicateTemplateButton = document.getElementById("overlay-designer-duplicate-template");
+const overlayDesignerDeleteTemplateButton = document.getElementById("overlay-designer-delete-template");
+const overlayDesignerExportTemplateButton = document.getElementById("overlay-designer-export-template");
+const overlayDesignerImportTemplateButton = document.getElementById("overlay-designer-import-template");
+const overlayDesignerUndoButton = document.getElementById("overlay-designer-undo");
+const overlayDesignerRedoButton = document.getElementById("overlay-designer-redo");
+const overlayDesignerCloseButton = document.getElementById("overlay-designer-close");
+const overlayDesignerLayerList = document.getElementById("overlay-designer-layer-list");
+const overlayDesignerStageWrap = document.getElementById("overlay-designer-stage-wrap");
+const overlayDesignerStage = document.getElementById("overlay-designer-stage");
+const overlayDesignerShowGridInput = document.getElementById("overlay-designer-show-grid");
+const overlayDesignerSnapGridInput = document.getElementById("overlay-designer-snap-grid");
+const overlayDesignerShowSafezoneInput = document.getElementById("overlay-designer-show-safezone");
+const overlayDesignerLightThemeInput = document.getElementById("overlay-designer-light-theme");
+const overlayDesignerTemplateNameInput = document.getElementById("overlay-designer-template-name");
+const overlayDesignerCanvasWidthInput = document.getElementById("overlay-designer-canvas-width");
+const overlayDesignerCanvasHeightInput = document.getElementById("overlay-designer-canvas-height");
+const overlayDesignerBackgroundColorInput = document.getElementById("overlay-designer-background-color");
+const overlayDesignerBackgroundOpacityInput = document.getElementById("overlay-designer-background-opacity");
+const overlayDesignerBackgroundImageInput = document.getElementById("overlay-designer-background-image");
+const overlayDesignerBackgroundVideoInput = document.getElementById("overlay-designer-background-video");
+const overlayDesignerAutoLoadInput = document.getElementById("overlay-designer-auto-load");
+const overlayDesignerEmptyState = document.getElementById("overlay-designer-empty-state");
+const overlayDesignerInspector = document.getElementById("overlay-designer-inspector");
+const overlayElementNameInput = document.getElementById("overlay-element-name");
+const overlayElementContentInput = document.getElementById("overlay-element-content");
+const overlayElementSourceInput = document.getElementById("overlay-element-source");
+const overlayElementXInput = document.getElementById("overlay-element-x");
+const overlayElementYInput = document.getElementById("overlay-element-y");
+const overlayElementWidthInput = document.getElementById("overlay-element-width");
+const overlayElementHeightInput = document.getElementById("overlay-element-height");
+const overlayElementAutoWidthInput = document.getElementById("overlay-element-auto-width");
+const overlayElementAutoHeightInput = document.getElementById("overlay-element-auto-height");
+const overlayElementRotationInput = document.getElementById("overlay-element-rotation");
+const overlayElementOpacityInput = document.getElementById("overlay-element-opacity");
+const overlayElementFontFamilyInput = document.getElementById("overlay-element-font-family");
+const overlayElementFontSizeInput = document.getElementById("overlay-element-font-size");
+const overlayElementFontWeightInput = document.getElementById("overlay-element-font-weight");
+const overlayElementLetterSpacingInput = document.getElementById("overlay-element-letter-spacing");
+const overlayElementColorInput = document.getElementById("overlay-element-color");
+const overlayElementGlowColorInput = document.getElementById("overlay-element-glow-color");
+const overlayElementBackgroundColorInput = document.getElementById("overlay-element-background-color");
+const overlayElementBackgroundOpacityInput = document.getElementById("overlay-element-background-opacity");
+const overlayElementBorderColorInput = document.getElementById("overlay-element-border-color");
+const overlayElementBorderWidthInput = document.getElementById("overlay-element-border-width");
+const overlayElementBorderRadiusInput = document.getElementById("overlay-element-border-radius");
+const overlayElementBlurInput = document.getElementById("overlay-element-blur");
+const overlayElementAnimationInput = document.getElementById("overlay-element-animation");
+const overlayElementBindingInput = document.getElementById("overlay-element-binding");
+const overlayVotingWidgetStyleFields = document.getElementById("overlay-voting-widget-style-fields");
+const overlayElementWidgetStyleInput = document.getElementById("overlay-element-widget-style");
+const overlayElementMutedTextColorInput = document.getElementById("overlay-element-muted-text-color");
+const overlayElementSuccessColorInput = document.getElementById("overlay-element-success-color");
+const overlayDesignerImportInput = document.getElementById("overlay-designer-import-input");
+
+const BUILTIN_TIKTOK_GIFT_CATALOG = [
+  { giftName: "Rose", coinValue: 1, source: "builtin" },
+  { giftName: "TikTok", coinValue: 1, source: "builtin" },
+  { giftName: "Finger Heart", coinValue: 5, source: "builtin" },
+  { giftName: "Perfume", coinValue: 20, source: "builtin" },
+  { giftName: "Doughnut", coinValue: 30, source: "builtin" },
+  { giftName: "Paper Crane", coinValue: 99, source: "builtin" },
+  { giftName: "Sunglasses", coinValue: 199, source: "builtin" },
+  { giftName: "Hearts", coinValue: 199, source: "builtin" },
+  { giftName: "Heart Me", coinValue: 249, source: "builtin" },
+  { giftName: "Cotton's Shell", coinValue: 299, source: "builtin" },
+  { giftName: "GG", coinValue: 299, source: "builtin" },
+  { giftName: "Lightning Bolt", coinValue: 300, source: "builtin" },
+  { giftName: "Gamepad", coinValue: 399, source: "builtin" },
+  { giftName: "Love You", coinValue: 499, source: "builtin" },
+  { giftName: "Corgi", coinValue: 499, source: "builtin" },
+  { giftName: "Cap", coinValue: 599, source: "builtin" },
+  { giftName: "Hat and Mustache", coinValue: 699, source: "builtin" },
+  { giftName: "Butterfly", coinValue: 888, source: "builtin" },
+  { giftName: "Mishka Bear", coinValue: 1000, source: "builtin" },
+  { giftName: "I Love You", coinValue: 1000, source: "builtin" },
+  { giftName: "Confetti", coinValue: 1000, source: "builtin" },
+  { giftName: "Swan", coinValue: 1099, source: "builtin" },
+  { giftName: "Little Crown", coinValue: 1599, source: "builtin" },
+  { giftName: "Fairy Wings", coinValue: 1999, source: "builtin" },
+  { giftName: "Tiny Diny", coinValue: 1999, source: "builtin" },
+  { giftName: "Weights", coinValue: 1999, source: "builtin" },
+  { giftName: "Coffee", coinValue: 2999, source: "builtin" },
+  { giftName: "Gold Mine", coinValue: 1000, source: "builtin" },
+  { giftName: "Fireworks", coinValue: 1088, source: "builtin" },
+  { giftName: "Galaxy", coinValue: 1000, source: "builtin" },
+  { giftName: "Sports Car", coinValue: 7000, source: "builtin" },
+  { giftName: "Motorcycle", coinValue: 2988, source: "builtin" },
+  { giftName: "Train", coinValue: 8999, source: "builtin" },
+  { giftName: "Travel with You", coinValue: 2888, source: "builtin" },
+  { giftName: "Diamond Tree", coinValue: 10888, source: "builtin" },
+  { giftName: "Castle", coinValue: 20000, source: "builtin" },
+  { giftName: "Yacht", coinValue: 7499, source: "builtin" },
+  { giftName: "Private Jet", coinValue: 4888, source: "builtin" },
+  { giftName: "Leon the Kitten", coinValue: 4888, source: "builtin" },
+  { giftName: "Lion", coinValue: 29999, source: "builtin" }
+];
+const BUILTIN_TIKTOK_GIFT_CATALOG_BY_REGION = {
+  global: BUILTIN_TIKTOK_GIFT_CATALOG,
+  uk: [
+    ...BUILTIN_TIKTOK_GIFT_CATALOG,
+    { giftName: "Universe", coinValue: 0, source: "builtin" },
+    { giftName: "Pegasus", coinValue: 0, source: "builtin" },
+    { giftName: "Phoenix", coinValue: 0, source: "builtin" },
+    { giftName: "Whale Diving", coinValue: 0, source: "builtin" },
+    { giftName: "TikTok Shuttle", coinValue: 0, source: "builtin" },
+    { giftName: "Adam's Dream", coinValue: 0, source: "builtin" },
+    { giftName: "Chasing the Dream", coinValue: 0, source: "builtin" },
+    { giftName: "Interstellar", coinValue: 0, source: "builtin" },
+    { giftName: "Gorilla", coinValue: 0, source: "builtin" },
+    { giftName: "Star Throne", coinValue: 0, source: "builtin" }
+  ],
+  usa: [
+    ...BUILTIN_TIKTOK_GIFT_CATALOG,
+    { giftName: "Universe", coinValue: 0, source: "builtin" },
+    { giftName: "Pegasus", coinValue: 0, source: "builtin" },
+    { giftName: "Phoenix", coinValue: 0, source: "builtin" },
+    { giftName: "Whale Diving", coinValue: 0, source: "builtin" },
+    { giftName: "TikTok Shuttle", coinValue: 0, source: "builtin" },
+    { giftName: "Money Gun", coinValue: 0, source: "builtin" },
+    { giftName: "Drama Queen", coinValue: 0, source: "builtin" },
+    { giftName: "Adam's Dream", coinValue: 0, source: "builtin" },
+    { giftName: "Chasing the Dream", coinValue: 0, source: "builtin" },
+    { giftName: "Gorilla", coinValue: 0, source: "builtin" }
+  ]
+};
+const likesOverlayStatus = document.getElementById("likes-overlay-status");
+const viewerStatsOverlayStatus = document.getElementById("viewer-stats-overlay-status");
+const voteOverlayStatus = document.getElementById("vote-overlay-status");
 
 // Translation controls
 const translationEnabledInput = document.getElementById("translation-enabled");
@@ -141,10 +333,21 @@ const ttsPitchValue = document.getElementById("tts-pitch-value");
 const ttsVolumeValue = document.getElementById("tts-volume-value");
 const ttsTestButton = document.getElementById("tts-test-button");
 const ttsManageUserVoicesButton = document.getElementById("tts-manage-user-voices-button");
+const ttsElevenLabsUsagePanel = document.getElementById("tts-elevenlabs-usage-panel");
+const ttsElevenLabsPlan = document.getElementById("tts-elevenlabs-plan");
+const ttsElevenLabsUsed = document.getElementById("tts-elevenlabs-used");
+const ttsElevenLabsLimit = document.getElementById("tts-elevenlabs-limit");
+const ttsElevenLabsRemaining = document.getElementById("tts-elevenlabs-remaining");
+const ttsElevenLabsReset = document.getElementById("tts-elevenlabs-reset");
+const ttsElevenLabsUsageStatus = document.getElementById("tts-elevenlabs-usage-status");
+const ttsElevenLabsRefreshButton = document.getElementById("tts-elevenlabs-refresh");
 const commandFeedbackDurationInput = document.getElementById("command-feedback-duration");
 const commandFeedbackOverlayUrlInput = document.getElementById("command-feedback-overlay-url");
+const commandFeedbackOverlayTemplateSelect = document.getElementById("command-feedback-overlay-template-select");
 const commandFeedbackOverlayCopyButton = document.getElementById("command-feedback-overlay-copy");
 const commandFeedbackOverlayOpenButton = document.getElementById("command-feedback-overlay-open");
+const commandFeedbackOverlayCustomizeButton = document.getElementById("command-feedback-overlay-customize");
+const commandFeedbackOverlayResetButton = document.getElementById("command-feedback-overlay-reset");
 const commandFeedbackTemplateMyttsvoiceInput = document.getElementById("command-feedback-template-myttsvoice");
 const commandFeedbackTemplateListcommandsInput = document.getElementById("command-feedback-template-listcommands");
 const commandFeedbackStatus = document.getElementById("command-feedback-status");
@@ -155,9 +358,21 @@ const ttsAudienceAllInput = document.getElementById("tts-audience-all");
 const ttsAudienceSubscribersInput = document.getElementById("tts-audience-subscribers");
 const ttsAudienceModeratorsInput = document.getElementById("tts-audience-moderators");
 const ttsAudienceVipsInput = document.getElementById("tts-audience-vips");
+const tiktokSigninButton = document.getElementById("tiktok-signin-button");
+const tiktokSignoutButton = document.getElementById("tiktok-signout-button");
+const tiktokRefreshEmotesButton = document.getElementById("tiktok-refresh-emotes-button");
+const tiktokSessionStatus = document.getElementById("tiktok-session-status");
+const votingEnabledInput = document.getElementById("voting-enabled");
+const votingStartRoleInput = document.getElementById("voting-start-role");
+const votingOverlayOrientationInput = document.getElementById("voting-overlay-orientation");
+const votingTestButton = document.getElementById("voting-test-button");
+const votingStatus = document.getElementById("voting-status");
 
 // Custom event rules
 const addCustomRuleButton = document.getElementById("add-custom-rule-button");
+const customRuleSearchInput = document.getElementById("custom-rule-search");
+const customRuleAudienceFilterInput = document.getElementById("custom-rule-audience-filter");
+const customRuleTriggerFilterInput = document.getElementById("custom-rule-trigger-filter");
 const customRuleList = document.getElementById("custom-rule-list");
 const customRuleStatus = document.getElementById("custom-rule-status");
 
@@ -166,6 +381,630 @@ const SEARCH_PREVIEW_LIMIT = 50;
 const SAVE_DEBOUNCE_MS = 250;
 const CONNECT_CREDIT_STABILIZE_MS = 2500;
 const DEFAULT_SETTINGS_PROFILE_ID = "default";
+const SETTINGS_PROFILE_ACTION_PREFIX = "__action__:";
+const OVERLAY_DESIGNER_GRID_SIZE = 10;
+const OVERLAY_DESIGNER_MIN_SIZE = 40;
+const OVERLAY_DESIGNER_ASSIGNMENT_KEYS = ["queue", "chat", "gift", "likes", "viewerStats", "commandFeedback", "vote"];
+
+function createOverlayDesignerId(prefix = "overlay-item") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizeOverlayDesignerHex(value, fallback = "#53dcff") {
+  const normalized = String(value ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+function clampOverlayDesignerNumber(value, minimum, maximum, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  return Math.max(minimum, Math.min(maximum, parsed));
+}
+
+function createOverlayDesignerElement(type = "text") {
+  const normalizedType = String(type ?? "text").trim() || "text";
+  const base = {
+    id: createOverlayDesignerId("overlay-element"),
+    type: normalizedType,
+    name: normalizedType.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase()).trim(),
+    content: "",
+    source: "",
+    x: 80,
+    y: 80,
+    width: 280,
+    height: 88,
+    autoWidth: false,
+    autoHeight: false,
+    rotation: 0,
+    opacity: 1,
+    fontFamily: "Poppins, Segoe UI, sans-serif",
+    fontSize: 28,
+    fontWeight: 700,
+    letterSpacing: 0,
+    color: "#f6fbff",
+    glowColor: "#53dcff",
+    backgroundColor: "#10243d",
+    backgroundOpacity: 0.28,
+    borderColor: "#2a466b",
+    borderWidth: 1,
+    borderRadius: 18,
+    widgetStyle: "defaultOverlay",
+    mutedTextColor: "#9fb8d6",
+    successColor: "#7cffc5",
+    blur: 0,
+    animation: "none",
+    binding: "",
+    visible: true,
+    locked: false,
+    zIndex: 1
+  };
+
+  switch (normalizedType) {
+    case "viewerCount":
+      return { ...base, name: "Viewer Count", content: "LIVE VIEWERS", binding: "viewerCount", width: 260, height: 86 };
+    case "chatMessage":
+      return { ...base, name: "Chat Message", content: "{username}: {message}", binding: "chatMessage", width: 540, height: 96 };
+    case "ttsNotification":
+      return { ...base, name: "TTS Notification", content: "{username} triggered TTS", binding: "ttsNotification", width: 480, height: 88 };
+    case "alert":
+      return { ...base, name: "Alert", content: "{username} sent {giftSent}", binding: "alert", width: 460, height: 92 };
+    case "votingWidget":
+      return { ...base, name: "Voting Widget", content: "Live Voting", binding: "activeVote", width: 620, height: 260 };
+    case "progressBar":
+      return { ...base, name: "Progress Bar", content: "Goal progress", binding: "progressValue", width: 460, height: 64 };
+    case "image":
+      return { ...base, name: "Image", source: "", width: 320, height: 180, backgroundOpacity: 0 };
+    case "video":
+      return { ...base, name: "Video", source: "", width: 420, height: 240, backgroundOpacity: 0 };
+    case "emoji":
+      return { ...base, name: "Emoji", content: "🔥", width: 110, height: 110, fontSize: 64, backgroundOpacity: 0 };
+    case "eventCounter":
+      return { ...base, name: "Event Counter", content: "Likes: {likes}", binding: "likes", width: 260, height: 86 };
+    case "timer":
+      return { ...base, name: "Timer", content: "00:30", binding: "timer", width: 220, height: 82 };
+    case "spinWheel":
+      return { ...base, name: "Spin Wheel", content: "Spin Wheel", binding: "spinWheel", width: 360, height: 360, borderRadius: 180 };
+    case "customHtml":
+      return { ...base, name: "Custom HTML", content: "<div class=\"widget\">Custom HTML</div>", width: 420, height: 180 };
+    case "text":
+    default:
+      return { ...base, name: "Text Label", content: "Stream Sync Pro", width: 360, height: 88 };
+  }
+}
+
+function normalizeOverlayDesignerElement(element = {}, index = 0) {
+  const base = createOverlayDesignerElement(element?.type ?? "text");
+  return {
+    ...base,
+    ...element,
+    id: String(element?.id ?? base.id).trim() || base.id,
+    name: String(element?.name ?? base.name).trim() || base.name,
+    content: String(element?.content ?? base.content),
+    source: String(element?.source ?? base.source).trim(),
+    x: Math.max(0, Number(element?.x) || base.x),
+    y: Math.max(0, Number(element?.y) || base.y),
+    width: Math.max(OVERLAY_DESIGNER_MIN_SIZE, Number(element?.width) || base.width),
+    height: Math.max(OVERLAY_DESIGNER_MIN_SIZE, Number(element?.height) || base.height),
+    autoWidth: Boolean(element?.autoWidth),
+    autoHeight: Boolean(element?.autoHeight),
+    rotation: clampOverlayDesignerNumber(element?.rotation, -360, 360, base.rotation),
+    opacity: clampOverlayDesignerNumber(element?.opacity, 0, 1, base.opacity),
+    fontFamily: String(element?.fontFamily ?? base.fontFamily).trim() || base.fontFamily,
+    fontSize: clampOverlayDesignerNumber(element?.fontSize, 10, 240, base.fontSize),
+    fontWeight: clampOverlayDesignerNumber(element?.fontWeight, 100, 900, base.fontWeight),
+    letterSpacing: clampOverlayDesignerNumber(element?.letterSpacing, -4, 24, base.letterSpacing),
+    color: normalizeOverlayDesignerHex(element?.color, base.color),
+    glowColor: normalizeOverlayDesignerHex(element?.glowColor, base.glowColor),
+    backgroundColor: normalizeOverlayDesignerHex(element?.backgroundColor, base.backgroundColor),
+    backgroundOpacity: clampOverlayDesignerNumber(element?.backgroundOpacity, 0, 1, base.backgroundOpacity),
+    borderColor: normalizeOverlayDesignerHex(element?.borderColor, base.borderColor),
+    borderWidth: clampOverlayDesignerNumber(element?.borderWidth, 0, 24, base.borderWidth),
+    borderRadius: clampOverlayDesignerNumber(element?.borderRadius, 0, 240, base.borderRadius),
+    widgetStyle: ["defaultOverlay", "simple"].includes(String(element?.widgetStyle ?? "").trim())
+      ? String(element?.widgetStyle ?? "").trim()
+      : base.widgetStyle,
+    mutedTextColor: normalizeOverlayDesignerHex(element?.mutedTextColor, base.mutedTextColor),
+    successColor: normalizeOverlayDesignerHex(element?.successColor, base.successColor),
+    blur: clampOverlayDesignerNumber(element?.blur, 0, 40, base.blur),
+    animation: String(element?.animation ?? base.animation).trim() || "none",
+    binding: String(element?.binding ?? base.binding).trim(),
+    visible: element?.visible !== false,
+    locked: Boolean(element?.locked),
+    zIndex: Math.max(1, Number(element?.zIndex) || index + 1)
+  };
+}
+
+function createOverlayDesignerTemplate(name = "Overlay Template", size = { width: 1920, height: 1080 }) {
+  return {
+    id: createOverlayDesignerId("overlay-template"),
+    name,
+    width: Math.max(320, Number(size?.width) || 1920),
+    height: Math.max(320, Number(size?.height) || 1080),
+    backgroundColor: "#08111f",
+    backgroundOpacity: 0.45,
+    backgroundImage: "",
+    backgroundVideo: "",
+    autoLoad: "",
+    elements: [
+      {
+        ...createOverlayDesignerElement("text"),
+        content: "LIVE NOW",
+        x: 72,
+        y: 72,
+        width: 260,
+        height: 82
+      },
+      {
+        ...createOverlayDesignerElement("chatMessage"),
+        content: "{username}: {message}",
+        x: 72,
+        y: 182
+      }
+    ]
+  };
+}
+
+function createBuiltInOverlayDesignerTemplates() {
+  const defaultTemplate = createOverlayDesignerTemplate("Default Broadcast Overlay");
+  defaultTemplate.builtinKey = "defaultBroadcast";
+
+  const queueTemplate = createOverlayDesignerTemplate("Queue Overlay Default");
+  queueTemplate.builtinKey = "queueDefault";
+  queueTemplate.backgroundOpacity = 0;
+  queueTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("text"),
+      name: "Queue title",
+      content: "Queue Overlay",
+      x: 60,
+      y: 52,
+      width: 420,
+      height: 82,
+      fontSize: 34,
+      fontWeight: 800,
+      backgroundOpacity: 0,
+      borderWidth: 0
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("ttsNotification"),
+      name: "Now playing",
+      content: "Now Playing: {username}",
+      x: 60,
+      y: 150,
+      width: 720,
+      height: 96,
+      fontSize: 26,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.9,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      borderRadius: 22,
+      blur: 10
+    }, 1),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("alert"),
+      name: "Up next",
+      content: "Up Next: {giftSent}",
+      x: 60,
+      y: 266,
+      width: 720,
+      height: 88,
+      fontSize: 22,
+      backgroundColor: "#0c1b30",
+      backgroundOpacity: 0.88,
+      borderColor: "#2d5fff",
+      borderWidth: 1,
+      borderRadius: 20,
+      glowColor: "#53dcff",
+      blur: 8
+    }, 2)
+  ];
+
+  const chatTemplate = createOverlayDesignerTemplate("Chat Overlay Default");
+  chatTemplate.builtinKey = "chatDefault";
+  chatTemplate.backgroundOpacity = 0;
+  chatTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("text"),
+      name: "Chat title",
+      content: "Live Chat",
+      x: 52,
+      y: 46,
+      width: 320,
+      height: 72,
+      fontSize: 30,
+      fontWeight: 800,
+      backgroundOpacity: 0,
+      borderWidth: 0
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("chatMessage"),
+      name: "Chat message",
+      content: "{username}: {message}",
+      x: 52,
+      y: 132,
+      width: 820,
+      height: 104,
+      fontSize: 24,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.92,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      borderRadius: 22,
+      blur: 10
+    }, 1)
+  ];
+
+  const giftTemplate = createOverlayDesignerTemplate("Gift Overlay Default");
+  giftTemplate.builtinKey = "giftDefault";
+  giftTemplate.backgroundOpacity = 0;
+  giftTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("image"),
+      name: "Gift icon",
+      x: 58,
+      y: 120,
+      width: 120,
+      height: 120,
+      borderRadius: 30,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.9,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      blur: 10
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("alert"),
+      name: "Gift alert",
+      content: "{username} sent {giftSent}",
+      x: 194,
+      y: 118,
+      width: 760,
+      height: 124,
+      fontSize: 28,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.94,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      borderRadius: 26,
+      glowColor: "#53dcff",
+      blur: 12
+    }, 1)
+  ];
+
+  const likesTemplate = createOverlayDesignerTemplate("Like Leaderboard Default");
+  likesTemplate.builtinKey = "likesDefault";
+  likesTemplate.backgroundOpacity = 0;
+  likesTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("text"),
+      name: "Leaderboard title",
+      content: "Like Leaderboard",
+      x: 62,
+      y: 52,
+      width: 480,
+      height: 78,
+      fontSize: 32,
+      fontWeight: 800,
+      backgroundOpacity: 0,
+      borderWidth: 0
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Like total",
+      content: "Likes: {likes}",
+      binding: "likes",
+      x: 62,
+      y: 148,
+      width: 320,
+      height: 84,
+      fontSize: 24,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.9,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      borderRadius: 20,
+      blur: 10
+    }, 1),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("progressBar"),
+      name: "Leaderboard progress",
+      content: "Top support today",
+      x: 62,
+      y: 246,
+      width: 780,
+      height: 74,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.88,
+      borderColor: "#2d5fff",
+      borderWidth: 1,
+      borderRadius: 20,
+      blur: 8
+    }, 2)
+  ];
+
+  const viewerStatsTemplate = createOverlayDesignerTemplate("Viewer Stats Default");
+  viewerStatsTemplate.builtinKey = "viewerStatsDefault";
+  viewerStatsTemplate.backgroundOpacity = 0;
+  viewerStatsTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("text"),
+      name: "Stats title",
+      content: "Viewer Stats",
+      x: 60,
+      y: 50,
+      width: 360,
+      height: 76,
+      fontSize: 32,
+      fontWeight: 800,
+      backgroundOpacity: 0,
+      borderWidth: 0
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Likes stat",
+      content: "Likes: {likes}",
+      binding: "likes",
+      x: 60,
+      y: 140,
+      width: 280,
+      height: 78
+    }, 1),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Comments stat",
+      content: "Comments: {comments}",
+      binding: "comments",
+      x: 356,
+      y: 140,
+      width: 280,
+      height: 78
+    }, 2),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Gifts stat",
+      content: "Gifts: {gifts}",
+      binding: "gifts",
+      x: 652,
+      y: 140,
+      width: 280,
+      height: 78
+    }, 3),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Shares stat",
+      content: "Shares: {shares}",
+      binding: "shares",
+      x: 60,
+      y: 234,
+      width: 280,
+      height: 78
+    }, 4),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Follows stat",
+      content: "Follows: {follows}",
+      binding: "follows",
+      x: 356,
+      y: 234,
+      width: 280,
+      height: 78
+    }, 5),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("eventCounter"),
+      name: "Coins stat",
+      content: "Coins: {coins}",
+      binding: "coins",
+      x: 652,
+      y: 234,
+      width: 280,
+      height: 78
+    }, 6)
+  ];
+
+  const commandFeedbackTemplate = createOverlayDesignerTemplate("Command Feedback Default");
+  commandFeedbackTemplate.builtinKey = "commandFeedbackDefault";
+  commandFeedbackTemplate.backgroundOpacity = 0;
+  commandFeedbackTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("text"),
+      name: "Feedback title",
+      content: "Viewer Feedback",
+      x: 70,
+      y: 70,
+      width: 420,
+      height: 80,
+      fontSize: 30,
+      fontWeight: 800,
+      backgroundOpacity: 0,
+      borderWidth: 0
+    }, 0),
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("alert"),
+      name: "Feedback message",
+      content: "{username} sent {giftSent}",
+      x: 70,
+      y: 164,
+      width: 760,
+      height: 110,
+      fontSize: 26,
+      backgroundColor: "#10243d",
+      backgroundOpacity: 0.92,
+      borderColor: "#53dcff",
+      borderWidth: 1,
+      borderRadius: 24,
+      glowColor: "#53dcff",
+      blur: 10
+    }, 1)
+  ];
+
+  const alertTemplate = createOverlayDesignerTemplate("Alerts and Voting Overlay");
+  alertTemplate.builtinKey = "alertsVoting";
+  alertTemplate.elements = [
+    {
+      ...createOverlayDesignerElement("alert"),
+      x: 1180,
+      y: 92,
+      width: 620,
+      height: 110,
+      content: "{username} sent {giftSent}"
+    },
+    {
+      ...createOverlayDesignerElement("votingWidget"),
+      x: 1060,
+      y: 260,
+      width: 700,
+      height: 300
+    },
+    {
+      ...createOverlayDesignerElement("viewerCount"),
+      x: 72,
+      y: 72
+    }
+  ];
+
+  const voteTemplate = createOverlayDesignerTemplate("Voting Overlay Default");
+  voteTemplate.builtinKey = "votingDefault";
+  voteTemplate.width = 1920;
+  voteTemplate.height = 1080;
+  voteTemplate.backgroundColor = "#08111f";
+  voteTemplate.backgroundOpacity = 0;
+  voteTemplate.elements = [
+    normalizeOverlayDesignerElement({
+      ...createOverlayDesignerElement("votingWidget"),
+      name: "Voting card",
+      x: 1030,
+      y: 120,
+      width: 860,
+      height: 520,
+      fontFamily: "Segoe UI",
+      fontSize: 28,
+      fontWeight: 800,
+      letterSpacing: 0,
+      color: "#eef6ff",
+      backgroundColor: "#071326",
+      backgroundOpacity: 0.94,
+      borderColor: "#54d0ff",
+      borderWidth: 1,
+      borderRadius: 26,
+      widgetStyle: "defaultOverlay",
+      mutedTextColor: "#9fb8d6",
+      successColor: "#7cffc5",
+      glowColor: "#53dcff",
+      blur: 14
+    }, 0)
+  ];
+
+  return [
+    defaultTemplate,
+    queueTemplate,
+    chatTemplate,
+    giftTemplate,
+    likesTemplate,
+    viewerStatsTemplate,
+    commandFeedbackTemplate,
+    alertTemplate,
+    voteTemplate
+  ].map((template, index) => ({
+    ...template,
+    elements: template.elements.map((element, elementIndex) => normalizeOverlayDesignerElement({
+      ...element,
+      zIndex: elementIndex + 1
+    }, elementIndex)),
+    id: `builtin-overlay-template-${index + 1}`
+  }));
+}
+
+function normalizeOverlayDesignerTemplates(templates = []) {
+  const source = Array.isArray(templates) && templates.length ? templates : createBuiltInOverlayDesignerTemplates();
+  return source.map((template, index) => {
+    const normalized = template && typeof template === "object"
+      ? template
+      : createOverlayDesignerTemplate(`Overlay Template ${index + 1}`);
+    return {
+      id: String(normalized.id ?? createOverlayDesignerId("overlay-template")).trim() || createOverlayDesignerId("overlay-template"),
+      name: String(normalized.name ?? `Overlay Template ${index + 1}`).trim() || `Overlay Template ${index + 1}`,
+      builtinKey: String(normalized.builtinKey ?? "").trim(),
+      width: Math.max(320, Number(normalized.width) || 1920),
+      height: Math.max(320, Number(normalized.height) || 1080),
+      backgroundColor: normalizeOverlayDesignerHex(normalized.backgroundColor, "#08111f"),
+      backgroundOpacity: clampOverlayDesignerNumber(normalized.backgroundOpacity, 0, 1, 0.45),
+      backgroundImage: String(normalized.backgroundImage ?? "").trim(),
+      backgroundVideo: String(normalized.backgroundVideo ?? "").trim(),
+      autoLoad: String(normalized.autoLoad ?? "").trim(),
+      elements: Array.isArray(normalized.elements)
+        ? normalized.elements
+            .map((element, elementIndex) => normalizeOverlayDesignerElement(element, elementIndex))
+            .sort((left, right) => left.zIndex - right.zIndex)
+            .map((element, elementIndex) => ({ ...element, zIndex: elementIndex + 1 }))
+        : []
+    };
+  });
+}
+
+function normalizeOverlayDesignerAssignments(source = {}) {
+  const normalized = Object.fromEntries(OVERLAY_DESIGNER_ASSIGNMENT_KEYS.map((key) => [key, ""]));
+  if (!source || typeof source !== "object") {
+    return normalized;
+  }
+
+  for (const key of OVERLAY_DESIGNER_ASSIGNMENT_KEYS) {
+    normalized[key] = String(source?.[key] ?? "").trim();
+  }
+
+  return normalized;
+}
+
+function findBuiltInOverlayDesignerTemplateByKey(builtinKey) {
+  const normalizedKey = String(builtinKey ?? "").trim();
+  if (!normalizedKey) {
+    return null;
+  }
+
+  return getOverlayDesignerTemplates().find((template) => String(template?.builtinKey ?? "").trim() === normalizedKey) ?? null;
+}
+
+function cloneOverlayDesignerTemplate(template, nameOverride = "") {
+  if (!template) {
+    return createOverlayDesignerTemplate(nameOverride || "Overlay Template");
+  }
+
+  return {
+    ...template,
+    id: createOverlayDesignerId("overlay-template"),
+    name: String(nameOverride || `${template.name} Custom`).trim() || "Overlay Template",
+    builtinKey: "",
+    elements: Array.isArray(template.elements)
+      ? template.elements.map((element) => ({
+          ...element,
+          id: createOverlayDesignerId("overlay-element")
+        }))
+      : []
+  };
+}
+
+function getBuiltInOverlayDesignerTemplateKeyForOverlay(overlayKey) {
+  switch (String(overlayKey ?? "").trim()) {
+    case "queue":
+      return "queueDefault";
+    case "chat":
+      return "chatDefault";
+    case "gift":
+      return "giftDefault";
+    case "likes":
+      return "likesDefault";
+    case "viewerStats":
+      return "viewerStatsDefault";
+    case "commandFeedback":
+      return "commandFeedbackDefault";
+    case "vote":
+      return "votingDefault";
+    default:
+      return "";
+  }
+}
 const PROFILE_SETTING_KEYS = [
   "rememberedUsername",
   "rememberUsername",
@@ -194,8 +1033,72 @@ const PROFILE_SETTING_KEYS = [
   "commandFeedbackTemplates",
   "ttsUserVoiceAssignments",
   "userNotes",
+  "knownTikTokGifts",
+  "knownTikTokEmotes",
+  "tiktokSessionId",
+  "tiktokTargetIdc",
+    "votingEnabled",
+    "votingStartRole",
+    "votingOverlayOrientation",
+    "viewerStatsOverlayFilter",
+    "viewerStatsOverlayUsername",
+    "overlayDesignerTemplates",
+  "activeOverlayDesignerTemplateId",
+  "overlayDesignerAssignments",
+  "cardCollapseState",
+  "dashboardCardVisibility",
+  "mainScreenPinnedCards",
   "customEventRules"
 ];
+
+const MAIN_SCREEN_CARD_DEFINITIONS = [
+  { key: "controls-queued-actions", label: "Controls | Queued Actions" },
+  { key: "controls-auto-translate", label: "Controls | Auto Translate" },
+  { key: "controls-interactive-voting", label: "Controls | Voting" },
+  { key: "controls-text-to-speech", label: "Controls | Text to Speech" },
+  { key: "controls-audience-filters", label: "Controls | Filters" },
+  { key: "overlays-queue-overlay", label: "Overlays | Queue Overlay" },
+  { key: "overlays-chat-overlay", label: "Overlays | Chat Overlay" },
+  { key: "overlays-gift-overlay", label: "Overlays | Gift Overlay" },
+  { key: "overlays-like-leaderboard", label: "Overlays | Like Leaderboard" },
+  { key: "overlays-viewer-stats", label: "Overlays | Viewer Stats Leaderboard" },
+  { key: "overlays-command-feedback", label: "Overlays | Command Feedback Overlay" },
+  { key: "overlays-designer", label: "Overlays | Overlay Designer" },
+  { key: "event-actions-main", label: "Event Actions | Event Actions" }
+];
+const BUILTIN_SUB_EMOTE_OPTIONS = [
+  "GG",
+  "Hype",
+  "Heart",
+  "Love",
+  "Wow",
+  "Fire",
+  "Party",
+  "Clap",
+  "Rose",
+  "Crown",
+  "Star",
+  "Diamond"
+];
+const BUILTIN_FAN_EMOTE_OPTIONS = [
+  "Heart",
+  "Rose",
+  "GG",
+  "Fire",
+  "Party",
+  "Love",
+  "Star",
+  "Sparkle",
+  "Crown",
+  "Wow",
+  "Clap",
+  "Diamond"
+];
+const EMOTE_SOURCE_WEIGHTS = {
+  builtin: 1,
+  observed: 2,
+  authenticated: 3
+};
 const TTS_STYLE_PROFILES = {
   natural: {
     rateOffset: 0,
@@ -224,6 +1127,15 @@ const TTS_STYLE_PROFILES = {
   }
 };
 
+const elevenLabsUsageState = {
+  loading: false,
+  apiKey: "",
+  data: null,
+  error: ""
+};
+
+let elevenLabsUsageRefreshTimer = null;
+
 const state = {
   settings: null,
   appVersion: "",
@@ -246,11 +1158,16 @@ const state = {
   audioContext: null,
   currentGainNode: null,
   soundCatalog: [],
-  soundCatalogById: new Map(),
-    soundCatalogLoaded: false,
-    soundCatalogError: "",
-    activeCustomRuleId: null,
-    forceClosing: false,
+    soundCatalogById: new Map(),
+      soundCatalogLoaded: false,
+      soundCatalogError: "",
+      soundCatalogSearches: new Set(),
+      soundCatalogSearchRequestId: 0,
+      activeCustomRuleId: null,
+      customRuleSearchText: "",
+      customRuleAudienceFilter: "all",
+      customRuleTriggerFilter: "all",
+      forceClosing: false,
     sessionTerminationReason: "",
     authSessionCheckStatus: "waiting",
   ttsVoiceManagerSearch: "",
@@ -259,38 +1176,87 @@ const state = {
   queueOverlayBaseUrl: "",
   queueOverlayLane: 1,
   queueOverlayMode: "full",
-  commandFeedbackOverlayBaseUrl: "",
+    commandFeedbackOverlayBaseUrl: "",
+    chatOverlayBaseUrl: "",
+    giftOverlayBaseUrl: "",
+    likesOverlayBaseUrl: "",
+    viewerStatsOverlayBaseUrl: "",
+    voteOverlayBaseUrl: "",
+  overlayDesignerBaseUrl: "",
   playbackQueueItems: [],
+  chatOverlayItems: [],
+  giftOverlayItems: [],
+  activeVote: null,
+  overlayDesignerSelectedElementId: "",
+  overlayDesignerHistoryUndo: [],
+  overlayDesignerHistoryRedo: [],
+  overlayDesignerZoom: 1,
+  overlayDesignerShowGrid: true,
+  overlayDesignerSnapGrid: true,
+  overlayDesignerShowSafezone: true,
+  overlayDesignerLightTheme: false,
+  overlayDesignerPointerState: null,
   customRulePreviewAudio: null,
   customRuleTriggerCounts: new Map(),
-  sessionMetrics: {
-    follows: 0,
-    likes: 0,
-    shares: 0,
-    coins: 0
+  customRuleUserCooldowns: new Map(),
+  birthdayActionTriggers: new Set(),
+    sessionMetrics: {
+      join: 0,
+      firstActivity: 0,
+      follows: 0,
+      likes: 0,
+      comments: 0,
+      shares: 0,
+      coins: 0,
+      subEmote: 0,
+      fanEmote: 0
+    },
+    sessionUserMetrics: {
+      join: new Map(),
+      firstActivity: new Map(),
+      follows: new Map(),
+      likes: new Map(),
+      comments: new Map(),
+      shares: new Map(),
+      coins: new Map(),
+    subEmote: new Map(),
+    fanEmote: new Map()
   },
-  sessionUserMetrics: {
-    follows: new Map(),
-    likes: new Map(),
-    shares: new Map(),
-    coins: new Map()
+  sessionGiftMetrics: {
+    total: new Map(),
+    byUser: new Map()
+  },
+  sessionEmoteMetrics: {
+    subEmote: {
+      total: new Map(),
+      byUser: new Map()
+    },
+    fanEmote: {
+      total: new Map(),
+      byUser: new Map()
+    }
   },
   sessionUserProfiles: new Map(),
   triggeredCustomRuleIds: new Set(),
   statState: {
-    gifts: 0,
-    followers: 0,
-    chatTimestamps: []
-  }
+      viewerCount: null,
+      gifts: 0,
+      followers: 0,
+      chatTimestamps: []
+    }
 };
 
 let toastTimer = null;
 let saveSettingsTimer = null;
 let pendingSettingsSavePromise = Promise.resolve();
+let activeVoteCloseTimer = null;
+let activeVoteRevealTimer = null;
+let activeVoteClearTimer = null;
 let headerEventsWired = false;
 let authEventsWired = false;
 let chatToolbarEventsWired = false;
 let tabEventsWired = false;
+let overlayDesignerEventsWired = false;
 const playbackQueues = new Map();
 let nextPlaybackQueueItemId = 1;
 
@@ -339,11 +1305,29 @@ function createDefaultSettings() {
         myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
         listcommands: "{user}, available chat commands: {commandList}"
       },
-      ttsUserVoiceAssignments: {
-        builtin: {},
-        elevenlabs: {}
-      },
+    votingEnabled: false,
+    votingStartRole: "everyone",
+    votingOverlayOrientation: "horizontal",
+    viewerStatsOverlayFilter: "everyone",
+    viewerStatsOverlayUsername: "",
+    ttsUserVoiceAssignments: {
+      builtin: {},
+      elevenlabs: {}
+    },
     userNotes: {},
+    knownTikTokGifts: [],
+    knownTikTokEmotes: [],
+    tiktokSessionId: "",
+    tiktokTargetIdc: "",
+    overlayDesignerTemplates: createBuiltInOverlayDesignerTemplates(),
+    activeOverlayDesignerTemplateId: "builtin-overlay-template-1",
+    overlayDesignerAssignments: normalizeOverlayDesignerAssignments(),
+    cardCollapseState: {},
+    dashboardCardVisibility: {
+      welcome: true,
+      "incoming-chat": true
+    },
+    mainScreenPinnedCards: {},
     customEventRules: []
   };
 }
@@ -353,15 +1337,11 @@ const AUTH_SESSION_MONITOR_MS = 10000;
 
 function ensureSettingsShape(source = {}) {
   const defaults = createDefaultSettings();
-  const normalizedProfiles = normalizeSettingsProfiles(source?.settingsProfiles, {
-    ...defaults,
-    ...source
-  });
-  const requestedProfileId = String(source?.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
-  const activeSettingsProfileId = normalizedProfiles[requestedProfileId]
-    ? requestedProfileId
-    : Object.keys(normalizedProfiles)[0] ?? DEFAULT_SETTINGS_PROFILE_ID;
-  const activeProfileSettings = normalizedProfiles[activeSettingsProfileId]?.settings ?? createDefaultProfileSettings();
+  const {
+    normalizedProfiles,
+    activeSettingsProfileId,
+    activeProfileSettings
+  } = resolveActiveProfileState(source);
 
   return {
     ...defaults,
@@ -371,6 +1351,7 @@ function ensureSettingsShape(source = {}) {
     settingsProfiles: normalizedProfiles,
     rememberedUsernames: normalizeRememberedUsernames([activeProfileSettings?.rememberedUsername, ...(activeProfileSettings?.rememberedUsernames ?? [])]),
     userNotes: normalizeUserNotes(activeProfileSettings?.userNotes),
+    knownTikTokEmotes: normalizeKnownTikTokEmotes(activeProfileSettings?.knownTikTokEmotes),
     ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(activeProfileSettings?.ttsUserVoiceAssignments),
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(activeProfileSettings?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
     commandFeedbackTemplates: {
@@ -391,6 +1372,17 @@ function getAuthApiBaseUrl() {
   return String(state.settings?.authApiBaseUrl || "https://streamsyncpro.co.uk").replace(/\/+$/, "");
 }
 
+function isAuthServiceUnavailableError(error) {
+  const message = String(error?.message || "").trim().toLowerCase();
+  return (
+    message.includes("unable to reach the stream sync pro sign-in service")
+    || message.includes("failed to fetch")
+    || message.includes("networkerror")
+    || message.includes("load failed")
+    || message.includes("offline")
+  );
+}
+
 function normalizeRule(rule, index = 0) {
   if (!rule) {
     return null;
@@ -400,15 +1392,25 @@ function normalizeRule(rule, index = 0) {
     id: String(rule.id ?? `rule-${Date.now()}-${index}`),
     enabled: rule.enabled !== false,
     name: String(rule.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
-    metric: ["follows", "likes", "shares", "coins"].includes(rule.metric) ? rule.metric : "follows",
+    metric: ["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule.metric) ? rule.metric : "follows",
     threshold: Math.max(1, Number(rule.threshold) || 1),
     queueId: normalizeQueueId(rule.queueId, 1),
     soundId: String(rule.soundId ?? "").trim(),
     webhookUrl: String(rule.webhookUrl ?? "").trim(),
+    userCooldownSeconds: Math.max(0, Number(rule.userCooldownSeconds) || 0),
     triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser"].includes(rule.triggerAudience)
       ? rule.triggerAudience
       : "everyone",
-    triggerUsername: String(rule.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase()
+    triggerUsername: String(rule.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase(),
+    triggerEmoteId: String(rule.triggerEmoteId ?? "").trim(),
+    triggerEmoteName: String(rule.triggerEmoteName ?? "").trim(),
+    triggerEmoteImageUrl: String(rule.triggerEmoteImageUrl ?? "").trim(),
+    triggerGiftName: String(rule.triggerGiftName ?? "").trim(),
+    triggerGiftImageUrl: String(rule.triggerGiftImageUrl ?? "").trim(),
+    feedbackOverlayEnabled: Boolean(rule.feedbackOverlayEnabled),
+    feedbackOverlayTitle: String(rule.feedbackOverlayTitle ?? "").trim(),
+    feedbackOverlayMessage: String(rule.feedbackOverlayMessage ?? "").trim(),
+    feedbackOverlayAccentColor: normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor)
   };
 }
 
@@ -422,9 +1424,29 @@ function createDraftRule() {
     queueId: 1,
     soundId: "",
     webhookUrl: "",
+    userCooldownSeconds: 0,
     triggerAudience: "everyone",
-    triggerUsername: ""
+    triggerUsername: "",
+    triggerEmoteId: "",
+    triggerEmoteName: "",
+    triggerEmoteImageUrl: "",
+    triggerGiftName: "",
+    triggerGiftImageUrl: "",
+    feedbackOverlayEnabled: false,
+    feedbackOverlayTitle: "Viewer Feedback",
+    feedbackOverlayMessage: "",
+    feedbackOverlayAccentColor: "#53dcff"
   };
+}
+
+function createDuplicateRule(sourceRule) {
+  const baseRule = normalizeRule(sourceRule) ?? createDraftRule();
+  return normalizeRule({
+    ...baseRule,
+    id: `rule-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    name: `${baseRule.name} copy`,
+    enabled: false
+  });
 }
 
 function normalizeQueueId(value, fallback = 1) {
@@ -527,6 +1549,22 @@ function getSelectedQueueOverlayUrl() {
   return overlayUrl.toString();
 }
 
+function getChatOverlayUrl() {
+  return state.chatOverlayBaseUrl || "";
+}
+
+function getGiftOverlayUrl() {
+  return state.giftOverlayBaseUrl || "";
+}
+
+function getLikesOverlayUrl() {
+  return state.likesOverlayBaseUrl || "";
+}
+
+function getViewerStatsOverlayUrl() {
+  return state.viewerStatsOverlayBaseUrl || "";
+}
+
 function updateQueueOverlayControls(info = {}) {
   if (info?.url) {
     state.queueOverlayBaseUrl = String(info.url).trim();
@@ -553,27 +1591,986 @@ function updateQueueOverlayControls(info = {}) {
   );
 }
 
-async function loadQueueOverlayInfo() {
+function updateChatOverlayControls(info = {}) {
+  if (info?.url) {
+    state.chatOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getChatOverlayUrl();
+  chatOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  chatOverlayCopyButton.disabled = overlayUrl === "";
+  chatOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    chatOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? "Chat overlay hosted URL ready. Use this in TikTok or OBS."
+      : "Chat overlay is unavailable right now."
+  );
+}
+
+function updateGiftOverlayControls(info = {}) {
+  if (info?.url) {
+    state.giftOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getGiftOverlayUrl();
+  giftOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  giftOverlayCopyButton.disabled = overlayUrl === "";
+  giftOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    giftOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? "Gift overlay hosted URL ready. Use this in TikTok or OBS."
+      : "Gift overlay is unavailable right now."
+  );
+}
+
+function updateLikesOverlayControls(info = {}) {
+  if (info?.url) {
+    state.likesOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getLikesOverlayUrl();
+  likesOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  likesOverlayCopyButton.disabled = overlayUrl === "";
+  likesOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    likesOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? "Like leaderboard hosted URL ready. Use this in TikTok or OBS."
+        : "Like leaderboard overlay is unavailable right now."
+    );
+}
+
+function updateViewerStatsOverlayControls(info = {}) {
+  if (info?.url) {
+    state.viewerStatsOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getViewerStatsOverlayUrl();
+  viewerStatsOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  viewerStatsOverlayCopyButton.disabled = overlayUrl === "";
+  viewerStatsOverlayOpenButton.disabled = overlayUrl === "";
+  const activeElement = document.activeElement;
+  if (viewerStatsOverlayFilterInput && activeElement !== viewerStatsOverlayFilterInput) {
+    viewerStatsOverlayFilterInput.value = getViewerStatsAudienceFilter();
+  }
+  if (viewerStatsOverlayUsernameInput && activeElement !== viewerStatsOverlayUsernameInput) {
+    viewerStatsOverlayUsernameInput.value = String(state.settings?.viewerStatsOverlayUsername ?? "").trim();
+  }
+  setStatusMessage(
+    viewerStatsOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? `Viewer stats overlay hosted URL ready. Filter: ${state.settings?.viewerStatsOverlayFilter || "everyone"}.`
+      : "Viewer stats overlay is unavailable right now."
+  );
+}
+
+function getVoteOverlayUrl() {
+  return state.voteOverlayBaseUrl || "";
+}
+
+function updateVoteOverlayControls(info = {}) {
+  if (info?.url) {
+    state.voteOverlayBaseUrl = String(info.url).trim();
+  }
+
+  const overlayUrl = getVoteOverlayUrl();
+  voteOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  voteOverlayCopyButton.disabled = overlayUrl === "";
+  voteOverlayOpenButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    voteOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? `Voting overlay hosted URL ready. Layout: ${state.settings?.votingOverlayOrientation === "vertical" ? "vertical" : "horizontal"} spin bar.`
+      : "Voting overlay is unavailable right now."
+  );
+}
+
+async function loadOverlayInfoBundle() {
   if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
     state.queueOverlayBaseUrl = "";
+    state.chatOverlayBaseUrl = "";
+    state.giftOverlayBaseUrl = "";
+    state.likesOverlayBaseUrl = "";
+    state.viewerStatsOverlayBaseUrl = "";
+    state.voteOverlayBaseUrl = "";
+    state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Sign in to generate hosted overlay";
     queueOverlayCopyButton.disabled = true;
     queueOverlayOpenButton.disabled = true;
     setStatusMessage(queueOverlayStatus, "info", "Sign in to generate a hosted queue overlay URL for this user.");
+    commandFeedbackOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    commandFeedbackOverlayCopyButton.disabled = true;
+    commandFeedbackOverlayOpenButton.disabled = true;
+    setStatusMessage(commandFeedbackStatus, "info", "Sign in to generate a hosted command feedback overlay URL for this user.");
+    chatOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    chatOverlayCopyButton.disabled = true;
+    chatOverlayOpenButton.disabled = true;
+    setStatusMessage(chatOverlayStatus, "info", "Sign in to generate a hosted chat overlay URL for this user.");
+    giftOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    giftOverlayCopyButton.disabled = true;
+    giftOverlayOpenButton.disabled = true;
+    setStatusMessage(giftOverlayStatus, "info", "Sign in to generate a hosted gift overlay URL for this user.");
+    likesOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    likesOverlayCopyButton.disabled = true;
+    likesOverlayOpenButton.disabled = true;
+    setStatusMessage(likesOverlayStatus, "info", "Sign in to generate a hosted like leaderboard overlay URL for this user.");
+    viewerStatsOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    viewerStatsOverlayCopyButton.disabled = true;
+    viewerStatsOverlayOpenButton.disabled = true;
+    setStatusMessage(viewerStatsOverlayStatus, "info", "Sign in to generate a hosted viewer stats overlay URL for this user.");
+    voteOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    voteOverlayCopyButton.disabled = true;
+    voteOverlayOpenButton.disabled = true;
+    setStatusMessage(voteOverlayStatus, "info", "Sign in to generate a hosted voting overlay URL for this user.");
     return;
   }
 
   try {
-    const info = await authRequest("/api/auth/create-queue-overlay-session", {
+    const info = await authRequest("/api/auth/create-overlay-sessions", {
       userId: state.authenticatedUser.id,
       sessionToken: state.authenticatedUser.sessionToken
     });
-    updateQueueOverlayControls(info);
+    updateQueueOverlayControls({ url: info.queueUrl });
+    updateCommandFeedbackOverlayControls({ url: info.commandFeedbackUrl });
+    updateChatOverlayControls({ url: info.chatUrl });
+    updateGiftOverlayControls({ url: info.giftUrl });
+    updateLikesOverlayControls({ url: info.likesUrl });
+    updateViewerStatsOverlayControls({ url: info.viewerStatsUrl });
+    updateVoteOverlayControls({ url: info.voteUrl });
   } catch (error) {
+    state.queueOverlayBaseUrl = "";
+    state.chatOverlayBaseUrl = "";
+    state.giftOverlayBaseUrl = "";
+    state.likesOverlayBaseUrl = "";
+    state.viewerStatsOverlayBaseUrl = "";
+    state.voteOverlayBaseUrl = "";
+    state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Overlay unavailable";
     queueOverlayCopyButton.disabled = true;
     queueOverlayOpenButton.disabled = true;
-    setStatusMessage(queueOverlayStatus, "error", error.message || "Unable to load the queue overlay URL.");
+    setStatusMessage(queueOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    commandFeedbackOverlayUrlInput.value = "Overlay unavailable";
+    commandFeedbackOverlayCopyButton.disabled = true;
+    commandFeedbackOverlayOpenButton.disabled = true;
+    setStatusMessage(commandFeedbackStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    chatOverlayUrlInput.value = "Overlay unavailable";
+    chatOverlayCopyButton.disabled = true;
+    chatOverlayOpenButton.disabled = true;
+    setStatusMessage(chatOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    giftOverlayUrlInput.value = "Overlay unavailable";
+    giftOverlayCopyButton.disabled = true;
+    giftOverlayOpenButton.disabled = true;
+    setStatusMessage(giftOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    likesOverlayUrlInput.value = "Overlay unavailable";
+    likesOverlayCopyButton.disabled = true;
+    likesOverlayOpenButton.disabled = true;
+    setStatusMessage(likesOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    viewerStatsOverlayUrlInput.value = "Overlay unavailable";
+    viewerStatsOverlayCopyButton.disabled = true;
+    viewerStatsOverlayOpenButton.disabled = true;
+    setStatusMessage(viewerStatsOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    voteOverlayUrlInput.value = "Overlay unavailable";
+    voteOverlayCopyButton.disabled = true;
+    voteOverlayOpenButton.disabled = true;
+    setStatusMessage(voteOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+  }
+}
+
+function getOverlayDesignerTemplates() {
+  return normalizeOverlayDesignerTemplates(state.settings?.overlayDesignerTemplates);
+}
+
+function getActiveOverlayDesignerTemplateId() {
+  const templates = getOverlayDesignerTemplates();
+  const requestedId = String(state.settings?.activeOverlayDesignerTemplateId ?? "").trim();
+  return templates.some((template) => template.id === requestedId)
+    ? requestedId
+    : templates[0]?.id ?? "";
+}
+
+function getActiveOverlayDesignerTemplate() {
+  const templates = getOverlayDesignerTemplates();
+  const activeTemplateId = getActiveOverlayDesignerTemplateId();
+  return templates.find((template) => template.id === activeTemplateId) ?? templates[0] ?? null;
+}
+
+function getSelectedOverlayDesignerElement() {
+  const template = getActiveOverlayDesignerTemplate();
+  if (!template) {
+    return null;
+  }
+  return template.elements.find((element) => element.id === state.overlayDesignerSelectedElementId) ?? null;
+}
+
+function getOverlayDesignerAssignedTemplateId(overlayKey) {
+  const assignments = normalizeOverlayDesignerAssignments(state.settings?.overlayDesignerAssignments);
+  const requestedId = String(assignments?.[overlayKey] ?? "").trim();
+  const templates = getOverlayDesignerTemplates();
+  return templates.some((template) => template.id === requestedId) ? requestedId : "";
+}
+
+function getOverlayDesignerAssignedTemplate(overlayKey) {
+  const templateId = getOverlayDesignerAssignedTemplateId(overlayKey);
+  if (!templateId) {
+    return null;
+  }
+  return getOverlayDesignerTemplates().find((template) => template.id === templateId) ?? null;
+}
+
+function getOverlayDesignerPreviewUrl() {
+  const baseUrl = String(state.overlayDesignerBaseUrl ?? "").trim();
+  const activeTemplateId = getActiveOverlayDesignerTemplateId();
+  if (!baseUrl || !activeTemplateId) {
+    return "";
+  }
+
+  try {
+    const requestUrl = new URL(baseUrl);
+    requestUrl.searchParams.set("template", activeTemplateId);
+    return requestUrl.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+function createOverlayDesignerRuntimeState() {
+  const latestChatMessage = state.chatOverlayItems[0] ?? null;
+  const latestGift = state.giftOverlayItems[0] ?? null;
+  const latestFeedback = {
+    title: "Viewer Feedback",
+    message: String(commandFeedbackStatus?.textContent ?? "").trim()
+  };
+
+  return {
+    connected: state.connected,
+    username: state.username,
+    viewerCount: String(statViewers?.textContent ?? "").trim(),
+    queueCount: state.playbackQueueItems.length,
+    chatMessage: latestChatMessage
+      ? {
+          username: latestChatMessage.username,
+          nickname: latestChatMessage.nickname,
+          message: latestChatMessage.message
+        }
+      : null,
+    ttsNotification: latestFeedback,
+    alert: latestGift
+      ? {
+          username: latestGift.username,
+          giftSent: latestGift.giftName,
+          totalCoins: latestGift.totalCoins
+        }
+      : null,
+    counters: {
+      follows: Number(state.sessionMetrics.follows ?? 0),
+      likes: Number(state.sessionMetrics.likes ?? 0),
+      comments: Number(state.sessionMetrics.comments ?? 0),
+      gifts: Number(state.statState.gifts ?? 0),
+      shares: Number(state.sessionMetrics.shares ?? 0),
+      coins: Number(state.sessionMetrics.coins ?? 0),
+      subEmote: Number(state.sessionMetrics.subEmote ?? 0),
+      fanEmote: Number(state.sessionMetrics.fanEmote ?? 0)
+    },
+    activeVote: buildVoteOverlayState(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function createOverlayDesignerTestRuntimeState() {
+  return {
+    connected: true,
+    username: state.username || "streamsyncpro",
+    viewerCount: "248",
+    queueCount: 5,
+    chatMessage: {
+      username: "viewer123",
+      nickname: "Viewer123",
+      message: "This overlay looks great!"
+    },
+    ttsNotification: {
+      title: "Viewer Feedback",
+      message: "viewer123 selected a custom TTS voice."
+    },
+    alert: {
+      username: "gifterqueen",
+      giftSent: "Rose x5",
+      totalCoins: 5
+    },
+    counters: {
+      follows: 12,
+      likes: 248,
+      comments: 64,
+      gifts: 18,
+      shares: 9,
+      coins: 1337,
+      subEmote: 7,
+      fanEmote: 11
+    },
+    activeVote: {
+      active: true,
+      phase: "result",
+      orientation: state.settings?.votingOverlayOrientation === "vertical" ? "vertical" : "horizontal",
+      question: "What should we stream next?",
+      countdownSeconds: 10,
+      countdownEndsAt: new Date(Date.now() + 10_000).toISOString(),
+      instructions: "Type !vote [number] in chat to vote.",
+      totalVotes: 7,
+      startedBy: "test-mode",
+      winningOptionIndex: 0,
+      winningOptionLabel: "Minecraft",
+      spinEndsAt: new Date(Date.now()).toISOString(),
+      resultVisibleUntil: new Date(Date.now() + 15_000).toISOString(),
+      options: [
+        { index: 1, label: "Minecraft", votes: 3, percent: 43 },
+        { index: 2, label: "Fortnite", votes: 1, percent: 14 },
+        { index: 3, label: "Roblox", votes: 2, percent: 29 },
+        { index: 4, label: "Just Chatting", votes: 1, percent: 14 }
+      ]
+    },
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function buildOverlayDesignerTemplateForState(overlayKey) {
+  const template = getOverlayDesignerAssignedTemplate(overlayKey);
+  return template ? JSON.parse(JSON.stringify(template)) : null;
+}
+
+function syncOverlayDesignerRuntimeState() {
+  if (!state.overlayDesignerBaseUrl) {
+    return;
+  }
+
+  void app.updateOverlayDesignerState({
+    activeTemplateId: getActiveOverlayDesignerTemplateId(),
+    templates: getOverlayDesignerTemplates(),
+    runtime: createOverlayDesignerRuntimeState()
+  }).catch(() => {
+    // Keep editor local-first even if the preview server has a temporary problem.
+  });
+}
+
+function applyOverlayDesignerSettings(partial, options = {}) {
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    ...partial
+  });
+
+  const activeTemplate = getActiveOverlayDesignerTemplate();
+  if (!activeTemplate) {
+    state.overlayDesignerSelectedElementId = "";
+  } else if (!activeTemplate.elements.some((element) => element.id === state.overlayDesignerSelectedElementId)) {
+    state.overlayDesignerSelectedElementId = activeTemplate.elements[0]?.id ?? "";
+  }
+
+  renderOverlayDesignerControls();
+  if (overlayDesignerModal && !overlayDesignerModal.hidden) {
+    renderOverlayDesignerModal();
+  }
+  syncOverlayDesignerRuntimeState();
+
+  if (options.persist === "immediate") {
+    void persistSettings(partial).catch((error) => {
+      showToast(error.message || "Unable to save overlay designer settings.", "error");
+    });
+  } else if (options.persist === "schedule") {
+    scheduleSettingsSave();
+  }
+}
+
+function snapshotOverlayDesignerHistory() {
+  return JSON.stringify({
+    templates: getOverlayDesignerTemplates(),
+    activeTemplateId: getActiveOverlayDesignerTemplateId()
+  });
+}
+
+function pushOverlayDesignerHistory() {
+  state.overlayDesignerHistoryUndo.push(snapshotOverlayDesignerHistory());
+  if (state.overlayDesignerHistoryUndo.length > 40) {
+    state.overlayDesignerHistoryUndo.shift();
+  }
+  state.overlayDesignerHistoryRedo = [];
+}
+
+function restoreOverlayDesignerHistory(serializedSnapshot, direction = "undo") {
+  if (!serializedSnapshot) {
+    return;
+  }
+
+  try {
+    const snapshot = JSON.parse(serializedSnapshot);
+    applyOverlayDesignerSettings({
+      overlayDesignerTemplates: normalizeOverlayDesignerTemplates(snapshot?.templates),
+      activeOverlayDesignerTemplateId: String(snapshot?.activeTemplateId ?? "").trim()
+    }, { persist: "schedule" });
+  } catch (error) {
+    showToast(error.message || `Unable to ${direction} the overlay designer change.`, "error");
+  }
+}
+
+function selectOverlayDesignerElement(elementId = "") {
+  state.overlayDesignerSelectedElementId = String(elementId ?? "").trim();
+  if (overlayDesignerModal && !overlayDesignerModal.hidden) {
+    renderOverlayDesignerModal();
+  }
+}
+
+function updateActiveOverlayDesignerTemplate(mutator, options = {}) {
+  const templates = getOverlayDesignerTemplates();
+  const activeTemplateId = getActiveOverlayDesignerTemplateId();
+  const templateIndex = templates.findIndex((template) => template.id === activeTemplateId);
+  if (templateIndex === -1) {
+    return;
+  }
+
+  pushOverlayDesignerHistory();
+  const nextTemplates = templates.map((template, index) => {
+    if (index !== templateIndex) {
+      return template;
+    }
+    const updatedTemplate = mutator({
+      ...template,
+      elements: template.elements.map((element) => ({ ...element }))
+    });
+    return {
+      ...updatedTemplate,
+      elements: updatedTemplate.elements
+        .map((element, elementIndex) => normalizeOverlayDesignerElement({
+          ...element,
+          zIndex: elementIndex + 1
+        }, elementIndex))
+        .sort((left, right) => left.zIndex - right.zIndex)
+        .map((element, elementIndex) => ({ ...element, zIndex: elementIndex + 1 }))
+    };
+  });
+
+  applyOverlayDesignerSettings({
+    overlayDesignerTemplates: nextTemplates,
+    activeOverlayDesignerTemplateId: activeTemplateId
+  }, { persist: options.persist ?? "schedule" });
+}
+
+function updateSelectedOverlayDesignerElement(mutator, options = {}) {
+  const selectedElement = getSelectedOverlayDesignerElement();
+  if (!selectedElement) {
+    return;
+  }
+
+  updateActiveOverlayDesignerTemplate((template) => ({
+    ...template,
+    elements: template.elements.map((element) => element.id === selectedElement.id
+      ? normalizeOverlayDesignerElement(mutator({ ...element }), element.zIndex - 1)
+      : { ...element })
+  }), options);
+}
+
+function addOverlayDesignerElement(type) {
+  const template = getActiveOverlayDesignerTemplate();
+  if (!template) {
+    return;
+  }
+
+  const element = normalizeOverlayDesignerElement({
+    ...createOverlayDesignerElement(type),
+    x: 60 + (template.elements.length % 6) * 28,
+    y: 60 + (template.elements.length % 6) * 28,
+    zIndex: template.elements.length + 1
+  }, template.elements.length);
+
+  updateActiveOverlayDesignerTemplate((currentTemplate) => ({
+    ...currentTemplate,
+    elements: [...currentTemplate.elements, element]
+  }));
+  state.overlayDesignerSelectedElementId = element.id;
+  renderOverlayDesignerModal();
+}
+
+function duplicateSelectedOverlayDesignerElement() {
+  const selectedElement = getSelectedOverlayDesignerElement();
+  if (!selectedElement) {
+    return;
+  }
+
+  const duplicatedElement = normalizeOverlayDesignerElement({
+    ...selectedElement,
+    id: createOverlayDesignerId("overlay-element"),
+    name: `${selectedElement.name} Copy`,
+    x: selectedElement.x + 24,
+    y: selectedElement.y + 24
+  });
+
+  updateActiveOverlayDesignerTemplate((template) => ({
+    ...template,
+    elements: [...template.elements, duplicatedElement]
+  }));
+  state.overlayDesignerSelectedElementId = duplicatedElement.id;
+  renderOverlayDesignerModal();
+}
+
+function deleteSelectedOverlayDesignerElement() {
+  const selectedElement = getSelectedOverlayDesignerElement();
+  if (!selectedElement) {
+    return;
+  }
+
+  updateActiveOverlayDesignerTemplate((template) => ({
+    ...template,
+    elements: template.elements.filter((element) => element.id !== selectedElement.id)
+  }));
+  state.overlayDesignerSelectedElementId = getActiveOverlayDesignerTemplate()?.elements[0]?.id ?? "";
+  renderOverlayDesignerModal();
+}
+
+function moveOverlayDesignerElementLayer(elementId, direction) {
+  updateActiveOverlayDesignerTemplate((template) => {
+    const items = [...template.elements];
+    const index = items.findIndex((element) => element.id === elementId);
+    if (index === -1) {
+      return template;
+    }
+
+    const targetIndex = direction === "up"
+      ? Math.min(items.length - 1, index + 1)
+      : Math.max(0, index - 1);
+
+    if (targetIndex === index) {
+      return template;
+    }
+
+    const [item] = items.splice(index, 1);
+    items.splice(targetIndex, 0, item);
+    return { ...template, elements: items };
+  });
+}
+
+function applyOverlayDesignerSnap(value) {
+  return state.overlayDesignerSnapGrid ? Math.round(value / OVERLAY_DESIGNER_GRID_SIZE) * OVERLAY_DESIGNER_GRID_SIZE : value;
+}
+
+function formatOverlayDesignerRuntimeText(templateText) {
+  const runtime = createOverlayDesignerRuntimeState();
+  const latestChat = runtime.chatMessage ?? {};
+  const latestAlert = runtime.alert ?? {};
+  const vote = runtime.activeVote ?? {};
+  const firstVoteOption = Array.isArray(vote.options) ? vote.options[0]?.label ?? "" : "";
+
+  return String(templateText ?? "")
+    .replace(/\{username\}/gi, runtime.username || latestChat.username || latestAlert.username || "viewer")
+    .replace(/\{message\}/gi, latestChat.message || "Waiting for chat")
+    .replace(/\{giftsent\}/gi, latestAlert.giftSent || "gift")
+    .replace(/\{gift sent\}/gi, latestAlert.giftSent || "gift")
+    .replace(/\{likes\}/gi, String(runtime.counters?.likes ?? 0))
+    .replace(/\{follows\}/gi, String(runtime.counters?.follows ?? 0))
+    .replace(/\{shares\}/gi, String(runtime.counters?.shares ?? 0))
+    .replace(/\{coins\}/gi, String(runtime.counters?.coins ?? 0))
+    .replace(/\{viewercount\}/gi, runtime.viewerCount || "--")
+    .replace(/\{viewer count\}/gi, runtime.viewerCount || "--")
+    .replace(/\{firstvoteoption\}/gi, firstVoteOption)
+    .replace(/\{first vote option\}/gi, firstVoteOption);
+}
+
+function buildOverlayDesignerElementPreviewMarkup(element) {
+  const content = formatOverlayDesignerRuntimeText(element.content);
+
+  switch (element.type) {
+    case "progressBar":
+      return `<div class="overlay-element-progress"><span>${escapeHtml(content || "Progress")}</span><div class="overlay-element-progress-bar"><span style="width:68%"></span></div></div>`;
+    case "image":
+      return element.source
+        ? `<img class="overlay-element-media" src="${escapeHtml(element.source)}" alt="${escapeHtml(element.name)}" />`
+        : `<div class="overlay-element-html">Image source</div>`;
+    case "video":
+      return element.source
+        ? `<video class="overlay-element-video" src="${escapeHtml(element.source)}" muted autoplay loop playsinline></video>`
+        : `<div class="overlay-element-html">Video source</div>`;
+    case "customHtml":
+      return `<div class="overlay-element-html">${element.content || "<div>Custom HTML widget</div>"}</div>`;
+    case "votingWidget": {
+      const voteState = buildVoteOverlayState();
+      const isVisible = Boolean(voteState.active) && Array.isArray(voteState.options) && voteState.options.length > 0 && String(voteState.phase ?? "") !== "idle";
+      if (!isVisible) {
+        return "";
+      }
+
+      const options = Array.isArray(voteState.options) ? voteState.options.slice(0, 4) : [];
+      return `
+        <div class="overlay-element-html">
+          <strong>${escapeHtml(voteState.question || "Vote")}</strong>
+          <div>${options.map((option) => `<div>${option.index}. ${escapeHtml(option.label)}</div>`).join("")}</div>
+        </div>
+      `;
+    }
+    default:
+      return `<div class="overlay-element-text">${escapeHtml(content || element.name)}</div>`;
+  }
+}
+
+function renderOverlayDesignerLayerList(template) {
+  const elements = [...template.elements].sort((left, right) => right.zIndex - left.zIndex);
+  overlayDesignerLayerList.innerHTML = elements.length
+    ? elements.map((element) => `
+        <button type="button" class="overlay-layer-row ${state.overlayDesignerSelectedElementId === element.id ? "active" : ""}" data-overlay-layer-select="${escapeHtml(element.id)}">
+          <span>${escapeHtml(element.name)}</span>
+          <span class="overlay-layer-actions">
+            <span data-overlay-layer-toggle-visible="${escapeHtml(element.id)}">${element.visible ? "Hide" : "Show"}</span>
+            <span data-overlay-layer-toggle-lock="${escapeHtml(element.id)}">${element.locked ? "Unlock" : "Lock"}</span>
+            <span data-overlay-layer-move="${escapeHtml(element.id)}" data-overlay-layer-direction="up">Up</span>
+            <span data-overlay-layer-move="${escapeHtml(element.id)}" data-overlay-layer-direction="down">Down</span>
+            <span data-overlay-layer-duplicate="${escapeHtml(element.id)}">Copy</span>
+            <span data-overlay-layer-delete="${escapeHtml(element.id)}">Delete</span>
+          </span>
+        </button>
+      `).join("")
+    : `<div class="status info">No elements yet. Add one from the left panel.</div>`;
+}
+
+function updateOverlayDesignerElementPropertyVisibility(selectedElement) {
+  const isVotingWidget = Boolean(selectedElement && selectedElement.type === "votingWidget");
+  overlayVotingWidgetStyleFields?.classList.toggle("is-hidden", !isVotingWidget);
+}
+
+function renderOverlayDesignerStage() {
+  const template = getActiveOverlayDesignerTemplate();
+  if (!template) {
+    overlayDesignerStage.innerHTML = "";
+    return;
+  }
+
+  overlayDesignerStage.style.width = `${template.width}px`;
+  overlayDesignerStage.style.height = `${template.height}px`;
+  overlayDesignerStage.style.backgroundColor = template.backgroundColor;
+  overlayDesignerStage.style.backgroundImage = template.backgroundImage
+    ? `linear-gradient(rgba(8,17,31,${1 - template.backgroundOpacity}), rgba(8,17,31,${1 - template.backgroundOpacity})), url("${template.backgroundImage.replace(/"/g, "%22")}")`
+    : "none";
+  overlayDesignerStage.style.backgroundSize = template.backgroundImage ? "cover" : "auto";
+  overlayDesignerStage.classList.toggle("grid-on", state.overlayDesignerShowGrid);
+  overlayDesignerStage.classList.toggle("light-theme", state.overlayDesignerLightTheme);
+  overlayDesignerStage.style.transform = `scale(${state.overlayDesignerZoom})`;
+  overlayDesignerStage.innerHTML = "";
+
+  if (state.overlayDesignerShowSafezone) {
+    const safezone = document.createElement("div");
+    safezone.className = "overlay-designer-safezone";
+    overlayDesignerStage.appendChild(safezone);
+  }
+
+  for (const element of template.elements) {
+    const node = document.createElement("div");
+    node.className = "overlay-designer-element";
+    if (state.overlayDesignerSelectedElementId === element.id) {
+      node.classList.add("selected");
+    }
+    if (element.locked) {
+      node.classList.add("locked");
+    }
+    if (!element.visible) {
+      node.style.display = "none";
+    }
+
+    node.dataset.overlayElementId = element.id;
+    node.dataset.overlayElementType = element.type;
+    const isVotingWidget = element.type === "votingWidget";
+    node.style.left = `${element.x}px`;
+    node.style.top = `${element.y}px`;
+    node.style.width = element.autoWidth ? "max-content" : `${element.width}px`;
+    node.style.height = element.autoHeight ? "max-content" : `${element.height}px`;
+    node.style.minWidth = element.autoWidth ? `${OVERLAY_DESIGNER_MIN_SIZE}px` : "";
+    node.style.minHeight = element.autoHeight ? `${OVERLAY_DESIGNER_MIN_SIZE}px` : "";
+    node.style.zIndex = String(element.zIndex);
+    node.style.opacity = String(element.opacity);
+    node.style.transform = `rotate(${element.rotation}deg)`;
+    node.style.borderRadius = isVotingWidget ? "0" : `${element.borderRadius}px`;
+    node.style.border = isVotingWidget ? "0" : `${element.borderWidth}px solid ${element.borderColor}`;
+    node.style.color = element.color;
+    node.style.backgroundColor = isVotingWidget ? "transparent" : `rgba(${Number.parseInt(element.backgroundColor.slice(1, 3), 16)}, ${Number.parseInt(element.backgroundColor.slice(3, 5), 16)}, ${Number.parseInt(element.backgroundColor.slice(5, 7), 16)}, ${element.backgroundOpacity})`;
+    node.style.boxShadow = isVotingWidget ? "none" : `0 0 ${Math.max(6, element.blur * 2)}px ${element.glowColor}`;
+    node.style.backdropFilter = isVotingWidget ? "" : (element.blur > 0 ? `blur(${element.blur}px)` : "");
+    node.style.overflow = isVotingWidget ? "visible" : "hidden";
+    node.style.fontFamily = element.fontFamily;
+    node.style.fontSize = `${element.fontSize}px`;
+    node.style.fontWeight = String(element.fontWeight);
+    node.style.letterSpacing = `${element.letterSpacing}px`;
+
+    if (element.animation && element.animation !== "none") {
+      node.classList.add(`overlay-anim-${element.animation}`);
+    }
+
+    node.innerHTML = `
+      <div class="overlay-designer-element-box" style="width:${element.autoWidth ? "max-content" : "100%"};height:${element.autoHeight ? "max-content" : "100%"};max-width:${element.autoWidth ? "none" : "100%"};">${buildOverlayDesignerElementPreviewMarkup(element)}</div>
+      <div class="overlay-designer-rotate-handle" data-overlay-handle="rotate" title="Rotate"></div>
+      <div class="overlay-designer-resize-handle" data-overlay-handle="resize" title="Resize"></div>
+    `;
+    overlayDesignerStage.appendChild(node);
+  }
+}
+
+function renderOverlayDesignerInspector() {
+  const template = getActiveOverlayDesignerTemplate();
+  const selectedElement = getSelectedOverlayDesignerElement();
+
+  overlayDesignerEmptyState.hidden = Boolean(selectedElement);
+  overlayDesignerInspector.hidden = !selectedElement;
+  updateOverlayDesignerElementPropertyVisibility(selectedElement);
+
+  if (!template) {
+    return;
+  }
+
+  overlayDesignerTemplateNameInput.value = template.name;
+  overlayDesignerCanvasWidthInput.value = String(template.width);
+  overlayDesignerCanvasHeightInput.value = String(template.height);
+  overlayDesignerBackgroundColorInput.value = template.backgroundColor;
+  overlayDesignerBackgroundOpacityInput.value = String(template.backgroundOpacity);
+  overlayDesignerBackgroundImageInput.value = template.backgroundImage;
+  overlayDesignerBackgroundVideoInput.value = template.backgroundVideo;
+  overlayDesignerAutoLoadInput.value = template.autoLoad;
+
+  if (!selectedElement) {
+    return;
+  }
+
+  overlayElementNameInput.value = selectedElement.name;
+  overlayElementContentInput.value = selectedElement.content;
+  overlayElementSourceInput.value = selectedElement.source;
+  overlayElementXInput.value = String(Math.round(selectedElement.x));
+  overlayElementYInput.value = String(Math.round(selectedElement.y));
+  overlayElementWidthInput.value = String(Math.round(selectedElement.width));
+  overlayElementHeightInput.value = String(Math.round(selectedElement.height));
+  overlayElementAutoWidthInput.checked = Boolean(selectedElement.autoWidth);
+  overlayElementAutoHeightInput.checked = Boolean(selectedElement.autoHeight);
+  overlayElementWidthInput.disabled = Boolean(selectedElement.autoWidth);
+  overlayElementHeightInput.disabled = Boolean(selectedElement.autoHeight);
+  overlayElementRotationInput.value = String(Math.round(selectedElement.rotation));
+  overlayElementOpacityInput.value = String(selectedElement.opacity);
+  overlayElementFontFamilyInput.value = selectedElement.fontFamily;
+  overlayElementFontSizeInput.value = String(selectedElement.fontSize);
+  overlayElementFontWeightInput.value = String(selectedElement.fontWeight);
+  overlayElementLetterSpacingInput.value = String(selectedElement.letterSpacing);
+  overlayElementColorInput.value = selectedElement.color;
+  overlayElementGlowColorInput.value = selectedElement.glowColor;
+  overlayElementBackgroundColorInput.value = selectedElement.backgroundColor;
+  overlayElementBackgroundOpacityInput.value = String(selectedElement.backgroundOpacity);
+  overlayElementBorderColorInput.value = selectedElement.borderColor;
+  overlayElementBorderWidthInput.value = String(selectedElement.borderWidth);
+  overlayElementBorderRadiusInput.value = String(selectedElement.borderRadius);
+  overlayElementWidgetStyleInput.value = selectedElement.widgetStyle;
+  overlayElementMutedTextColorInput.value = selectedElement.mutedTextColor;
+  overlayElementSuccessColorInput.value = selectedElement.successColor;
+  overlayElementBlurInput.value = String(selectedElement.blur);
+  overlayElementAnimationInput.value = selectedElement.animation;
+  overlayElementBindingInput.value = selectedElement.binding;
+}
+
+function renderOverlayDesignerTemplateSelects() {
+  const templates = getOverlayDesignerTemplates();
+  const activeTemplateId = getActiveOverlayDesignerTemplateId();
+  const optionsMarkup = templates
+    .map((template) => `<option value="${escapeHtml(template.id)}">${escapeHtml(template.name)}</option>`)
+    .join("");
+
+  if (overlayDesignerTemplateSelect) {
+    overlayDesignerTemplateSelect.innerHTML = optionsMarkup;
+    overlayDesignerTemplateSelect.value = activeTemplateId;
+  }
+  if (overlayDesignerModalTemplateSelect) {
+    overlayDesignerModalTemplateSelect.innerHTML = optionsMarkup;
+    overlayDesignerModalTemplateSelect.value = activeTemplateId;
+  }
+}
+
+function renderOverlayDesignerControls() {
+  renderOverlayDesignerTemplateSelects();
+  const overlayUrl = getOverlayDesignerPreviewUrl();
+  overlayDesignerUrlInput.value = overlayUrl || "Overlay unavailable";
+  overlayDesignerCopyButton.disabled = overlayUrl === "";
+  overlayDesignerPreviewButton.disabled = overlayUrl === "";
+  setStatusMessage(
+    overlayDesignerStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? "Overlay designer preview URL ready. Use this in OBS or Streamlabs as a browser source."
+      : "Overlay designer preview is unavailable right now."
+  );
+  updateOverlayDesignerAssignmentControls();
+}
+
+function populateOverlayDesignerAssignmentSelect(selectElement, overlayKey) {
+  if (!selectElement) {
+    return;
+  }
+
+  const templates = getOverlayDesignerTemplates();
+  const assignedId = getOverlayDesignerAssignedTemplateId(overlayKey);
+  selectElement.innerHTML = [
+    '<option value="">Default overlay styling</option>',
+    ...templates.map((template) => `<option value="${escapeHtml(template.id)}">${escapeHtml(template.name)}</option>`)
+  ].join("");
+  selectElement.value = assignedId;
+}
+
+function updateOverlayDesignerAssignmentControls() {
+  populateOverlayDesignerAssignmentSelect(queueOverlayTemplateSelect, "queue");
+  populateOverlayDesignerAssignmentSelect(chatOverlayTemplateSelect, "chat");
+  populateOverlayDesignerAssignmentSelect(giftOverlayTemplateSelect, "gift");
+  populateOverlayDesignerAssignmentSelect(likesOverlayTemplateSelect, "likes");
+  populateOverlayDesignerAssignmentSelect(viewerStatsOverlayTemplateSelect, "viewerStats");
+  populateOverlayDesignerAssignmentSelect(commandFeedbackOverlayTemplateSelect, "commandFeedback");
+  populateOverlayDesignerAssignmentSelect(voteOverlayTemplateSelect, "vote");
+}
+
+function setOverlayDesignerAssignment(overlayKey, templateId) {
+  const nextAssignments = {
+    ...normalizeOverlayDesignerAssignments(state.settings?.overlayDesignerAssignments),
+    [overlayKey]: String(templateId ?? "").trim()
+  };
+
+  applyOverlayDesignerSettings({
+    overlayDesignerAssignments: nextAssignments
+  }, { persist: "immediate" });
+
+  if (overlayKey === "queue") {
+    syncQueueOverlayState();
+  } else if (overlayKey === "chat") {
+    syncChatOverlayState();
+  } else if (overlayKey === "gift") {
+    syncGiftOverlayState();
+  } else if (overlayKey === "likes") {
+    syncLikesOverlayState();
+  } else if (overlayKey === "viewerStats") {
+    syncViewerStatsOverlayState();
+  } else if (overlayKey === "commandFeedback") {
+    showToast("Command feedback overlay template updated.", "success");
+  } else if (overlayKey === "vote") {
+    syncVoteOverlayState();
+  }
+}
+
+function openOverlayDesignerForAssignment(overlayKey) {
+  const assignedTemplateId = getOverlayDesignerAssignedTemplateId(overlayKey);
+  if (assignedTemplateId) {
+    applyOverlayDesignerSettings({
+      activeOverlayDesignerTemplateId: assignedTemplateId
+    }, { persist: "schedule" });
+    openOverlayDesignerModal();
+    return;
+  }
+
+  const builtInTemplateKey = getBuiltInOverlayDesignerTemplateKeyForOverlay(overlayKey);
+  if (builtInTemplateKey) {
+    const builtInTemplate = findBuiltInOverlayDesignerTemplateByKey(builtInTemplateKey);
+    if (builtInTemplate) {
+      const customTemplate = cloneOverlayDesignerTemplate(
+        builtInTemplate,
+        `${builtInTemplate.name} Custom`
+      );
+      const nextTemplates = [...getOverlayDesignerTemplates(), customTemplate];
+      applyOverlayDesignerSettings({
+        overlayDesignerTemplates: nextTemplates,
+        activeOverlayDesignerTemplateId: customTemplate.id,
+        overlayDesignerAssignments: {
+          ...normalizeOverlayDesignerAssignments(state.settings?.overlayDesignerAssignments),
+          [overlayKey]: customTemplate.id
+        }
+      }, { persist: "immediate" });
+      state.overlayDesignerSelectedElementId = customTemplate.elements[0]?.id ?? "";
+      openOverlayDesignerModal();
+      return;
+    }
+  }
+
+  const starterTemplate = createOverlayDesignerTemplate(`${overlayKey.replace(/([A-Z])/g, " $1").replace(/^./, (character) => character.toUpperCase())} Overlay`);
+  if (overlayKey === "queue") {
+    starterTemplate.elements = [createOverlayDesignerElement("text"), createOverlayDesignerElement("ttsNotification")];
+  } else if (overlayKey === "chat") {
+    starterTemplate.elements = [createOverlayDesignerElement("chatMessage")];
+  } else if (overlayKey === "gift") {
+    starterTemplate.elements = [createOverlayDesignerElement("alert"), createOverlayDesignerElement("image")];
+  } else if (overlayKey === "likes") {
+    starterTemplate.elements = [createOverlayDesignerElement("eventCounter"), createOverlayDesignerElement("progressBar")];
+  } else if (overlayKey === "viewerStats") {
+    starterTemplate.elements = [
+      { ...createOverlayDesignerElement("text"), content: "Viewer Stats Leaderboard", width: 420, height: 88 },
+      { ...createOverlayDesignerElement("eventCounter"), content: "Likes: {likes}", binding: "likes", y: 120 },
+      { ...createOverlayDesignerElement("eventCounter"), content: "Comments: {comments}", binding: "comments", y: 220 },
+      { ...createOverlayDesignerElement("eventCounter"), content: "Gifts: {gifts}", binding: "gifts", y: 320 },
+      { ...createOverlayDesignerElement("eventCounter"), content: "Follows: {follows}", binding: "follows", y: 420 }
+    ];
+  } else if (overlayKey === "commandFeedback") {
+    starterTemplate.elements = [createOverlayDesignerElement("text")];
+  } else if (overlayKey === "vote") {
+    starterTemplate.elements = [createOverlayDesignerElement("votingWidget")];
+  }
+
+  const nextTemplates = [...getOverlayDesignerTemplates(), starterTemplate];
+  applyOverlayDesignerSettings({
+    overlayDesignerTemplates: nextTemplates,
+    activeOverlayDesignerTemplateId: starterTemplate.id,
+    overlayDesignerAssignments: {
+      ...normalizeOverlayDesignerAssignments(state.settings?.overlayDesignerAssignments),
+      [overlayKey]: starterTemplate.id
+    }
+  }, { persist: "immediate" });
+  state.overlayDesignerSelectedElementId = starterTemplate.elements[0]?.id ?? "";
+  openOverlayDesignerModal();
+}
+
+function renderOverlayDesignerModal() {
+  const template = getActiveOverlayDesignerTemplate();
+  renderOverlayDesignerTemplateSelects();
+  renderOverlayDesignerStage();
+  if (template) {
+    renderOverlayDesignerLayerList(template);
+  }
+  renderOverlayDesignerInspector();
+  overlayDesignerUndoButton.disabled = state.overlayDesignerHistoryUndo.length === 0;
+  overlayDesignerRedoButton.disabled = state.overlayDesignerHistoryRedo.length === 0;
+  overlayDesignerShowGridInput.checked = state.overlayDesignerShowGrid;
+  overlayDesignerSnapGridInput.checked = state.overlayDesignerSnapGrid;
+  overlayDesignerShowSafezoneInput.checked = state.overlayDesignerShowSafezone;
+  overlayDesignerLightThemeInput.checked = state.overlayDesignerLightTheme;
+  overlayDesignerZoom.value = String(state.overlayDesignerZoom);
+}
+
+function isEditableDesignerTarget(target) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return Boolean(
+    target.closest("input, textarea, select, [contenteditable=\"true\"]")
+  );
+}
+
+function openOverlayDesignerModal() {
+  overlayDesignerModal.hidden = false;
+  renderOverlayDesignerModal();
+}
+
+function closeOverlayDesignerModal() {
+  overlayDesignerModal.hidden = true;
+  state.overlayDesignerPointerState = null;
+}
+
+async function loadOverlayDesignerInfo() {
+  try {
+    const info = await app.getOverlayDesignerInfo();
+    state.overlayDesignerBaseUrl = String(info?.url ?? "").trim();
+    renderOverlayDesignerControls();
+    syncOverlayDesignerRuntimeState();
+  } catch (error) {
+    state.overlayDesignerBaseUrl = "";
+    overlayDesignerUrlInput.value = "Overlay unavailable";
+    overlayDesignerCopyButton.disabled = true;
+    overlayDesignerPreviewButton.disabled = true;
+    setStatusMessage(overlayDesignerStatus, "error", error.message || "Unable to load overlay designer preview URL.");
   }
 }
 
@@ -588,6 +2585,7 @@ function syncQueueOverlayState() {
     connected: state.connected,
     username: state.username,
     queueCount: state.playbackQueueItems.length,
+    designerTemplate: buildOverlayDesignerTemplateForState("queue"),
     items: state.playbackQueueItems.map((item) => ({
       id: item.id,
       label: item.label,
@@ -598,6 +2596,8 @@ function syncQueueOverlayState() {
   }).catch(() => {
     // Ignore hosted overlay sync errors so they never interrupt queue playback or UI updates.
   });
+
+  syncOverlayDesignerRuntimeState();
 }
 
 function getCommandFeedbackOverlayUrl() {
@@ -622,38 +2622,21 @@ function updateCommandFeedbackOverlayControls(info = {}) {
   );
 }
 
-async function loadCommandFeedbackOverlayInfo() {
-  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
-    state.commandFeedbackOverlayBaseUrl = "";
-    commandFeedbackOverlayUrlInput.value = "Sign in to generate hosted overlay";
-    commandFeedbackOverlayCopyButton.disabled = true;
-    commandFeedbackOverlayOpenButton.disabled = true;
-    setStatusMessage(commandFeedbackStatus, "info", "Sign in to generate a hosted command feedback overlay URL for this user.");
-    return;
-  }
-
-  try {
-    const info = await authRequest("/api/auth/create-command-feedback-overlay-session", {
-      userId: state.authenticatedUser.id,
-      sessionToken: state.authenticatedUser.sessionToken
-    });
-    updateCommandFeedbackOverlayControls(info);
-  } catch (error) {
-    commandFeedbackOverlayUrlInput.value = "Overlay unavailable";
-    commandFeedbackOverlayCopyButton.disabled = true;
-    commandFeedbackOverlayOpenButton.disabled = true;
-    setStatusMessage(commandFeedbackStatus, "error", error.message || "Unable to load the command feedback overlay URL.");
-  }
-}
-
 function getSupportedChatCommandList() {
   const availableEntries = getAvailableTtsVoiceEntries();
   const myTtsVoiceRange = availableEntries.length > 0 ? ` (1-${availableEntries.length})` : "";
-  return [
+  const commands = [
     "!listcomands",
     "!listcommands",
     `!myttsvoice <number>${myTtsVoiceRange}`
-  ].join(", ");
+  ];
+
+  if (state.settings?.votingEnabled) {
+    commands.push('!castvote "Question" "Option 1, Option 2" <seconds>');
+    commands.push("!vote <number>");
+  }
+
+  return commands.join(", ");
 }
 
 function formatCommandFeedbackTemplate(template, replacements) {
@@ -665,9 +2648,24 @@ function formatCommandFeedbackTemplate(template, replacements) {
     .trim();
 }
 
-function showCommandFeedbackOverlay(commandType, replacements) {
-  const template = state.settings?.commandFeedbackTemplates?.[commandType] ?? "";
-  const message = formatCommandFeedbackTemplate(template, replacements);
+function formatNamedTemplate(template, replacements = {}) {
+  const normalizedReplacements = new Map(
+    Object.entries(replacements).map(([key, value]) => [String(key ?? "").trim().toLowerCase(), String(value ?? "")])
+  );
+
+  return String(template ?? "").replace(/\{([^}]+)\}/g, (match, tokenName) => {
+    const normalizedToken = String(tokenName ?? "").trim().toLowerCase();
+    return normalizedReplacements.has(normalizedToken) ? normalizedReplacements.get(normalizedToken) : match;
+  }).trim();
+}
+
+function normalizeOverlayAccentColor(value, fallback = "#53dcff") {
+  const candidate = String(value ?? "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate : fallback;
+}
+
+function showHostedFeedbackOverlay(payload = {}) {
+  const message = String(payload?.message ?? "").trim();
   if (!message) {
     return;
   }
@@ -676,20 +2674,647 @@ function showCommandFeedbackOverlay(commandType, replacements) {
     return;
   }
 
-  const durationMs = Math.max(1000, Number(state.settings?.commandFeedbackOverlayDurationMs) || 6000);
+  const durationMs = Math.max(1000, Number(payload?.durationMs ?? state.settings?.commandFeedbackOverlayDurationMs) || 6000);
   const visibleUntil = new Date(Date.now() + durationMs).toISOString();
 
   void authRequest("/api/overlay/update-command-feedback-state", {
     userId: state.authenticatedUser.id,
     sessionToken: state.authenticatedUser.sessionToken,
     message,
-    commandType,
-    username: replacements.user ?? "",
+    commandType: String(payload?.commandType ?? "").trim(),
+    username: String(payload?.username ?? "").trim(),
+    title: String(payload?.title ?? "").trim(),
+    accentColor: normalizeOverlayAccentColor(payload?.accentColor),
+    sourceType: String(payload?.sourceType ?? "").trim(),
+    designerTemplate: buildOverlayDesignerTemplateForState("commandFeedback"),
     durationMs,
     visibleUntil
   }).catch(() => {
-    // Ignore overlay sync errors so command handling still completes normally.
+    // Ignore overlay sync errors so main action handling still completes normally.
   });
+}
+
+function showCommandFeedbackOverlay(commandType, replacements) {
+  const template = state.settings?.commandFeedbackTemplates?.[commandType] ?? "";
+  const message = formatCommandFeedbackTemplate(template, replacements);
+  if (!message) {
+    return;
+  }
+
+  showHostedFeedbackOverlay({
+    title: "Viewer Feedback",
+    message,
+    commandType,
+    username: replacements.user ?? "",
+    accentColor: "#53dcff",
+    sourceType: "command"
+  });
+}
+
+function updateVotingStatus(message) {
+  const enabled = Boolean(state.settings?.votingEnabled);
+  const role = String(state.settings?.votingStartRole ?? "everyone");
+  const orientation = state.settings?.votingOverlayOrientation === "vertical" ? "vertical" : "horizontal";
+  const defaultMessage = enabled
+    ? `Voting commands are on. ${role === "everyone" ? "Everyone" : role === "subscribers" ? "Subscribers" : "Moderators"} can start votes. Overlay layout: ${orientation}.`
+    : "Voting commands are off.";
+  setStatusMessage(votingStatus, enabled ? "success" : "info", message || defaultMessage);
+}
+
+function normalizeVoteUserKey(value) {
+  return normalizeUserKey(value);
+}
+
+function clearActiveVoteTimers() {
+  window.clearTimeout(activeVoteCloseTimer);
+  window.clearTimeout(activeVoteRevealTimer);
+  window.clearTimeout(activeVoteClearTimer);
+  activeVoteCloseTimer = null;
+  activeVoteRevealTimer = null;
+  activeVoteClearTimer = null;
+}
+
+function getVotingStartRole() {
+  const value = String(state.settings?.votingStartRole ?? "everyone").trim().toLowerCase();
+  return ["everyone", "subscribers", "moderators"].includes(value) ? value : "everyone";
+}
+
+function canUserStartVote(item) {
+  if (!state.settings?.votingEnabled) {
+    return {
+      allowed: false,
+      error: "Voting commands are currently disabled in the app settings."
+    };
+  }
+
+  const role = getVotingStartRole();
+  if (role === "subscribers" && !item?.isSubscriber) {
+    return {
+      allowed: false,
+      error: "Only subscribers can start votes right now."
+    };
+  }
+
+  if (role === "moderators" && !item?.isModerator) {
+    return {
+      allowed: false,
+      error: "Only moderators can start votes right now."
+    };
+  }
+
+  return { allowed: true, role };
+}
+
+function parseCastVoteCommand(messageText) {
+  const match = String(messageText ?? "").trim().match(/^!castvote\s+"([^"]+)"\s+"([^"]+)"\s+(\d+)\s*$/i);
+  if (!match) {
+    return null;
+  }
+
+  const question = String(match[1] ?? "").trim();
+  const options = String(match[2] ?? "")
+    .split(",")
+    .map((option) => option.trim())
+    .filter(Boolean);
+  const countdownSeconds = Number(match[3] ?? 0);
+
+  return {
+    question,
+    options,
+    countdownSeconds
+  };
+}
+
+function getVoteWinnerIndex(options = []) {
+  const normalizedOptions = Array.isArray(options) ? options : [];
+  if (!normalizedOptions.length) {
+    return -1;
+  }
+
+  const highestVoteCount = normalizedOptions.reduce(
+    (max, option) => Math.max(max, Math.max(0, Number(option?.votes) || 0)),
+    0
+  );
+  const tiedIndexes = normalizedOptions
+    .map((option, index) => ({ index, votes: Math.max(0, Number(option?.votes) || 0) }))
+    .filter((entry) => (highestVoteCount > 0 ? entry.votes === highestVoteCount : true))
+    .map((entry) => entry.index);
+
+  if (!tiedIndexes.length) {
+    return 0;
+  }
+
+  return tiedIndexes[Math.floor(Math.random() * tiedIndexes.length)];
+}
+
+function revealActiveVoteWinner() {
+  if (!state.activeVote) {
+    return;
+  }
+
+  const winningOptionIndex = Math.max(0, Number(state.activeVote.winningOptionIndex) || 0);
+  const winningOption = state.activeVote.options?.[winningOptionIndex];
+  state.activeVote = {
+    ...state.activeVote,
+    phase: "result",
+    winningOptionIndex,
+    winningOptionLabel: String(winningOption?.label ?? ""),
+    spinEndsAt: "",
+    resultVisibleUntil: new Date(Date.now() + 8000).toISOString()
+  };
+  syncVoteOverlayState();
+
+  if (winningOption?.label) {
+    addLocalSystemChatMessage(`Voting closed. Winning answer: ${winningOption.label}.`);
+    showToast(`Vote winner: ${winningOption.label}.`, "success");
+  }
+
+  activeVoteRevealTimer = null;
+  activeVoteClearTimer = window.setTimeout(() => {
+    clearActiveVoteTimers();
+    clearVoteOverlayState();
+  }, 8000);
+}
+
+function closeActiveVote() {
+  if (!state.activeVote || state.activeVote.phase !== "open") {
+    return;
+  }
+
+  const winningOptionIndex = getVoteWinnerIndex(state.activeVote.options);
+  const winningOption = state.activeVote.options?.[winningOptionIndex];
+  state.activeVote = {
+    ...state.activeVote,
+    phase: "spinning",
+    countdownEndsAt: new Date().toISOString(),
+    winningOptionIndex,
+    winningOptionLabel: String(winningOption?.label ?? ""),
+    spinEndsAt: new Date(Date.now() + 4200).toISOString()
+  };
+  syncVoteOverlayState();
+
+  activeVoteCloseTimer = null;
+  activeVoteRevealTimer = window.setTimeout(() => {
+    revealActiveVoteWinner();
+  }, 4200);
+}
+
+function startActiveVote(question, options, countdownSeconds, startedBy) {
+  clearActiveVoteTimers();
+  const safeOptions = options.map((label) => ({
+    label: String(label ?? "").trim(),
+    votes: 0
+  })).filter((option) => option.label);
+  const endAt = new Date(Date.now() + (countdownSeconds * 1000)).toISOString();
+
+  state.activeVote = {
+    id: `vote-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    question: String(question ?? "").trim(),
+    options: safeOptions,
+    countdownSeconds,
+    countdownEndsAt: endAt,
+    phase: "open",
+    startedBy: String(startedBy ?? "").trim(),
+    votesByUser: new Map(),
+    winningOptionIndex: 0,
+    winningOptionLabel: "",
+    spinEndsAt: "",
+    resultVisibleUntil: ""
+  };
+
+  syncVoteOverlayState();
+  activeVoteCloseTimer = window.setTimeout(() => {
+    closeActiveVote();
+  }, Math.max(1000, countdownSeconds * 1000));
+}
+
+function startVotingOverlayTest() {
+  if (state.activeVote && ["open", "spinning", "result"].includes(String(state.activeVote.phase ?? ""))) {
+    showToast("Finish the current vote before starting a test vote.", "info");
+    return;
+  }
+
+  startActiveVote(
+    "What should we stream next?",
+    ["Minecraft", "Fortnite", "Roblox", "Just Chatting"],
+    10,
+    "test-mode"
+  );
+
+  // Seed a few sample votes so the overlay feels alive immediately.
+  const sampleVotes = [0, 1, 0, 2, 0, 3, 2];
+  sampleVotes.forEach((optionIndex, index) => {
+    const userKey = `test-user-${index + 1}`;
+    state.activeVote.votesByUser.set(userKey, optionIndex);
+    if (state.activeVote.options[optionIndex]) {
+      state.activeVote.options[optionIndex].votes += 1;
+    }
+  });
+  syncVoteOverlayState();
+  showToast("Voting overlay test started.", "success");
+}
+
+async function handleCastVoteCommand(item) {
+  if (item.type !== "chat") {
+    return false;
+  }
+
+  const messageText = String(item.message ?? item.text ?? "").trim();
+  if (!/^!castvote\b/i.test(messageText)) {
+    return false;
+  }
+
+  const permission = canUserStartVote(item);
+  if (!permission.allowed) {
+    showToast(`@${item.user} cannot start a vote: ${permission.error}`, "error");
+    return true;
+  }
+
+  if (state.activeVote && ["open", "spinning", "result"].includes(String(state.activeVote.phase ?? ""))) {
+    showToast("A vote is already active or finishing. Wait for it to end before starting another one.", "error");
+    return true;
+  }
+
+  const parsed = parseCastVoteCommand(messageText);
+  if (!parsed) {
+    showToast('Invalid vote format. Use !castvote "Question" "Option 1, Option 2, Option 3" 10', "error");
+    return true;
+  }
+
+  if (!parsed.question) {
+    showToast("Vote start failed because the question is missing.", "error");
+    return true;
+  }
+
+  if (parsed.options.length < 2) {
+    showToast("Vote start failed because at least two answer options are required.", "error");
+    return true;
+  }
+
+  if (!Number.isFinite(parsed.countdownSeconds) || parsed.countdownSeconds < 5 || parsed.countdownSeconds > 300) {
+    showToast("Vote start failed because the countdown must be between 5 and 300 seconds.", "error");
+    return true;
+  }
+
+  startActiveVote(parsed.question, parsed.options, parsed.countdownSeconds, item.user);
+  addLocalSystemChatMessage(`Vote started by @${item.user}: ${parsed.question}`);
+  showToast(`Vote started by @${item.user}.`, "success");
+  return true;
+}
+
+async function handleVoteCommand(item) {
+  if (item.type !== "chat") {
+    return false;
+  }
+
+  const messageText = String(item.message ?? item.text ?? "").trim();
+  if (!/^!vote\b/i.test(messageText)) {
+    return false;
+  }
+
+  const match = messageText.match(/^!vote\s+(\d+)\s*$/i);
+  if (!match) {
+    showToast(`Invalid vote format from @${item.user}. Use !vote [number].`, "error");
+    return true;
+  }
+
+  if (!state.activeVote || state.activeVote.phase !== "open") {
+    showToast(`@${item.user} tried to vote, but there is no active vote open right now.`, "info");
+    return true;
+  }
+
+  const userKey = normalizeVoteUserKey(item.user);
+  if (!userKey) {
+    return true;
+  }
+
+  if (state.activeVote.votesByUser.has(userKey)) {
+    showToast(`Duplicate vote ignored from @${item.user}.`, "info");
+    return true;
+  }
+
+  const selectedNumber = Number(match[1]);
+  if (!Number.isFinite(selectedNumber) || selectedNumber < 1 || selectedNumber > state.activeVote.options.length) {
+    showToast(`@${item.user} chose an invalid vote number.`, "error");
+    return true;
+  }
+
+  state.activeVote.votesByUser.set(userKey, selectedNumber - 1);
+  state.activeVote.options[selectedNumber - 1].votes += 1;
+  syncVoteOverlayState();
+  return true;
+}
+
+function pushChatOverlayItem(item) {
+  const overlayItem = {
+    id: `chat-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    username: String(item.user || "").trim(),
+    message: String(item.translatedText || item.text || "").trim(),
+    originalMessage: String(item.text || "").trim()
+  };
+
+  if (!overlayItem.message) {
+    return;
+  }
+
+  state.chatOverlayItems.unshift(overlayItem);
+  if (state.chatOverlayItems.length > 12) {
+    state.chatOverlayItems.length = 12;
+  }
+  syncChatOverlayState();
+}
+
+function pushGiftOverlayItem(item) {
+  const overlayItem = {
+    id: `gift-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    username: String(item.user || "").trim(),
+    giftName: String(item.giftName || "Gift").trim() || "Gift",
+    giftImageUrl: String(item.giftImageUrl || "").trim(),
+    giftCount: Math.max(1, Number(item.giftCount) || 1),
+    totalCoins: Math.max(0, Number(item.totalCoins) || 0),
+    message: String(item.text || "").trim()
+  };
+
+  state.giftOverlayItems.unshift(overlayItem);
+  if (state.giftOverlayItems.length > 12) {
+    state.giftOverlayItems.length = 12;
+  }
+  syncGiftOverlayState();
+}
+
+function clearHostedFeedOverlayState() {
+  state.chatOverlayItems = [];
+  state.giftOverlayItems = [];
+  syncChatOverlayState();
+  syncGiftOverlayState();
+  syncLikesOverlayState();
+  syncViewerStatsOverlayState();
+  clearActiveVoteTimers();
+  clearVoteOverlayState();
+}
+
+function syncChatOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-chat-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    connected: state.connected,
+    username: state.username,
+    designerTemplate: buildOverlayDesignerTemplateForState("chat"),
+    items: state.chatOverlayItems
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so chat processing continues normally.
+  });
+
+  syncOverlayDesignerRuntimeState();
+}
+
+function syncGiftOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-gift-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    connected: state.connected,
+    username: state.username,
+    designerTemplate: buildOverlayDesignerTemplateForState("gift"),
+    items: state.giftOverlayItems
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so gift processing continues normally.
+  });
+
+  syncOverlayDesignerRuntimeState();
+}
+
+function buildLikesOverlayItems() {
+  return Array.from(state.sessionUserMetrics.likes.entries())
+    .map(([username, likes]) => ({
+      username: String(username || "").trim(),
+      likes: Math.max(0, Number(likes) || 0)
+    }))
+    .filter((item) => item.username && item.likes > 0)
+    .sort((left, right) => right.likes - left.likes || left.username.localeCompare(right.username))
+    .slice(0, 10);
+}
+
+function getViewerStatsAudienceFilter() {
+  const value = String(state.settings?.viewerStatsOverlayFilter ?? "everyone").trim().toLowerCase();
+  return ["everyone", "subscriber", "moderator", "username"].includes(value) ? value : "everyone";
+}
+
+function getViewerStatsUsernameFilter() {
+  return String(state.settings?.viewerStatsOverlayUsername ?? "").trim().replace(/^@/, "").toLowerCase();
+}
+
+function getSessionGiftCountForUser(userId) {
+  const normalizedUserId = normalizeUserKey(userId);
+  if (!normalizedUserId) {
+    return 0;
+  }
+  const userGiftMap = state.sessionGiftMetrics.byUser.get(normalizedUserId);
+  if (!userGiftMap) {
+    return 0;
+  }
+
+  let total = 0;
+  for (const amount of userGiftMap.values()) {
+    total += Math.max(0, Number(amount) || 0);
+  }
+  return total;
+}
+
+function buildViewerStatsOverlayItems() {
+  const audienceFilter = getViewerStatsAudienceFilter();
+  const usernameFilter = getViewerStatsUsernameFilter();
+  const userIds = new Set([
+    ...Array.from(state.sessionUserProfiles.keys()),
+    ...Array.from(state.sessionUserMetrics.likes.keys()),
+    ...Array.from(state.sessionUserMetrics.comments.keys()),
+    ...Array.from(state.sessionUserMetrics.shares.keys()),
+    ...Array.from(state.sessionUserMetrics.follows.keys()),
+    ...Array.from(state.sessionGiftMetrics.byUser.keys())
+  ]);
+
+  const items = [];
+  for (const userId of userIds) {
+    const normalizedUserId = normalizeUserKey(userId);
+    if (!normalizedUserId) {
+      continue;
+    }
+
+    const profile = state.sessionUserProfiles.get(normalizedUserId) ?? {};
+    if (audienceFilter === "subscriber" && !profile?.isSubscriber) {
+      continue;
+    }
+    if (audienceFilter === "moderator" && !profile?.isModerator) {
+      continue;
+    }
+    if (audienceFilter === "username" && usernameFilter && normalizedUserId !== usernameFilter) {
+      continue;
+    }
+    if (audienceFilter === "username" && !usernameFilter) {
+      continue;
+    }
+
+    const likes = Math.max(0, Number(state.sessionUserMetrics.likes.get(normalizedUserId) ?? 0) || 0);
+    const comments = Math.max(0, Number(state.sessionUserMetrics.comments.get(normalizedUserId) ?? 0) || 0);
+    const shares = Math.max(0, Number(state.sessionUserMetrics.shares.get(normalizedUserId) ?? 0) || 0);
+    const follows = Math.max(0, Number(state.sessionUserMetrics.follows.get(normalizedUserId) ?? 0) || 0);
+    const coins = Math.max(0, Number(state.sessionUserMetrics.coins.get(normalizedUserId) ?? 0) || 0);
+    const gifts = getSessionGiftCountForUser(normalizedUserId);
+    const totalScore = likes + comments + shares + follows + gifts + coins;
+    if (totalScore <= 0) {
+      continue;
+    }
+
+    items.push({
+      username: normalizedUserId,
+      displayName: String(profile?.nickname ?? normalizedUserId).trim() || normalizedUserId,
+      isSubscriber: Boolean(profile?.isSubscriber),
+      isModerator: Boolean(profile?.isModerator),
+      likes,
+      comments,
+      shares,
+      follows,
+      coins,
+      gifts,
+      totalScore
+    });
+  }
+
+  return items
+    .sort((left, right) => right.totalScore - left.totalScore || right.likes - left.likes || left.username.localeCompare(right.username))
+    .slice(0, 10);
+}
+
+function syncLikesOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-likes-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    connected: state.connected,
+    username: state.username,
+    designerTemplate: buildOverlayDesignerTemplateForState("likes"),
+    items: buildLikesOverlayItems()
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so like handling continues normally.
+  });
+
+  syncOverlayDesignerRuntimeState();
+}
+
+function syncViewerStatsOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-viewer-stats-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    connected: state.connected,
+    username: state.username,
+    filterAudience: getViewerStatsAudienceFilter(),
+    filterUsername: getViewerStatsUsernameFilter(),
+    designerTemplate: buildOverlayDesignerTemplateForState("viewerStats"),
+    items: buildViewerStatsOverlayItems()
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so metric tracking continues normally.
+  });
+
+  syncOverlayDesignerRuntimeState();
+}
+
+function buildVoteOverlayOptions() {
+  const options = Array.isArray(state.activeVote?.options) ? state.activeVote.options : [];
+  const totalVotes = options.reduce((sum, option) => sum + Math.max(0, Number(option?.votes) || 0), 0);
+
+  return options.map((option, index) => {
+    const votes = Math.max(0, Number(option?.votes) || 0);
+    return {
+      index: index + 1,
+      label: String(option?.label ?? `Option ${index + 1}`).trim() || `Option ${index + 1}`,
+      votes,
+      percent: totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0
+    };
+  });
+}
+
+function buildVoteOverlayState() {
+  const vote = state.activeVote;
+  if (!vote) {
+    return {
+      active: false,
+      phase: "idle",
+      connected: state.connected,
+      username: state.username,
+      orientation: state.settings?.votingOverlayOrientation === "vertical" ? "vertical" : "horizontal",
+      question: "",
+      countdownSeconds: 0,
+      countdownEndsAt: "",
+      totalVotes: 0,
+      instructions: "Type !vote [number] in chat to vote.",
+      options: [],
+      startedBy: "",
+      winningOptionIndex: 0,
+      winningOptionLabel: "",
+      spinEndsAt: "",
+      resultVisibleUntil: "",
+      updatedAt: new Date().toISOString()
+    };
+  }
+
+  const options = buildVoteOverlayOptions();
+  const totalVotes = options.reduce((sum, option) => sum + option.votes, 0);
+
+  return {
+    active: true,
+    phase: vote.phase,
+    connected: state.connected,
+    username: state.username,
+    orientation: state.settings?.votingOverlayOrientation === "vertical" ? "vertical" : "horizontal",
+    question: vote.question,
+    countdownSeconds: Math.max(0, Number(vote.countdownSeconds) || 0),
+    countdownEndsAt: String(vote.countdownEndsAt ?? ""),
+    totalVotes,
+    instructions: "Type !vote [number] in chat to vote.",
+    options,
+    startedBy: String(vote.startedBy ?? ""),
+    winningOptionIndex: Math.max(0, Number(vote.winningOptionIndex) || 0),
+    winningOptionLabel: String(vote.winningOptionLabel ?? ""),
+    spinEndsAt: String(vote.spinEndsAt ?? ""),
+    resultVisibleUntil: String(vote.resultVisibleUntil ?? ""),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function syncVoteOverlayState() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-vote-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    designerTemplate: buildOverlayDesignerTemplateForState("vote"),
+    ...buildVoteOverlayState()
+  }).catch(() => {
+    // Ignore hosted overlay sync errors so voting stays local-first.
+  });
+
+  syncOverlayDesignerRuntimeState();
+}
+
+function clearVoteOverlayState() {
+  state.activeVote = null;
+  syncVoteOverlayState();
 }
 
 function clearQueuedPlaybackItem(itemId, options = {}) {
@@ -856,9 +3481,258 @@ function normalizeUserNotes(source = {}) {
 
   return Object.fromEntries(
     Object.entries(source)
-      .map(([key, value]) => [normalizeUserKey(key), String(value ?? "").trim()])
-      .filter(([key, value]) => key && value)
+      .map(([key, value]) => {
+        const normalizedKey = normalizeUserKey(key);
+        if (!normalizedKey) {
+          return null;
+        }
+
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+          const note = String(value.note ?? "").trim();
+          const birthday = /^\d{4}-\d{2}-\d{2}$/.test(String(value.birthday ?? "").trim())
+            ? String(value.birthday).trim()
+            : "";
+          const birthdayActionRuleId = String(value.birthdayActionRuleId ?? "").trim();
+
+          if (!note && !birthday && !birthdayActionRuleId) {
+            return null;
+          }
+
+          return [normalizedKey, { note, birthday, birthdayActionRuleId }];
+        }
+
+        const note = String(value ?? "").trim();
+        if (!note) {
+          return null;
+        }
+
+        return [normalizedKey, { note, birthday: "", birthdayActionRuleId: "" }];
+      })
+      .filter(Boolean)
   );
+}
+
+function normalizeKnownTikTokGifts(source = []) {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+  const seen = new Set();
+  const normalized = [];
+
+  for (const entry of source) {
+    const giftId = String(entry?.giftId ?? entry?.id ?? "").trim();
+    const giftName = String(entry?.giftName ?? entry?.name ?? "").trim();
+    const giftImageUrl = String(entry?.giftImageUrl ?? entry?.imageUrl ?? "").trim();
+    const coinValue = Math.max(0, Number(entry?.coinValue ?? entry?.diamondCount ?? 0) || 0);
+    const sourceTag = ["builtin", "observed", "roomCatalog"].includes(entry?.source) ? entry.source : "observed";
+    const key = giftName.toLowerCase();
+    if (!giftName || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+      normalized.push({
+        giftId,
+        giftName,
+        giftImageUrl,
+        coinValue,
+        source: sourceTag
+      });
+    }
+
+  return normalized.sort((left, right) => {
+    const leftCoins = Number.isFinite(left.coinValue) && left.coinValue > 0 ? left.coinValue : Number.MAX_SAFE_INTEGER;
+    const rightCoins = Number.isFinite(right.coinValue) && right.coinValue > 0 ? right.coinValue : Number.MAX_SAFE_INTEGER;
+    if (leftCoins !== rightCoins) {
+      return leftCoins - rightCoins;
+    }
+    return left.giftName.localeCompare(right.giftName);
+  });
+}
+
+function mergeKnownTikTokGifts(...sources) {
+  const merged = new Map();
+  const getSourceWeight = (sourceTag = "") => {
+    switch (sourceTag) {
+      case "roomCatalog":
+        return 3;
+      case "observed":
+        return 2;
+      case "builtin":
+      default:
+        return 1;
+    }
+  };
+
+  for (const source of sources) {
+    for (const entry of normalizeKnownTikTokGifts(source)) {
+      const key = entry.giftId ? `id:${entry.giftId}` : `name:${normalizeGiftKey(entry.giftName)}`;
+      const existing = merged.get(key);
+
+      if (!existing) {
+        merged.set(key, { ...entry });
+        continue;
+      }
+
+      const existingWeight = getSourceWeight(existing.source);
+      const nextWeight = getSourceWeight(entry.source);
+      const imageUrl = nextWeight >= existingWeight
+        ? (entry.giftImageUrl || existing.giftImageUrl || "")
+        : (existing.giftImageUrl || entry.giftImageUrl || "");
+      const coinValue = nextWeight >= existingWeight
+        ? (entry.coinValue > 0 ? entry.coinValue : existing.coinValue)
+        : (existing.coinValue > 0 ? existing.coinValue : entry.coinValue);
+      const sourceTag = nextWeight >= existingWeight ? entry.source : existing.source;
+
+      merged.set(key, {
+        giftId: existing.giftId || entry.giftId || "",
+        giftName: existing.giftName || entry.giftName,
+        giftImageUrl: imageUrl,
+        coinValue,
+        source: sourceTag
+      });
+    }
+  }
+
+  const mergedByName = new Map();
+  for (const entry of normalizeKnownTikTokGifts(Array.from(merged.values()))) {
+    const nameKey = normalizeGiftKey(entry.giftName);
+    const existing = mergedByName.get(nameKey);
+    if (!existing || getSourceWeight(entry.source) > getSourceWeight(existing.source)) {
+      mergedByName.set(nameKey, entry);
+    }
+  }
+
+  return normalizeKnownTikTokGifts(Array.from(mergedByName.values()));
+}
+
+function normalizeCreatorUsername(value) {
+  return String(value ?? "").trim().replace(/^@/, "").toLowerCase();
+}
+
+function normalizeKnownTikTokEmotes(source = []) {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+  const normalized = [];
+  const seen = new Set();
+
+  for (const entry of source) {
+    const metric = entry?.metric === "fanEmote" ? "fanEmote" : "subEmote";
+    const creatorUsername = normalizeCreatorUsername(entry?.creatorUsername);
+    const emoteId = String(entry?.emoteId ?? "").trim();
+    const emoteName = String(entry?.emoteName ?? "").trim();
+    const emoteImageUrl = String(entry?.emoteImageUrl ?? "").trim().replace(/^http:\/\//i, "https://");
+    const sourceTag = ["builtin", "observed", "authenticated"].includes(entry?.source) ? entry.source : "observed";
+    const valueKey = emoteId || emoteName;
+    if (!valueKey) {
+      continue;
+    }
+
+    const dedupeKey = [metric, creatorUsername || "*", valueKey.toLowerCase()].join("|");
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+
+    seen.add(dedupeKey);
+    normalized.push({
+      metric,
+      creatorUsername,
+      emoteId,
+      emoteName,
+      emoteImageUrl,
+      source: sourceTag
+    });
+  }
+
+  return normalized.sort((left, right) => {
+    const creatorCompare = (left.creatorUsername || "").localeCompare(right.creatorUsername || "");
+    if (creatorCompare !== 0) {
+      return creatorCompare;
+    }
+    const metricCompare = left.metric.localeCompare(right.metric);
+    if (metricCompare !== 0) {
+      return metricCompare;
+    }
+    const leftLabel = left.emoteName || left.emoteId;
+    const rightLabel = right.emoteName || right.emoteId;
+    return leftLabel.localeCompare(rightLabel);
+  });
+}
+
+function mergeKnownTikTokEmotes(...sources) {
+  const merged = new Map();
+
+  for (const source of sources) {
+    for (const entry of normalizeKnownTikTokEmotes(source)) {
+      const identityKey = [entry.metric, entry.creatorUsername || "*", (entry.emoteId || entry.emoteName).toLowerCase()].join("|");
+      const existing = merged.get(identityKey);
+
+      if (!existing) {
+        merged.set(identityKey, { ...entry });
+        continue;
+      }
+
+      const existingWeight = EMOTE_SOURCE_WEIGHTS[existing.source] ?? 1;
+      const nextWeight = EMOTE_SOURCE_WEIGHTS[entry.source] ?? 1;
+      const nextWins = nextWeight >= existingWeight;
+
+      merged.set(identityKey, {
+        metric: entry.metric,
+        creatorUsername: entry.creatorUsername || existing.creatorUsername,
+        emoteId: existing.emoteId || entry.emoteId,
+        emoteName: nextWins ? (entry.emoteName || existing.emoteName) : (existing.emoteName || entry.emoteName),
+        emoteImageUrl: nextWins ? (entry.emoteImageUrl || existing.emoteImageUrl) : (existing.emoteImageUrl || entry.emoteImageUrl),
+        source: nextWins ? entry.source : existing.source
+      });
+    }
+  }
+
+  return normalizeKnownTikTokEmotes(Array.from(merged.values()));
+}
+
+function normalizeCardCollapseState(source = {}) {
+  if (!source || typeof source !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(source)
+      .map(([key, value]) => [String(key ?? "").trim(), Boolean(value)])
+      .filter(([key]) => key)
+  );
+}
+
+function normalizeDashboardCardVisibility(source = {}) {
+  const defaults = {
+    welcome: true,
+    "incoming-chat": true
+  };
+
+  if (!source || typeof source !== "object") {
+    return defaults;
+  }
+
+  return {
+    welcome: source.welcome !== false,
+    "incoming-chat": source["incoming-chat"] !== false
+  };
+}
+
+function normalizeMainScreenPinnedCards(source = {}) {
+  const defaults = Object.fromEntries(MAIN_SCREEN_CARD_DEFINITIONS.map(({ key }) => [key, false]));
+
+  if (!source || typeof source !== "object") {
+    return defaults;
+  }
+
+  const normalized = { ...defaults };
+  for (const { key } of MAIN_SCREEN_CARD_DEFINITIONS) {
+    normalized[key] = Boolean(source[key]);
+  }
+  return normalized;
 }
 
 function normalizeTtsUserVoiceAssignments(source = {}) {
@@ -921,11 +3795,23 @@ function getDefaultProfileSettingsSource() {
       myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
       listcommands: "{user}, available chat commands: {commandList}"
     },
+    votingEnabled: false,
+    votingStartRole: "everyone",
+    votingOverlayOrientation: "horizontal",
+    viewerStatsOverlayFilter: "everyone",
+    viewerStatsOverlayUsername: "",
     ttsUserVoiceAssignments: {
       builtin: {},
       elevenlabs: {}
     },
     userNotes: {},
+    knownTikTokGifts: [],
+    knownTikTokEmotes: [],
+    tiktokSessionId: "",
+    tiktokTargetIdc: "",
+    overlayDesignerTemplates: createBuiltInOverlayDesignerTemplates(),
+    activeOverlayDesignerTemplateId: "builtin-overlay-template-1",
+    overlayDesignerAssignments: normalizeOverlayDesignerAssignments(),
     customEventRules: []
   };
 }
@@ -965,15 +3851,36 @@ function normalizeProfileSettingsSnapshot(source = {}) {
       ...(source?.ttsAudience ?? {})
     },
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(source?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
-    commandFeedbackTemplates: {
-      ...defaults.commandFeedbackTemplates,
-      ...(source?.commandFeedbackTemplates ?? {})
-    },
-    ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
-    userNotes: normalizeUserNotes(source?.userNotes),
-    customEventRules: Array.isArray(source?.customEventRules)
-      ? source.customEventRules.map(normalizeRule).filter(Boolean)
-      : []
+      commandFeedbackTemplates: {
+        ...defaults.commandFeedbackTemplates,
+        ...(source?.commandFeedbackTemplates ?? {})
+      },
+      votingEnabled: Boolean(source?.votingEnabled ?? defaults.votingEnabled),
+      votingStartRole: ["everyone", "subscribers", "moderators"].includes(String(source?.votingStartRole ?? "").trim().toLowerCase())
+        ? String(source?.votingStartRole ?? "").trim().toLowerCase()
+        : defaults.votingStartRole,
+      votingOverlayOrientation: String(source?.votingOverlayOrientation ?? "").trim().toLowerCase() === "vertical"
+        ? "vertical"
+        : defaults.votingOverlayOrientation,
+      viewerStatsOverlayFilter: ["everyone", "subscriber", "moderator", "username"].includes(String(source?.viewerStatsOverlayFilter ?? "").trim().toLowerCase())
+        ? String(source?.viewerStatsOverlayFilter ?? "").trim().toLowerCase()
+        : defaults.viewerStatsOverlayFilter,
+      viewerStatsOverlayUsername: String(source?.viewerStatsOverlayUsername ?? defaults.viewerStatsOverlayUsername).trim().replace(/^@/, ""),
+      ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
+      userNotes: normalizeUserNotes(source?.userNotes),
+      knownTikTokGifts: normalizeKnownTikTokGifts(source?.knownTikTokGifts),
+      knownTikTokEmotes: normalizeKnownTikTokEmotes(source?.knownTikTokEmotes),
+      tiktokSessionId: String(source?.tiktokSessionId ?? defaults.tiktokSessionId).trim(),
+      tiktokTargetIdc: String(source?.tiktokTargetIdc ?? defaults.tiktokTargetIdc).trim(),
+      overlayDesignerTemplates: normalizeOverlayDesignerTemplates(source?.overlayDesignerTemplates),
+      activeOverlayDesignerTemplateId: String(source?.activeOverlayDesignerTemplateId ?? defaults.activeOverlayDesignerTemplateId).trim(),
+      overlayDesignerAssignments: normalizeOverlayDesignerAssignments(source?.overlayDesignerAssignments),
+      cardCollapseState: normalizeCardCollapseState(source?.cardCollapseState),
+      dashboardCardVisibility: normalizeDashboardCardVisibility(source?.dashboardCardVisibility),
+      mainScreenPinnedCards: normalizeMainScreenPinnedCards(source?.mainScreenPinnedCards),
+      customEventRules: Array.isArray(source?.customEventRules)
+        ? source.customEventRules.map(normalizeRule).filter(Boolean)
+        : []
   };
 }
 
@@ -1015,8 +3922,47 @@ function normalizeSettingsProfiles(source = {}, fallbackSource = {}) {
   return normalized;
 }
 
+function resolveActiveProfileState(source = {}) {
+  const defaults = createDefaultSettings();
+  const normalizedProfiles = normalizeSettingsProfiles(source?.settingsProfiles, {
+    ...defaults,
+    ...source
+  });
+  const requestedProfileId = String(source?.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
+  const activeSettingsProfileId = normalizedProfiles[requestedProfileId]
+    ? requestedProfileId
+    : Object.keys(normalizedProfiles)[0] ?? DEFAULT_SETTINGS_PROFILE_ID;
+  const existingProfile = normalizedProfiles[activeSettingsProfileId] ?? {
+    name: "Default",
+    settings: createDefaultProfileSettings()
+  };
+  const topLevelProfileSettings = extractProfileSettings({
+    ...defaults,
+    ...source
+  });
+  const activeProfileSettings = normalizeProfileSettingsSnapshot({
+    ...existingProfile.settings,
+    ...topLevelProfileSettings
+  });
+
+  normalizedProfiles[activeSettingsProfileId] = {
+    ...existingProfile,
+    settings: activeProfileSettings
+  };
+
+  return {
+    normalizedProfiles,
+    activeSettingsProfileId,
+    activeProfileSettings
+  };
+}
+
+function resolveTtsProviderKey(value) {
+  return value === "elevenlabs" ? "elevenlabs" : "builtin";
+}
+
 function getCurrentTtsProviderKey() {
-  return ttsProviderSelect.value === "elevenlabs" ? "elevenlabs" : "builtin";
+  return resolveTtsProviderKey(ttsProviderSelect.value);
 }
 
 function getCurrentTtsProviderLabel() {
@@ -1040,42 +3986,72 @@ function getAvailableTtsVoiceEntries() {
   });
 }
 
-function getUserAssignedTtsVoice(userKey) {
-  const providerKey = getCurrentTtsProviderKey();
+function getUserAssignedTtsVoice(userKey, providerKey = getCurrentTtsProviderKey()) {
+  const resolvedProviderKey = resolveTtsProviderKey(providerKey);
   const normalizedUser = normalizeUserKey(userKey);
   if (!normalizedUser) {
     return "";
   }
 
-  return String(state.settings?.ttsUserVoiceAssignments?.[providerKey]?.[normalizedUser] ?? "").trim();
+  return String(state.settings?.ttsUserVoiceAssignments?.[resolvedProviderKey]?.[normalizedUser] ?? "").trim();
 }
 
-async function saveUserAssignedTtsVoice(userKey, voiceValue) {
-  const providerKey = getCurrentTtsProviderKey();
+async function saveUserAssignedTtsVoice(userKey, voiceValue, providerKey = getCurrentTtsProviderKey()) {
+  const resolvedProviderKey = resolveTtsProviderKey(providerKey);
   const normalizedUser = normalizeUserKey(userKey);
   if (!normalizedUser) {
     return;
   }
 
   const nextAssignments = normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments);
-  nextAssignments[providerKey] = {
-    ...nextAssignments[providerKey],
+  nextAssignments[resolvedProviderKey] = {
+    ...nextAssignments[resolvedProviderKey],
     [normalizedUser]: String(voiceValue ?? "").trim()
   };
 
-  await persistSettings({ ttsUserVoiceAssignments: nextAssignments });
+  const activeProfileId = getActiveSettingsProfileId();
+  const nextProfiles = normalizeSettingsProfiles(state.settings?.settingsProfiles, state.settings);
+  if (nextProfiles[activeProfileId]) {
+    nextProfiles[activeProfileId] = {
+      ...nextProfiles[activeProfileId],
+      settings: normalizeProfileSettingsSnapshot({
+        ...nextProfiles[activeProfileId].settings,
+        ttsUserVoiceAssignments: nextAssignments
+      })
+    };
+  }
+
+  await persistSettings({
+    ttsUserVoiceAssignments: nextAssignments,
+    settingsProfiles: nextProfiles
+  });
 }
 
-async function removeUserAssignedTtsVoice(userKey) {
-  const providerKey = getCurrentTtsProviderKey();
+async function removeUserAssignedTtsVoice(userKey, providerKey = getCurrentTtsProviderKey()) {
+  const resolvedProviderKey = resolveTtsProviderKey(providerKey);
   const normalizedUser = normalizeUserKey(userKey);
   if (!normalizedUser) {
     return;
   }
 
   const nextAssignments = normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments);
-  delete nextAssignments[providerKey][normalizedUser];
-  await persistSettings({ ttsUserVoiceAssignments: nextAssignments });
+  delete nextAssignments[resolvedProviderKey][normalizedUser];
+  const activeProfileId = getActiveSettingsProfileId();
+  const nextProfiles = normalizeSettingsProfiles(state.settings?.settingsProfiles, state.settings);
+  if (nextProfiles[activeProfileId]) {
+    nextProfiles[activeProfileId] = {
+      ...nextProfiles[activeProfileId],
+      settings: normalizeProfileSettingsSnapshot({
+        ...nextProfiles[activeProfileId].settings,
+        ttsUserVoiceAssignments: nextAssignments
+      })
+    };
+  }
+
+  await persistSettings({
+    ttsUserVoiceAssignments: nextAssignments,
+    settingsProfiles: nextProfiles
+  });
 }
 
 function buildTtsVoiceManagerOptionsMarkup(selectedValue = "") {
@@ -1139,6 +4115,7 @@ function renderTtsVoiceManager() {
   }
 
   const providerKey = getCurrentTtsProviderKey();
+  ttsVoiceManagerModal.dataset.providerKey = providerKey;
   const providerLabel = getCurrentTtsProviderLabel();
   const searchTerm = String(state.ttsVoiceManagerSearch ?? "").trim().toLowerCase();
   const assignments = Object.entries(normalizeTtsUserVoiceAssignments(state.settings?.ttsUserVoiceAssignments)?.[providerKey] ?? {})
@@ -1173,7 +4150,7 @@ function renderTtsVoiceManager() {
   );
   ttsVoiceManagerList.innerHTML = filteredAssignments
     .map(([userKey, voiceValue]) => `
-      <article class="tts-voice-manager-row" data-tts-voice-user="${escapeHtml(userKey)}">
+      <article class="tts-voice-manager-row" data-tts-voice-user="${escapeHtml(userKey)}" data-tts-voice-provider="${escapeHtml(providerKey)}">
         <div class="tts-voice-manager-row-copy">
           <strong>@${escapeHtml(userKey)}</strong>
           <span class="helper-text">Custom voice for ${escapeHtml(providerLabel)}</span>
@@ -1185,15 +4162,18 @@ function renderTtsVoiceManager() {
           </select>
         </label>
         <div class="tts-voice-manager-row-actions">
-          <button type="button" class="ghost compact-button" data-tts-voice-save="${escapeHtml(userKey)}">Save</button>
-          <button type="button" class="ghost compact-button" data-tts-voice-remove="${escapeHtml(userKey)}">Remove</button>
+          <button type="button" class="ghost compact-button" data-tts-voice-save="${escapeHtml(userKey)}" data-tts-voice-provider="${escapeHtml(providerKey)}">Save</button>
+          <button type="button" class="ghost compact-button" data-tts-voice-remove="${escapeHtml(userKey)}" data-tts-voice-provider="${escapeHtml(providerKey)}">Remove</button>
         </div>
       </article>
     `)
     .join("");
 }
 
-function openTtsVoiceManagerModal() {
+async function openTtsVoiceManagerModal() {
+  if (!state.voices.length) {
+    await loadVoices();
+  }
   renderTtsVoiceManager();
   ttsVoiceManagerUsernameInput.value = "";
   ttsVoiceManagerVoiceSelect.value = "";
@@ -1212,8 +4192,96 @@ function closeTtsVoiceManagerModal() {
   ttsVoiceManagerModal.hidden = true;
 }
 
+function getUserNoteRecord(userKey) {
+  const key = normalizeUserKey(userKey);
+  if (!key) {
+    return {
+      note: "",
+      birthday: "",
+      birthdayActionRuleId: ""
+    };
+  }
+
+  const record = normalizeUserNotes(state.settings?.userNotes)?.[key];
+  return {
+    note: String(record?.note ?? "").trim(),
+    birthday: /^\d{4}-\d{2}-\d{2}$/.test(String(record?.birthday ?? "").trim()) ? String(record.birthday).trim() : "",
+    birthdayActionRuleId: String(record?.birthdayActionRuleId ?? "").trim()
+  };
+}
+
 function getUserNote(userKey) {
-  return state.settings?.userNotes?.[normalizeUserKey(userKey)] ?? "";
+  return getUserNoteRecord(userKey).note;
+}
+
+function hasUserNoteRecord(userKey) {
+  const record = getUserNoteRecord(userKey);
+  return Boolean(record.note || record.birthday || record.birthdayActionRuleId);
+}
+
+function isBirthdayToday(birthday) {
+  const normalizedBirthday = /^\d{4}-\d{2}-\d{2}$/.test(String(birthday ?? "").trim())
+    ? String(birthday).trim()
+    : "";
+  if (!normalizedBirthday) {
+    return false;
+  }
+
+  const [, month, day] = normalizedBirthday.split("-");
+  const now = new Date();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+  const currentDay = String(now.getDate()).padStart(2, "0");
+  return month === currentMonth && day === currentDay;
+}
+
+function getBirthdayActionTriggerKey(userKey, ruleId, birthday) {
+  return `${normalizeUserKey(userKey)}:${String(ruleId ?? "").trim()}:${String(birthday ?? "").trim()}`;
+}
+
+function triggerBirthdayViewerActionIfNeeded(item) {
+  if (item?.type !== "chat") {
+    return;
+  }
+
+  const userKey = normalizeUserKey(item?.user);
+  if (!userKey) {
+    return;
+  }
+
+  const noteRecord = getUserNoteRecord(userKey);
+  if (!noteRecord.birthdayActionRuleId || !isBirthdayToday(noteRecord.birthday)) {
+    return;
+  }
+
+  const triggerKey = getBirthdayActionTriggerKey(userKey, noteRecord.birthdayActionRuleId, noteRecord.birthday);
+  if (state.birthdayActionTriggers.has(triggerKey)) {
+    return;
+  }
+
+  const linkedRule = state.settings.customEventRules.find((rule) => rule.id === noteRecord.birthdayActionRuleId);
+  if (!linkedRule) {
+    return;
+  }
+
+  state.birthdayActionTriggers.add(triggerKey);
+  showToast(`Birthday action triggered for @${userKey}.`, "success");
+  void triggerCustomRule(linkedRule, { sourceItem: item });
+}
+
+function renderChatNotesBirthdayActionOptions(selectedRuleId = "") {
+  if (!chatNotesBirthdayActionSelect) {
+    return;
+  }
+
+  const options = [
+    `<option value="">No birthday action</option>`,
+    ...state.settings.customEventRules.map((rule) => {
+      const selected = rule.id === selectedRuleId ? "selected" : "";
+      return `<option value="${escapeHtml(rule.id)}" ${selected}>${escapeHtml(rule.name)}</option>`;
+    })
+  ];
+
+  chatNotesBirthdayActionSelect.innerHTML = options.join("");
 }
 
 function getSessionUserMetricValue(metric, userKey) {
@@ -1244,6 +4312,12 @@ function getTriggerAudienceLabel(rule) {
 
 function getMetricThresholdLabel(metric) {
   switch (metric) {
+    case "join":
+      return "Number of joins";
+    case "firstActivity":
+      return "Number of first user activities";
+    case "anyComment":
+      return "Number of comments";
     case "likes":
       return "Number of likes";
     case "shares":
@@ -1252,23 +4326,445 @@ function getMetricThresholdLabel(metric) {
       return "Number of follows";
     case "coins":
       return "Minimum coins value";
+    case "specificGift":
+      return "Number of selected gifts";
+    case "subEmote":
+      return "Number of selected sub emotes";
+    case "fanEmote":
+      return "Number of selected fan emotes";
     default:
       return "Threshold value";
   }
 }
 
-function getAudienceQualifiedMetricValue(rule) {
-  const metric = rule?.metric;
-  if (!["follows", "likes", "shares", "coins"].includes(metric)) {
+function getMetricDisplayLabel(metric) {
+  switch (metric) {
+    case "join":
+      return "joins";
+    case "firstActivity":
+      return "first user activities";
+    case "anyComment":
+      return "comments";
+    case "follows":
+      return "follows";
+    case "shares":
+      return "shares";
+    case "likes":
+      return "likes";
+    case "coins":
+      return "gift coins";
+    case "specificGift":
+      return "specific gift";
+    case "subEmote":
+      return "sub emote";
+    case "fanEmote":
+      return "fan emote";
+    default:
+      return String(metric ?? "").trim() || "trigger";
+  }
+}
+
+function getStoredKnownTikTokEmotes() {
+  return normalizeKnownTikTokEmotes(state.settings?.knownTikTokEmotes);
+}
+
+function getTikTokSessionCredentials() {
+  return {
+    sessionId: String(state.settings?.tiktokSessionId ?? "").trim(),
+    ttTargetIdc: String(state.settings?.tiktokTargetIdc ?? "").trim()
+  };
+}
+
+function hasSavedTikTokSessionCredentials() {
+  const { sessionId, ttTargetIdc } = getTikTokSessionCredentials();
+  return Boolean(sessionId && ttTargetIdc);
+}
+
+function getActiveTikTokUsernameCandidates() {
+  return [
+    state.username,
+    usernameInput?.value,
+    state.settings?.rememberedUsername
+  ]
+    .map(normalizeCreatorUsername)
+    .filter(Boolean);
+}
+
+function getActiveTikTokCatalogUsername() {
+  return getActiveTikTokUsernameCandidates()[0] ?? "";
+}
+
+function getEmoteOptionKey(entry = {}) {
+  return String(entry?.emoteId || entry?.emoteName || "").trim();
+}
+
+function getEmoteDisplayLabel(entry = {}, metric = "subEmote", index = 0) {
+  const explicitName = String(entry?.emoteName ?? "").trim();
+  if (explicitName) {
+    return explicitName;
+  }
+
+  const emoteId = String(entry?.emoteId ?? "").trim();
+  if (emoteId) {
+    return `${metric === "fanEmote" ? "Fan" : "Sub"} emote ${emoteId.slice(0, 8)}`;
+  }
+
+  return `${metric === "fanEmote" ? "Fan" : "Sub"} emote ${index + 1}`;
+}
+
+function getAvailableEmoteOptions(metric) {
+  if (!["subEmote", "fanEmote"].includes(metric)) {
+    return [];
+  }
+
+  const activeCreatorUsername = getActiveTikTokCatalogUsername();
+  const storedEntries = getStoredKnownTikTokEmotes().filter((entry) => entry.metric === metric);
+  const creatorEntries = activeCreatorUsername
+    ? storedEntries.filter((entry) => entry.creatorUsername === activeCreatorUsername)
+    : [];
+  const fallbackLabelSource = metric === "subEmote" ? BUILTIN_SUB_EMOTE_OPTIONS : BUILTIN_FAN_EMOTE_OPTIONS;
+  const fallbackEntries = fallbackLabelSource.map((name) => ({
+    metric,
+    creatorUsername: "",
+    emoteId: "",
+    emoteName: name,
+    emoteImageUrl: "",
+    source: "builtin"
+  }));
+
+  const mergedEntries = mergeKnownTikTokEmotes(
+    creatorEntries.length ? creatorEntries : [],
+    creatorEntries.length ? [] : fallbackEntries
+  );
+
+  return mergedEntries
+    .filter((entry) => entry.metric === metric)
+    .sort((left, right) => getEmoteDisplayLabel(left, metric).localeCompare(getEmoteDisplayLabel(right, metric)));
+}
+
+function getEmoteSelectorSummaryMarkup(rule) {
+  const emoteName = String(rule?.triggerEmoteName ?? "").trim();
+  const emoteImageUrl = String(rule?.triggerEmoteImageUrl ?? "").trim();
+  const metricLabel = rule?.metric === "fanEmote" ? "Fan emote" : "Sub emote";
+  const summaryLabel = emoteName || `Choose ${metricLabel.toLowerCase()}`;
+  return `
+    ${emoteImageUrl ? `<img class="gift-trigger-selected-icon" src="${escapeHtml(emoteImageUrl)}" alt="" loading="lazy" />` : `<span class="gift-trigger-option-icon-fallback" aria-hidden="true">EM</span>`}
+    <span class="gift-trigger-summary-text">${escapeHtml(summaryLabel)}</span>
+  `;
+}
+
+function getEmoteOptionsMarkup(ruleId, metric, selectedEmoteName = "", searchText = "") {
+  const normalizedSelected = String(selectedEmoteName ?? "").trim().toLowerCase();
+  const normalizedSearch = String(searchText ?? "").trim().toLowerCase();
+  const options = getAvailableEmoteOptions(metric)
+    .map((entry, index) => ({
+      ...entry,
+      displayLabel: getEmoteDisplayLabel(entry, metric, index)
+    }))
+    .filter((entry) => !normalizedSearch || entry.displayLabel.toLowerCase().includes(normalizedSearch));
+
+  if (!options.length) {
+    const activeCreator = getActiveTikTokCatalogUsername();
+    return `<p class="helper-text">No ${escapeHtml(getMetricDisplayLabel(metric))} options match that search yet${activeCreator ? ` for @${escapeHtml(activeCreator)}` : ""}. Connect to the creator's LIVE and let a few emotes come through so we can learn the real list.</p>`;
+  }
+
+  return options.map((entry) => {
+    const selected = entry.displayLabel.toLowerCase() === normalizedSelected;
+    return `
+      <button
+        type="button"
+        class="gift-trigger-option ${selected ? "selected" : ""}"
+        data-rule-emote-option="${escapeHtml(ruleId)}"
+        data-rule-emote-id="${escapeHtml(entry.emoteId || "")}"
+        data-rule-emote-name="${escapeHtml(entry.displayLabel)}"
+        data-rule-emote-image-url="${escapeHtml(entry.emoteImageUrl || "")}"
+      >
+        ${entry.emoteImageUrl ? `<img class="gift-trigger-option-icon" src="${escapeHtml(entry.emoteImageUrl)}" alt="" loading="lazy" />` : `<span class="gift-trigger-option-icon-fallback" aria-hidden="true">EM</span>`}
+        <span class="gift-trigger-option-copy">
+          <strong>${escapeHtml(entry.displayLabel)}</strong>
+        </span>
+      </button>
+    `;
+  }).join("");
+}
+
+function normalizeGiftKey(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function formatGiftCoinValue(value) {
+  const safeValue = Math.max(0, Number(value) || 0);
+  if (!safeValue) {
+    return "";
+  }
+  return `${safeValue} coin${safeValue === 1 ? "" : "s"}`;
+}
+
+function getGiftCoinValueDisplay(value, source = "") {
+  const formatted = formatGiftCoinValue(value);
+  if (formatted) {
+    return formatted;
+  }
+  return source === "builtin" ? "coin value unavailable" : "";
+}
+
+function getGiftFallbackBadgeMarkup(coinValue = 0) {
+  const safeValue = Math.max(0, Number(coinValue) || 0);
+  const badgeText = safeValue > 0 ? String(safeValue) : "Gift";
+  return `<span class="gift-trigger-option-icon gift-trigger-option-icon-fallback">${escapeHtml(badgeText)}</span>`;
+}
+
+function getUnifiedBuiltInGiftCatalog() {
+  return mergeKnownTikTokGifts(
+    BUILTIN_TIKTOK_GIFT_CATALOG_BY_REGION.global,
+    BUILTIN_TIKTOK_GIFT_CATALOG_BY_REGION.uk,
+    BUILTIN_TIKTOK_GIFT_CATALOG_BY_REGION.usa
+  );
+}
+
+function getKnownGiftMetadata(giftName = "") {
+  const key = normalizeGiftKey(giftName);
+  if (!key) {
+    return null;
+  }
+
+  return getKnownTikTokGifts().find((entry) => normalizeGiftKey(entry.giftName) === key) ?? null;
+}
+
+function getKnownTikTokGifts() {
+  const storedGifts = getStoredKnownTikTokGifts();
+  return mergeKnownTikTokGifts(getUnifiedBuiltInGiftCatalog(), storedGifts);
+}
+
+function getStoredKnownTikTokGifts() {
+  return normalizeKnownTikTokGifts(state.settings?.knownTikTokGifts ?? []);
+}
+
+async function rememberKnownTikTokGift(giftName, giftImageUrl = "", coinValue = 0, giftId = "") {
+  const normalizedGiftName = String(giftName ?? "").trim();
+  if (!normalizedGiftName) {
+    return;
+  }
+
+  const nextGifts = getStoredKnownTikTokGifts();
+  const normalizedGiftId = String(giftId ?? "").trim();
+  const existingIndex = nextGifts.findIndex((entry) =>
+    (normalizedGiftId && String(entry.giftId ?? "").trim() === normalizedGiftId) ||
+    normalizeGiftKey(entry.giftName) === normalizeGiftKey(normalizedGiftName)
+  );
+  const normalizedImageUrl = String(giftImageUrl ?? "").trim();
+  const normalizedCoinValue = Math.max(0, Number(coinValue ?? 0) || 0);
+
+  if (existingIndex >= 0) {
+    const existing = nextGifts[existingIndex];
+    if (
+      (existing.giftImageUrl === normalizedImageUrl || (!normalizedImageUrl && existing.giftImageUrl)) &&
+      (existing.coinValue === normalizedCoinValue || (!normalizedCoinValue && existing.coinValue > 0))
+    ) {
+      return;
+    }
+    nextGifts[existingIndex] = {
+      giftId: existing.giftId || normalizedGiftId,
+      giftName: existing.giftName,
+      giftImageUrl: existing.giftImageUrl || normalizedImageUrl,
+      coinValue: existing.coinValue > 0 ? existing.coinValue : normalizedCoinValue,
+      source: existing.source || "observed"
+    };
+  } else {
+    nextGifts.push({
+      giftId: normalizedGiftId,
+      giftName: normalizedGiftName,
+      giftImageUrl: normalizedImageUrl,
+      coinValue: normalizedCoinValue,
+      source: "observed"
+    });
+  }
+
+  await persistSettings({
+    knownTikTokGifts: normalizeKnownTikTokGifts(nextGifts)
+  });
+}
+
+async function rememberKnownTikTokEmote(metric, emoteName = "", emoteImageUrl = "", emoteId = "", creatorUsername = "") {
+  const normalizedMetric = metric === "fanEmote" ? "fanEmote" : "subEmote";
+  const normalizedCreatorUsername = normalizeCreatorUsername(creatorUsername || getActiveTikTokCatalogUsername());
+  const normalizedEmoteId = String(emoteId ?? "").trim();
+  const normalizedEmoteName = String(emoteName ?? "").trim();
+  const normalizedEmoteImageUrl = String(emoteImageUrl ?? "").trim().replace(/^http:\/\//i, "https://");
+
+  if (!normalizedCreatorUsername || (!normalizedEmoteId && !normalizedEmoteName)) {
+    return;
+  }
+
+  const nextEmotes = mergeKnownTikTokEmotes(getStoredKnownTikTokEmotes(), [{
+    metric: normalizedMetric,
+    creatorUsername: normalizedCreatorUsername,
+    emoteId: normalizedEmoteId,
+    emoteName: normalizedEmoteName,
+    emoteImageUrl: normalizedEmoteImageUrl,
+    source: "observed"
+  }]);
+
+  if (JSON.stringify(getStoredKnownTikTokEmotes()) === JSON.stringify(nextEmotes)) {
+    return;
+  }
+
+  await persistSettings({
+    knownTikTokEmotes: nextEmotes
+  });
+}
+
+async function mergeAuthenticatedTikTokEmotes(username, fetchedEntries = []) {
+  const normalizedCreatorUsername = normalizeCreatorUsername(username);
+  if (!normalizedCreatorUsername) {
     return 0;
   }
+
+  const normalizedFetchedEntries = normalizeKnownTikTokEmotes(
+    fetchedEntries.map((entry) => ({
+      metric: entry?.metric === "fanEmote" ? "fanEmote" : "subEmote",
+      creatorUsername: normalizedCreatorUsername,
+      emoteId: String(entry?.emoteId ?? "").trim(),
+      emoteName: String(entry?.emoteName ?? "").trim(),
+      emoteImageUrl: String(entry?.emoteImageUrl ?? "").trim(),
+      source: "authenticated"
+    }))
+  );
+
+  if (!normalizedFetchedEntries.length) {
+    return 0;
+  }
+
+  const mergedEntries = mergeKnownTikTokEmotes(getStoredKnownTikTokEmotes(), normalizedFetchedEntries);
+  await persistSettings({
+    knownTikTokEmotes: mergedEntries
+  });
+  return normalizedFetchedEntries.length;
+}
+
+async function refreshAuthenticatedTikTokEmotes() {
+  const username = getActiveTikTokCatalogUsername();
+  if (!username) {
+    throw new Error("Enter or connect to a TikTok username first.");
+  }
+
+  const { sessionId, ttTargetIdc } = getTikTokSessionCredentials();
+  if (!sessionId || !ttTargetIdc) {
+    throw new Error("Sign in to TikTok before refreshing emotes.");
+  }
+
+  setStatusMessage(tiktokSessionStatus, "info", `Refreshing authenticated TikTok emotes for @${username}...`);
+  const result = await app.getAuthenticatedTikTokEmotes({
+    username,
+    sessionId,
+    ttTargetIdc
+  });
+
+  const mergedCount = await mergeAuthenticatedTikTokEmotes(username, result?.emotes ?? []);
+
+  if (mergedCount > 0) {
+    setStatusMessage(tiktokSessionStatus, "success", `Learned ${mergedCount} authenticated emote${mergedCount === 1 ? "" : "s"} for @${username}.`);
+    showToast(`Refreshed TikTok emotes for @${username}.`, "success");
+    renderCustomRules();
+    return;
+  }
+
+  const connectorMessage = String(result?.message ?? "").trim();
+  setStatusMessage(
+    tiktokSessionStatus,
+    "info",
+    connectorMessage || `TikTok did not expose any additional authenticated emotes for @${username} right now.`
+  );
+  showToast(`No extra authenticated emotes were returned for @${username}.`, "info");
+}
+
+function updateTikTokSessionUi() {
+  const isSignedIn = hasSavedTikTokSessionCredentials();
+  if (tiktokSigninButton) {
+    tiktokSigninButton.disabled = isSignedIn;
+  }
+  if (tiktokSignoutButton) {
+    tiktokSignoutButton.disabled = !isSignedIn;
+  }
+  if (tiktokRefreshEmotesButton) {
+    tiktokRefreshEmotesButton.disabled = !isSignedIn;
+  }
+
+  setStatusMessage(
+    tiktokSessionStatus,
+    isSignedIn ? "success" : "info",
+    isSignedIn
+      ? "TikTok sign-in is connected for authenticated emote refresh."
+      : "Sign in to TikTok if you want to try authenticated emote discovery."
+  );
+}
+
+async function refreshKnownTikTokGiftCatalog(preferredUsername = "") {
+  const usernameCandidates = [
+    preferredUsername,
+    usernameInput?.value,
+    state.username,
+    state.settings?.rememberedUsername
+  ]
+    .map((value) => String(value ?? "").trim().replace(/^@/, ""))
+    .filter(Boolean);
+
+  const username = usernameCandidates[0];
+  if (!username) {
+    return;
+  }
+
+    try {
+      const result = await app.getAvailableTikTokGifts(username);
+      const normalizedFetchedGifts = normalizeKnownTikTokGifts(result?.gifts);
+      if (!normalizedFetchedGifts.length) {
+        return result ?? { gifts: [], liveActive: false, error: "" };
+      }
+
+      const storedGifts = getStoredKnownTikTokGifts();
+      const nonRoomCatalogGifts = storedGifts.filter((entry) => entry?.source !== "roomCatalog");
+      const mergedGifts = mergeKnownTikTokGifts(nonRoomCatalogGifts, normalizedFetchedGifts);
+
+      if (JSON.stringify(storedGifts) === JSON.stringify(mergedGifts)) {
+        return {
+        ...(result ?? {}),
+        gifts: normalizedFetchedGifts
+      };
+    }
+
+    await persistSettings({
+      knownTikTokGifts: mergedGifts
+    });
+    return {
+      ...(result ?? {}),
+      gifts: normalizedFetchedGifts
+    };
+  } catch {
+    // Ignore background gift catalog lookup issues and keep the built-in fallback list.
+    return {
+      gifts: [],
+      liveActive: false,
+      error: "Unable to refresh the TikTok gift catalog right now."
+    };
+  }
+}
+
+function getSpecificEmoteCount(rule) {
+  const metric = rule?.metric === "fanEmote" ? "fanEmote" : "subEmote";
+  const emoteKey = String(rule?.triggerEmoteId || rule?.triggerEmoteName || "").trim().toLowerCase();
+  if (!emoteKey) {
+    return 0;
+  }
+
+  const getUserEmoteCount = (userId) =>
+    Number(state.sessionEmoteMetrics?.[metric]?.byUser?.get(userId)?.get(emoteKey) ?? 0);
 
   switch (rule?.triggerAudience) {
     case "follower": {
       let total = 0;
       for (const [userId, profile] of state.sessionUserProfiles.entries()) {
         if (profile?.followedThisSession) {
-          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+          total += getUserEmoteCount(userId);
         }
       }
       return total;
@@ -1277,7 +4773,7 @@ function getAudienceQualifiedMetricValue(rule) {
       let total = 0;
       for (const [userId, profile] of state.sessionUserProfiles.entries()) {
         if (profile?.isSubscriber) {
-          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+          total += getUserEmoteCount(userId);
         }
       }
       return total;
@@ -1286,22 +4782,130 @@ function getAudienceQualifiedMetricValue(rule) {
       let total = 0;
       for (const [userId, profile] of state.sessionUserProfiles.entries()) {
         if (profile?.isModerator) {
-          total += Number(state.sessionUserMetrics[metric].get(userId) ?? 0);
+          total += getUserEmoteCount(userId);
         }
       }
       return total;
     }
     case "topGifter": {
       const topGifterUserId = getTopGifterUserId();
-      return topGifterUserId ? Number(state.sessionUserMetrics[metric].get(topGifterUserId) ?? 0) : 0;
+      return topGifterUserId ? getUserEmoteCount(topGifterUserId) : 0;
     }
     case "specificUser": {
       const targetUser = normalizeUserKey(rule?.triggerUsername);
-      return targetUser ? Number(state.sessionUserMetrics[metric].get(targetUser) ?? 0) : 0;
+      return targetUser ? getUserEmoteCount(targetUser) : 0;
     }
     case "everyone":
     default:
-      return Number(state.sessionMetrics[metric] ?? 0);
+      return Number(state.sessionEmoteMetrics?.[metric]?.total?.get(emoteKey) ?? 0);
+  }
+}
+
+function getSpecificGiftCount(rule) {
+  const giftKey = normalizeGiftKey(rule?.triggerGiftName);
+  if (!giftKey) {
+    return 0;
+  }
+
+  const getUserGiftCount = (userId) => Number(state.sessionGiftMetrics.byUser.get(userId)?.get(giftKey) ?? 0);
+
+  switch (rule?.triggerAudience) {
+    case "follower": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.followedThisSession) {
+          total += getUserGiftCount(userId);
+        }
+      }
+      return total;
+    }
+    case "subscriber": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isSubscriber) {
+          total += getUserGiftCount(userId);
+        }
+      }
+      return total;
+    }
+    case "moderator": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isModerator) {
+          total += getUserGiftCount(userId);
+        }
+      }
+      return total;
+    }
+    case "topGifter": {
+      const topGifterUserId = getTopGifterUserId();
+      return topGifterUserId ? getUserGiftCount(topGifterUserId) : 0;
+    }
+    case "specificUser": {
+      const targetUser = normalizeUserKey(rule?.triggerUsername);
+      return targetUser ? getUserGiftCount(targetUser) : 0;
+    }
+    case "everyone":
+    default:
+      return Number(state.sessionGiftMetrics.total.get(giftKey) ?? 0);
+  }
+}
+
+function getAudienceQualifiedMetricValue(rule) {
+  const metric = rule?.metric;
+  if (!["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(metric)) {
+    return 0;
+  }
+
+  if (metric === "specificGift") {
+    return getSpecificGiftCount(rule);
+  }
+
+  if (metric === "subEmote" || metric === "fanEmote") {
+    return getSpecificEmoteCount(rule);
+  }
+
+  const metricKey = metric === "anyComment" ? "comments" : metric;
+
+  switch (rule?.triggerAudience) {
+    case "follower": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.followedThisSession) {
+          total += Number(state.sessionUserMetrics[metricKey].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "subscriber": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isSubscriber) {
+          total += Number(state.sessionUserMetrics[metricKey].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "moderator": {
+      let total = 0;
+      for (const [userId, profile] of state.sessionUserProfiles.entries()) {
+        if (profile?.isModerator) {
+          total += Number(state.sessionUserMetrics[metricKey].get(userId) ?? 0);
+        }
+      }
+      return total;
+    }
+    case "topGifter": {
+      const topGifterUserId = getTopGifterUserId();
+      return topGifterUserId ? Number(state.sessionUserMetrics[metricKey].get(topGifterUserId) ?? 0) : 0;
+    }
+    case "specificUser": {
+      const targetUser = normalizeUserKey(rule?.triggerUsername);
+      return targetUser ? Number(state.sessionUserMetrics[metricKey].get(targetUser) ?? 0) : 0;
+    }
+    case "everyone":
+    default:
+      return Number(state.sessionMetrics[metricKey] ?? 0);
   }
 }
 
@@ -1318,6 +4922,9 @@ function getCurrentProfileSettingsFromUi(overrides = {}) {
 
   return normalizeProfileSettingsSnapshot({
     ...merged,
+    cardCollapseState: collectCurrentCardCollapseState(),
+    dashboardCardVisibility: collectCurrentDashboardCardVisibility(),
+    mainScreenPinnedCards: collectCurrentMainScreenPinnedCards(),
     rememberedUsername: rememberUsernameInput.checked ? usernameInput.value.trim() : "",
     rememberUsername: rememberUsernameInput.checked,
     rememberedUsernames: normalizeRememberedUsernames(merged?.rememberedUsernames),
@@ -1350,19 +4957,69 @@ function getCurrentProfileSettingsFromUi(overrides = {}) {
       myttsvoice: String(commandFeedbackTemplateMyttsvoiceInput.value ?? "").trim(),
       listcommands: String(commandFeedbackTemplateListcommandsInput.value ?? "").trim()
     },
+    votingEnabled: Boolean(votingEnabledInput.checked),
+    votingStartRole: String(votingStartRoleInput.value ?? "everyone").trim().toLowerCase(),
+    votingOverlayOrientation: votingOverlayOrientationInput.value === "vertical" ? "vertical" : "horizontal",
+    viewerStatsOverlayFilter: String(viewerStatsOverlayFilterInput?.value ?? "everyone").trim().toLowerCase(),
+    viewerStatsOverlayUsername: String(viewerStatsOverlayUsernameInput?.value ?? "").trim().replace(/^@/, ""),
     ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(merged.ttsUserVoiceAssignments),
     userNotes: normalizeUserNotes(merged.userNotes),
-    customEventRules: merged.customEventRules.map(normalizeRule).filter(Boolean)
+      knownTikTokGifts: normalizeKnownTikTokGifts(merged.knownTikTokGifts),
+      knownTikTokEmotes: normalizeKnownTikTokEmotes(merged.knownTikTokEmotes),
+      tiktokSessionId: String(merged.tiktokSessionId ?? "").trim(),
+      tiktokTargetIdc: String(merged.tiktokTargetIdc ?? "").trim(),
+      overlayDesignerTemplates: normalizeOverlayDesignerTemplates(merged.overlayDesignerTemplates),
+      activeOverlayDesignerTemplateId: String(merged.activeOverlayDesignerTemplateId ?? getActiveOverlayDesignerTemplateId()).trim(),
+      overlayDesignerAssignments: normalizeOverlayDesignerAssignments(merged.overlayDesignerAssignments),
+      customEventRules: merged.customEventRules.map(normalizeRule).filter(Boolean)
+    });
+  }
+
+function collectCurrentCardCollapseState() {
+  const currentState = {
+    ...normalizeCardCollapseState(state.settings?.cardCollapseState)
+  };
+
+  document.querySelectorAll(".card[data-card-collapse-key]").forEach((card) => {
+    const key = String(card.dataset.cardCollapseKey ?? "").trim();
+    if (!key) {
+      return;
+    }
+    currentState[key] = card.classList.contains("card-collapsed");
   });
+
+  return currentState;
+}
+
+function collectCurrentDashboardCardVisibility() {
+  const currentVisibility = {
+    ...normalizeDashboardCardVisibility(state.settings?.dashboardCardVisibility)
+  };
+
+  document.querySelectorAll("[data-dashboard-card]").forEach((card) => {
+    const key = String(card.dataset.dashboardCard ?? "").trim();
+    if (!key) {
+      return;
+    }
+    currentVisibility[key] = !card.hidden;
+  });
+
+  return currentVisibility;
+}
+
+function collectCurrentMainScreenPinnedCards() {
+  return normalizeMainScreenPinnedCards(state.settings?.mainScreenPinnedCards);
 }
 
 function getSettingsPayloadWithPartial(partial = {}) {
-  const merged = ensureSettingsShape({
+  const merged = {
     ...state.settings,
     ...partial
-  });
-  const activeSettingsProfileId = String(merged.activeSettingsProfileId ?? DEFAULT_SETTINGS_PROFILE_ID).trim() || DEFAULT_SETTINGS_PROFILE_ID;
-  const settingsProfiles = normalizeSettingsProfiles(merged.settingsProfiles, merged);
+  };
+  const {
+    normalizedProfiles: settingsProfiles,
+    activeSettingsProfileId
+  } = resolveActiveProfileState(merged);
   const activeProfileName = String(settingsProfiles?.[activeSettingsProfileId]?.name ?? "Default").trim() || "Default";
   const activeProfileSettings = getCurrentProfileSettingsFromUi(merged);
 
@@ -1380,19 +5037,20 @@ function getSettingsPayloadWithPartial(partial = {}) {
 }
 
 async function persistSettings(partial = {}) {
-  state.settings = ensureSettingsShape({
-    ...state.settings,
-    ...partial
-  });
+  const payload = getSettingsPayloadWithPartial(partial);
+  state.settings = ensureSettingsShape(payload);
 
   const nextSave = app
-    .saveSettings(getSettingsPayloadWithPartial(partial))
+    .saveSettings(payload)
     .then((saved) => {
       state.settings = ensureSettingsShape(saved);
       renderCustomRules();
       renderRememberedUsernameOptions();
       renderSettingsProfileOptions();
       updateHeaderPills();
+      applyDashboardCardVisibility();
+      applyMainScreenPinnedCards();
+      applySavedCardCollapseState();
       if (ttsVoiceManagerModal && !ttsVoiceManagerModal.hidden) {
         renderTtsVoiceManager();
       }
@@ -1497,24 +5155,26 @@ function showDashboardForUser(user) {
   signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
   creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
     authShell.hidden = true;
-    dashboardShell.hidden = false;
-    setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
-    setAuthSessionCheckStatus("checking", "Session check: Checking");
-  void loadQueueOverlayInfo();
-  void loadCommandFeedbackOverlayInfo();
-  startAuthSessionMonitor();
-}
+  dashboardShell.hidden = false;
+    applyDashboardCardVisibility();
+    applyMainScreenPinnedCards();
+    applySavedCardCollapseState();
+      setAuthStatus("success", user ? `Signed in as ${user.displayName || user.email}.` : "Signed in.");
+      setAuthSessionCheckStatus("checking", "Session check: Checking");
+    clearHostedFeedOverlayState();
+    void loadOverlayInfoBundle();
+    startAuthSessionMonitor();
+  }
 
 function showAuthShell() {
     state.authenticatedUser = null;
   signedInPill.textContent = "Signed in";
   creditsPill.textContent = "Credits: 0";
-    dashboardShell.hidden = true;
+  dashboardShell.hidden = true;
     authShell.hidden = false;
   stopAuthSessionMonitor();
   setAuthSessionCheckStatus("waiting", "Session check: Waiting");
-  void loadQueueOverlayInfo();
-  void loadCommandFeedbackOverlayInfo();
+  void loadOverlayInfoBundle();
 }
 
 function beginSessionTermination(reason) {
@@ -1627,6 +5287,7 @@ async function handleForcedAdminSignOut(message) {
   state.connecting = false;
   state.username = "";
   state.roomId = null;
+  clearHostedFeedOverlayState();
   updateHeaderPills();
   setConnectionUiState();
 
@@ -1658,6 +5319,7 @@ async function handleLockedAccountSignOut(message) {
   state.connecting = false;
   state.username = "";
   state.roomId = null;
+  clearHostedFeedOverlayState();
   updateHeaderPills();
   setConnectionUiState();
 
@@ -1688,6 +5350,7 @@ async function handleSignedInElsewhereSignOut(message) {
   state.connecting = false;
   state.username = "";
   state.roomId = null;
+  clearHostedFeedOverlayState();
   updateHeaderPills();
   setConnectionUiState();
 
@@ -1759,6 +5422,7 @@ async function signOutUser() {
     state.connecting = false;
     state.username = "";
     state.roomId = null;
+    clearHostedFeedOverlayState();
     setConnectionUiState();
     updateHeaderPills();
   }
@@ -1785,6 +5449,8 @@ async function signOutUser() {
 }
 
 async function authRequest(path, payload) {
+  const requestUrl = `${getAuthApiBaseUrl()}${path}`;
+  try {
     const response = await fetch(`${getAuthApiBaseUrl()}${path}`, {
       method: "POST",
       headers: {
@@ -1810,7 +5476,14 @@ async function authRequest(path, payload) {
       }
 
     return result;
+  } catch (error) {
+    const message = String(error?.message || "").trim().toLowerCase();
+    if (message === "failed to fetch" || message.includes("networkerror") || message.includes("load failed")) {
+      throw new Error(`Unable to reach the Stream Sync Pro sign-in service at ${requestUrl}. Please check that the website/API is online and reachable.`);
+    }
+    throw error;
   }
+}
 
 async function reportAuthenticatedAppError(error, errorContext, details = {}) {
   if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken || state.forceClosing) {
@@ -2150,6 +5823,37 @@ function showToast(message, level = "info") {
   }, 4200);
 }
 
+function sanitizeStatusToastPayload(payload) {
+  const level = payload?.level === "error" ? "error" : payload?.level === "success" ? "success" : "info";
+  const message = String(payload?.message ?? "").trim();
+  const lowerMessage = message.toLowerCase();
+
+  if (!message) {
+    return {
+      level,
+      message: "Connection status updated.",
+      suppress: false
+    };
+  }
+
+  if (
+    lowerMessage.includes("failed to retrieve room info for live status from main page") ||
+    lowerMessage.includes("falling back to api source")
+  ) {
+    return {
+      level: "info",
+      message: "TikTok is still resolving the live details. Please wait a moment.",
+      suppress: true
+    };
+  }
+
+  return {
+    level,
+    message,
+    suppress: false
+  };
+}
+
 function formatTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -2255,19 +5959,20 @@ function renderSettingsProfileOptions() {
   const profiles = state.settings?.settingsProfiles ?? {};
   const activeProfileId = getActiveSettingsProfileId();
   const profileEntries = Object.entries(profiles);
-
-  settingsProfileSelect.innerHTML = profileEntries
-    .map(([profileId, profile]) => {
+  const optionsMarkup = [
+    ...profileEntries.map(([profileId, profile]) => {
       const label = String(profile?.name ?? profileId).trim() || profileId;
       return `<option value="${escapeHtml(profileId)}">${escapeHtml(label)}</option>`;
-    })
-    .join("");
+    }),
+    `<option value="${SETTINGS_PROFILE_ACTION_PREFIX}separator" disabled>──────────</option>`,
+    `<option value="${SETTINGS_PROFILE_ACTION_PREFIX}create">Create new profile...</option>`,
+    `<option value="${SETTINGS_PROFILE_ACTION_PREFIX}delete"${profileEntries.length <= 1 ? " disabled" : ""}>Delete current profile...</option>`,
+    `<option value="${SETTINGS_PROFILE_ACTION_PREFIX}export">Export profiles...</option>`,
+    `<option value="${SETTINGS_PROFILE_ACTION_PREFIX}import">Import profiles...</option>`
+  ];
 
+  settingsProfileSelect.innerHTML = optionsMarkup.join("");
   settingsProfileSelect.value = activeProfileId;
-
-  if (settingsProfileDeleteButton) {
-    settingsProfileDeleteButton.disabled = profileEntries.length <= 1;
-  }
 }
 
 function buildSettingsExportBundle() {
@@ -2321,6 +6026,40 @@ function createSettingsProfileId(profileName) {
   return nextId;
 }
 
+async function handleSettingsProfileSelection(value) {
+  const selectedValue = String(value ?? "").trim();
+  if (!selectedValue) {
+    renderSettingsProfileOptions();
+    return;
+  }
+
+  if (!selectedValue.startsWith(SETTINGS_PROFILE_ACTION_PREFIX)) {
+    await switchSettingsProfile(selectedValue);
+    return;
+  }
+
+  const action = selectedValue.slice(SETTINGS_PROFILE_ACTION_PREFIX.length);
+
+  switch (action) {
+    case "create":
+      await createSettingsProfile();
+      break;
+    case "delete":
+      await deleteSettingsProfile();
+      break;
+    case "export":
+      await exportSettingsBundle();
+      break;
+    case "import":
+      await importSettingsBundle();
+      break;
+    default:
+      break;
+  }
+
+  renderSettingsProfileOptions();
+}
+
 async function switchSettingsProfile(profileId) {
   const nextProfileId = String(profileId ?? "").trim();
   const nextProfile = state.settings?.settingsProfiles?.[nextProfileId];
@@ -2361,6 +6100,60 @@ function closeSettingsProfileModal() {
   }
 
   settingsProfileModal.hidden = true;
+}
+
+function openLayoutCustomizerModal() {
+  const visibilityState = normalizeDashboardCardVisibility(state.settings?.dashboardCardVisibility);
+  const pinnedState = normalizeMainScreenPinnedCards(state.settings?.mainScreenPinnedCards);
+  layoutShowWelcomeInput.checked = visibilityState.welcome !== false;
+  layoutShowIncomingChatInput.checked = visibilityState["incoming-chat"] !== false;
+  if (layoutMainCardOptions) {
+    layoutMainCardOptions.innerHTML = MAIN_SCREEN_CARD_DEFINITIONS.map(({ key, label }) => `
+      <label class="filter-tile">
+        <input type="checkbox" data-layout-main-card-option="${key}" ${pinnedState[key] ? "checked" : ""} />
+        <span>${label}</span>
+      </label>
+    `).join("");
+  }
+  layoutCustomizerModal.hidden = false;
+}
+
+function closeLayoutCustomizerModal() {
+  if (!layoutCustomizerModal) {
+    return;
+  }
+
+  layoutCustomizerModal.hidden = true;
+}
+
+async function saveDashboardLayoutVisibility() {
+  const nextVisibility = normalizeDashboardCardVisibility({
+    welcome: layoutShowWelcomeInput.checked,
+    "incoming-chat": layoutShowIncomingChatInput.checked
+  });
+  const nextPinnedCards = normalizeMainScreenPinnedCards(
+    Object.fromEntries(
+      Array.from(layoutMainCardOptions?.querySelectorAll("[data-layout-main-card-option]") ?? []).map((input) => [
+        String(input.dataset.layoutMainCardOption ?? "").trim(),
+        Boolean(input.checked)
+      ])
+    )
+  );
+
+  state.settings = ensureSettingsShape({
+    ...state.settings,
+    dashboardCardVisibility: nextVisibility,
+    mainScreenPinnedCards: nextPinnedCards
+  });
+  applyDashboardCardVisibility();
+  applyMainScreenPinnedCards();
+  closeLayoutCustomizerModal();
+  await persistSettings({
+    dashboardCardVisibility: nextVisibility,
+    mainScreenPinnedCards: nextPinnedCards,
+    cardCollapseState: collectCurrentCardCollapseState()
+  });
+  showToast("Dashboard layout saved.", "success");
 }
 
 async function saveSettingsProfileFromModal() {
@@ -2480,14 +6273,220 @@ async function importSettingsBundle() {
   showToast("Settings import completed successfully.", "success");
 }
 
-function setActiveTab(tabName) {
-  state.activeTab = tabName;
+function normalizeSidebarTabName(tabName) {
+  if (tabName === "event-actions") {
+    return "event-actions";
+  }
 
-  const controlsActive = tabName === "controls";
-  controlsTabButton.classList.toggle("active", controlsActive);
-  eventActionsTabButton.classList.toggle("active", !controlsActive);
-  controlsTabPanel.classList.toggle("active", controlsActive);
-  eventActionsTabPanel.classList.toggle("active", !controlsActive);
+  return "controls";
+}
+
+function setActiveTab(tabName) {
+  const normalizedTabName = normalizeSidebarTabName(tabName);
+  state.activeTab = normalizedTabName;
+
+  const controlsActive = normalizedTabName === "controls";
+  const eventActionsActive = normalizedTabName === "event-actions";
+
+  controlsTabButton?.classList.toggle("active", controlsActive);
+  overlaysTabButton?.classList.toggle("active", false);
+  eventActionsTabButton?.classList.toggle("active", eventActionsActive);
+  controlsTabPanel?.classList.toggle("active", controlsActive);
+  overlaysTabPanel?.classList.toggle("active", false);
+  eventActionsTabPanel?.classList.toggle("active", eventActionsActive);
+}
+
+function updateCardCollapseButton(button, collapsed) {
+  if (!button) {
+    return;
+  }
+
+  button.textContent = collapsed ? "+" : "−";
+  button.setAttribute("aria-label", collapsed ? "Expand card" : "Minimize card");
+  button.setAttribute("title", collapsed ? "Expand" : "Minimize");
+  button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+}
+
+function getCardCollapseStorageKey(card, index = 0) {
+  const explicitKey = String(card?.dataset?.cardCollapseKey ?? "").trim();
+  if (explicitKey) {
+    return explicitKey;
+  }
+
+  const header = card?.querySelector(":scope > .card-header");
+  const titleText = header?.querySelector("h1, h2, h3, .section-title")?.textContent ?? "";
+  const eyebrowText = header?.querySelector(".eyebrow")?.textContent ?? "";
+  const panelId = card?.closest(".sidebar-tab-panel")?.id ?? "dashboard";
+
+  return `${panelId}:${eyebrowText}:${titleText}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || `card-${index + 1}`;
+}
+
+function applySavedCardCollapseState() {
+  const savedState = normalizeCardCollapseState(state.settings?.cardCollapseState);
+  document.querySelectorAll(".card[data-card-collapse-key]").forEach((card) => {
+    const key = card.dataset.cardCollapseKey;
+    const collapsed = Boolean(savedState[key]);
+    card.classList.toggle("card-collapsed", collapsed);
+    updateCardCollapseButton(card.querySelector("[data-card-minimize-button]"), collapsed);
+  });
+}
+
+function applyDashboardCardVisibility() {
+  const visibilityState = normalizeDashboardCardVisibility(state.settings?.dashboardCardVisibility);
+  document.querySelectorAll("[data-dashboard-card]").forEach((card) => {
+    const key = String(card.dataset.dashboardCard ?? "").trim();
+    if (!key) {
+      return;
+    }
+    card.hidden = visibilityState[key] === false;
+  });
+}
+
+function applyMainScreenPinnedCards() {
+  if (!dashboardAddonCards) {
+    return;
+  }
+
+  const pinnedState = normalizeMainScreenPinnedCards(state.settings?.mainScreenPinnedCards);
+  let visiblePinnedCards = 0;
+
+  MAIN_SCREEN_CARD_DEFINITIONS.forEach(({ key }) => {
+    const card = document.querySelector(`[data-main-screen-card="${key}"]`);
+    if (!card) {
+      return;
+    }
+
+    let placeholder = document.querySelector(`[data-main-screen-placeholder="${key}"]`);
+    if (!placeholder) {
+      placeholder = document.createElement("div");
+      placeholder.hidden = true;
+      placeholder.dataset.mainScreenPlaceholder = key;
+      card.before(placeholder);
+    }
+
+    if (pinnedState[key]) {
+      visiblePinnedCards += 1;
+      dashboardAddonCards.appendChild(card);
+      card.dataset.mainScreenPinned = "true";
+    } else {
+      placeholder.after(card);
+      delete card.dataset.mainScreenPinned;
+    }
+  });
+
+  dashboardAddonCards.hidden = visiblePinnedCards === 0;
+}
+
+function initializeCollapsibleCards() {
+  const headers = document.querySelectorAll(".card > .card-header.section-head, .card > .card-header.panel-heading");
+
+  headers.forEach((header, index) => {
+    const card = header.closest(".card");
+    const body = card?.querySelector(":scope > .card-body");
+    if (!card || !body) {
+      return;
+    }
+
+    if (header.querySelector("[data-card-minimize-button]")) {
+      return;
+    }
+
+    const cardKey = getCardCollapseStorageKey(card, index);
+    card.dataset.cardCollapseKey = cardKey;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ghost compact-button card-minimize-button";
+    button.dataset.cardMinimizeButton = cardKey;
+    const initialCollapsed = Boolean(normalizeCardCollapseState(state.settings?.cardCollapseState)[cardKey]);
+    card.classList.toggle("card-collapsed", initialCollapsed);
+    updateCardCollapseButton(button, initialCollapsed);
+    button.addEventListener("click", () => {
+      const collapsed = card.classList.toggle("card-collapsed");
+      updateCardCollapseButton(button, collapsed);
+      void persistSettings({
+        cardCollapseState: {
+          ...normalizeCardCollapseState(state.settings?.cardCollapseState),
+          [cardKey]: collapsed
+        }
+      }).catch(() => {});
+    });
+    header.appendChild(button);
+  });
+}
+
+function getSidebarLayerTitle(tabName) {
+  switch (normalizeSidebarTabName(tabName)) {
+    case "event-actions":
+      return "Event Actions";
+    case "controls":
+    default:
+      return "Stream Controls";
+  }
+}
+
+function openSidebarLayer(tabName = "controls", options = {}) {
+  const normalizedTabName = normalizeSidebarTabName(tabName);
+  setActiveTab(normalizedTabName);
+  if (sidebarLayer) {
+    sidebarLayer.classList.toggle("sidebar-layer-single-view", Boolean(options?.singleView));
+    sidebarLayer.hidden = false;
+    if (sidebarLayerTitle) {
+      sidebarLayerTitle.textContent = options?.title || getSidebarLayerTitle(normalizedTabName);
+    }
+    document.body.classList.add("sidebar-layer-open");
+  }
+}
+
+function closeSidebarLayer() {
+  if (sidebarLayer) {
+    sidebarLayer.classList.remove("sidebar-layer-single-view");
+    sidebarLayer.hidden = true;
+    if (sidebarLayerTitle) {
+      sidebarLayerTitle.textContent = "Stream Controls";
+    }
+    document.body.classList.remove("sidebar-layer-open");
+  }
+}
+
+function openFocusedEventActionsLayer() {
+  openSidebarLayer("event-actions", {
+    singleView: true,
+    title: "Event Actions"
+  });
+}
+
+function openFocusedControlsLayer() {
+  openSidebarLayer("controls", {
+    singleView: true,
+    title: "Stream Controls"
+  });
+}
+
+function isMainScreenEventActionsPinned() {
+  const card = document.querySelector('[data-main-screen-card="event-actions-main"]');
+  return Boolean(card && card.dataset.mainScreenPinned === "true" && !card.hidden);
+}
+
+function openEventActionsWorkspace(options = {}) {
+  const preferInline = Boolean(options?.preferInline);
+  const sidebarAlreadyOpen = Boolean(sidebarLayer && !sidebarLayer.hidden);
+
+  if (preferInline && isMainScreenEventActionsPinned() && !sidebarAlreadyOpen) {
+    const card = document.querySelector('[data-main-screen-card="event-actions-main"]');
+    closeSidebarLayer();
+    card?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+    return "inline";
+  }
+
+  openFocusedEventActionsLayer();
+  return "overlay";
 }
 
 function escapeHtml(value) {
@@ -2551,6 +6550,7 @@ function renderChatList() {
     .map((item) => {
       const userKey = normalizeUserKey(item.user);
       const note = getUserNote(userKey);
+      const hasSavedViewerDetails = hasUserNoteRecord(userKey);
       const likeTotal = getSessionUserMetricValue("likes", userKey);
       const bodyText = item.translatedText
         ? `${escapeHtml(item.message)}<br /><span class="chat-handle">${escapeHtml(item.translatedText)}</span>`
@@ -2565,12 +6565,12 @@ function renderChatList() {
                 class="chat-user-button"
                 data-chat-user="${escapeHtml(userKey)}"
                 data-chat-user-label="${escapeHtml(item.nickname || item.user || "Unknown user")}"
-                title="${note ? escapeHtml(`Edit note for @${userKey}`) : escapeHtml(`Add note for @${userKey}`)}"
+                title="${hasSavedViewerDetails ? escapeHtml(`Edit note for @${userKey}`) : escapeHtml(`Add note for @${userKey}`)}"
               >
                 <strong>${escapeHtml(item.nickname || item.user || "Unknown user")}</strong>
                 <span class="chat-handle">@${escapeHtml(item.user || "unknown")}</span>
                 ${likeTotal > 0 ? `<span class="chat-like-pill">${escapeHtml(String(likeTotal))} likes</span>` : ""}
-                ${note ? `<span class="chat-note-pill">Note saved</span>` : ""}
+                ${hasSavedViewerDetails ? `<span class="chat-note-pill">Viewer details saved</span>` : ""}
               </button>
             </div>
             <div class="chat-meta">
@@ -2596,17 +6596,27 @@ function updateMessagesPerMinute() {
 }
 
 function updateStats() {
-  statViewers.textContent = state.connected ? "LIVE" : "--";
+  const viewerCount = Number(state.statState.viewerCount);
+  statViewers.textContent = Number.isFinite(viewerCount) && viewerCount >= 0
+    ? String(Math.trunc(viewerCount))
+    : "--";
   statGifts.textContent = String(state.statState.gifts);
   statFollowers.textContent = String(state.statState.followers);
   updateQueueIndicators();
   updateMessagesPerMinute();
+  syncOverlayDesignerRuntimeState();
 }
 
 function closeChatNotesPanel() {
   state.activeChatNoteUser = "";
   chatNotesPanel.hidden = true;
   chatNotesInput.value = "";
+  if (chatNotesBirthdayInput) {
+    chatNotesBirthdayInput.value = "";
+  }
+  if (chatNotesBirthdayActionSelect) {
+    chatNotesBirthdayActionSelect.value = "";
+  }
 }
 
 function openChatNotesPanel(userKey, userLabel = "") {
@@ -2617,8 +6627,16 @@ function openChatNotesPanel(userKey, userLabel = "") {
 
   state.activeChatNoteUser = normalizedUser;
   chatNotesTitle.textContent = userLabel ? `Notes for ${userLabel} (@${normalizedUser})` : `Notes for @${normalizedUser}`;
-  chatNotesInput.value = getUserNote(normalizedUser);
-  chatNotesDeleteButton.disabled = !getUserNote(normalizedUser);
+  const noteRecord = getUserNoteRecord(normalizedUser);
+  chatNotesInput.value = noteRecord.note;
+  if (chatNotesBirthdayInput) {
+    chatNotesBirthdayInput.value = noteRecord.birthday;
+  }
+  renderChatNotesBirthdayActionOptions(noteRecord.birthdayActionRuleId);
+  if (chatNotesBirthdayActionSelect) {
+    chatNotesBirthdayActionSelect.value = noteRecord.birthdayActionRuleId;
+  }
+  chatNotesDeleteButton.disabled = !hasUserNoteRecord(normalizedUser);
   chatNotesPanel.hidden = false;
   chatNotesInput.focus();
   chatNotesInput.setSelectionRange(chatNotesInput.value.length, chatNotesInput.value.length);
@@ -2632,17 +6650,23 @@ async function saveChatNote() {
 
   const nextNotes = {
     ...normalizeUserNotes(state.settings.userNotes),
-    [userKey]: chatNotesInput.value.trim()
+    [userKey]: {
+      note: chatNotesInput.value.trim(),
+      birthday: /^\d{4}-\d{2}-\d{2}$/.test(String(chatNotesBirthdayInput?.value ?? "").trim())
+        ? String(chatNotesBirthdayInput.value).trim()
+        : "",
+      birthdayActionRuleId: String(chatNotesBirthdayActionSelect?.value ?? "").trim()
+    }
   };
 
-  if (!nextNotes[userKey]) {
+  if (!nextNotes[userKey].note && !nextNotes[userKey].birthday && !nextNotes[userKey].birthdayActionRuleId) {
     delete nextNotes[userKey];
   }
 
   await persistSettings({ userNotes: nextNotes });
-  chatNotesDeleteButton.disabled = !getUserNote(userKey);
+  chatNotesDeleteButton.disabled = !hasUserNoteRecord(userKey);
   renderChatList();
-  showToast(getUserNote(userKey) ? `Saved note for @${userKey}.` : `Cleared note for @${userKey}.`, "success");
+  showToast(hasUserNoteRecord(userKey) ? `Saved note for @${userKey}.` : `Cleared note for @${userKey}.`, "success");
 }
 
 async function deleteChatNote() {
@@ -2663,26 +6687,123 @@ async function deleteChatNote() {
 
 function resetSessionMetrics() {
   state.sessionMetrics = {
+    join: 0,
+    firstActivity: 0,
     follows: 0,
     likes: 0,
+    comments: 0,
     shares: 0,
-    coins: 0
+    coins: 0,
+    subEmote: 0,
+    fanEmote: 0
   };
   state.sessionUserMetrics = {
+    join: new Map(),
+    firstActivity: new Map(),
     follows: new Map(),
     likes: new Map(),
+    comments: new Map(),
     shares: new Map(),
-    coins: new Map()
+    coins: new Map(),
+    subEmote: new Map(),
+    fanEmote: new Map()
+  };
+  state.sessionGiftMetrics = {
+    total: new Map(),
+    byUser: new Map()
+  };
+  state.sessionEmoteMetrics = {
+    subEmote: {
+      total: new Map(),
+      byUser: new Map()
+    },
+    fanEmote: {
+      total: new Map(),
+      byUser: new Map()
+    }
   };
   state.sessionUserProfiles = new Map();
   state.triggeredCustomRuleIds = new Set();
   state.customRuleTriggerCounts = new Map();
+  state.customRuleUserCooldowns = new Map();
+  state.birthdayActionTriggers = new Set();
   state.statState = {
-    gifts: 0,
-    followers: 0,
-    chatTimestamps: []
-  };
+      viewerCount: null,
+      gifts: 0,
+      followers: 0,
+      chatTimestamps: []
+    };
   updateStats();
+}
+
+function getKnownGiftOptionsMarkup(ruleId, selectedGiftName = "", searchText = "") {
+  const selectedGiftKey = normalizeGiftKey(selectedGiftName);
+  const normalizedSearch = String(searchText ?? "").trim().toLowerCase();
+  const gifts = getKnownTikTokGifts().filter((gift) =>
+    !normalizedSearch || gift.giftName.toLowerCase().includes(normalizedSearch)
+  );
+
+  if (!gifts.length) {
+    return `
+      <div class="gift-trigger-empty">${normalizedSearch ? "No gifts match that search." : "No gifts are available yet."}</div>
+    `;
+  }
+
+  return gifts.map((gift) => {
+    const isSelected = normalizeGiftKey(gift.giftName) === selectedGiftKey;
+    const trustedImageUrl = String(gift.giftImageUrl ?? "").trim();
+    const iconMarkup = trustedImageUrl
+      ? `<img src="${escapeHtml(trustedImageUrl)}" alt="" class="gift-trigger-option-icon" />`
+      : "";
+    const coinLabel = getGiftCoinValueDisplay(gift.coinValue, gift.source);
+
+    return `
+      <button
+        type="button"
+        class="gift-trigger-option${isSelected ? " selected" : ""}"
+        data-rule-gift-option="${escapeHtml(ruleId)}"
+        data-gift-name="${escapeHtml(gift.giftName)}"
+        data-gift-image-url="${escapeHtml(trustedImageUrl)}"
+        data-gift-coin-value="${escapeHtml(String(gift.coinValue || 0))}"
+      >
+        ${iconMarkup}
+        <span>${escapeHtml(`${gift.giftName}${coinLabel ? ` (${coinLabel})` : ""}`)}</span>
+      </button>
+    `;
+    }).join("");
+}
+
+function getSelectedGiftPreviewMarkup(rule) {
+  if (!rule?.triggerGiftName) {
+    return `<span class="gift-trigger-selected-empty">Select a gift from the list below.</span>`;
+  }
+
+  const knownGift = getKnownGiftMetadata(rule.triggerGiftName);
+  const resolvedImageUrl = String(knownGift?.giftImageUrl ?? "").trim();
+  const coinLabel = getGiftCoinValueDisplay(
+    knownGift?.coinValue ?? rule?.triggerGiftCoinValue ?? 0,
+    knownGift?.source ?? "builtin"
+  );
+  const iconMarkup = resolvedImageUrl
+    ? `<img src="${escapeHtml(resolvedImageUrl)}" alt="" class="gift-trigger-selected-icon" />`
+    : "";
+
+  return `
+    <span class="gift-trigger-selected">
+      ${iconMarkup}
+      <span>${escapeHtml(`${rule.triggerGiftName}${coinLabel ? ` (${coinLabel})` : ""}`)}</span>
+    </span>
+  `;
+}
+
+function getGiftSelectorSummaryMarkup(rule) {
+  return `
+    <span class="gift-trigger-summary-copy">
+      <span class="gift-trigger-summary-label">Gift trigger</span>
+      ${getSelectedGiftPreviewMarkup(rule)}
+    </span>
+    <span class="gift-trigger-summary-caret" aria-hidden="true">&#9662;</span>
+  `;
 }
 
 async function ensureSoundCatalog() {
@@ -2692,15 +6813,48 @@ async function ensureSoundCatalog() {
 
   try {
     const catalog = await app.getSoundAlertCatalog(false);
-    state.soundCatalog = Array.isArray(catalog) ? catalog : [];
-    state.soundCatalogById = new Map(state.soundCatalog.map((sound) => [sound.id, sound]));
+    mergeSoundCatalog(catalog);
     state.soundCatalogLoaded = true;
     state.soundCatalogError = "";
     renderCustomRules();
   } catch (error) {
     state.soundCatalogError = error.message || "Unable to load the sound library.";
     setStatusMessage(customRuleStatus, "error", state.soundCatalogError);
+    showToast(state.soundCatalogError, "error");
   }
+}
+
+function mergeSoundCatalog(catalog) {
+  if (!Array.isArray(catalog)) {
+    return;
+  }
+
+  for (const sound of catalog) {
+    const id = String(sound?.id ?? "").trim();
+    const title = String(sound?.title ?? "").trim();
+    if (!id || !title || state.soundCatalogById.has(id)) {
+      continue;
+    }
+
+    const normalizedSound = {
+      ...sound,
+      id,
+      title
+    };
+    state.soundCatalog.push(normalizedSound);
+    state.soundCatalogById.set(id, normalizedSound);
+  }
+}
+
+async function ensureSoundCatalogSearch(searchText) {
+  const normalizedSearch = String(searchText ?? "").trim().toLowerCase();
+  if (normalizedSearch.length < 2 || state.soundCatalogSearches.has(normalizedSearch)) {
+    return;
+  }
+
+  const catalog = await app.getSoundAlertCatalog({ search: normalizedSearch });
+  mergeSoundCatalog(catalog);
+  state.soundCatalogSearches.add(normalizedSearch);
 }
 
 function getSoundOptionList(search = "", selectedSoundId = "") {
@@ -2710,7 +6864,7 @@ function getSoundOptionList(search = "", selectedSoundId = "") {
     : state.soundCatalog;
 
   const selectedSound = selectedSoundId ? state.soundCatalogById.get(selectedSoundId) : null;
-  const limited = filtered.slice(0, SEARCH_PREVIEW_LIMIT);
+  const limited = normalizedSearch ? filtered : filtered.slice(0, SEARCH_PREVIEW_LIMIT);
 
   if (selectedSound && !limited.some((sound) => sound.id === selectedSound.id)) {
     limited.unshift(selectedSound);
@@ -2793,24 +6947,160 @@ function getEffectiveCustomRule(ruleId) {
   const nameInput = document.querySelector(`[data-rule-name="${ruleId}"]`);
   const metricInput = document.querySelector(`input[data-rule-metric="${ruleId}"]:checked`);
   const thresholdInput = document.querySelector(`[data-rule-threshold="${ruleId}"]`);
-  const enabledToggle = document.querySelector(`[data-rule-enabled-toggle="${ruleId}"]`);
+  const cooldownInput = document.querySelector(`[data-rule-user-cooldown="${ruleId}"]`);
+  const enabledToggle = document.querySelector(`[data-rule-enabled-toggle="${ruleId}"]`)
+    || document.querySelector(`[data-custom-toggle="${ruleId}"]`);
   const soundSelect = document.querySelector(`[data-rule-sound-select="${ruleId}"]`);
   const queueSelect = document.querySelector(`[data-rule-queue="${ruleId}"]`);
   const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${ruleId}"]`);
+  const feedbackOverlayEnabledInput = document.querySelector(`[data-rule-feedback-overlay-enabled="${ruleId}"]`);
+  const feedbackOverlayTitleInput = document.querySelector(`[data-rule-feedback-overlay-title="${ruleId}"]`);
+  const feedbackOverlayMessageInput = document.querySelector(`[data-rule-feedback-overlay-message="${ruleId}"]`);
+  const feedbackOverlayAccentColorInput = document.querySelector(`[data-rule-feedback-overlay-accent="${ruleId}"]`);
   const triggerAudienceInput = document.querySelector(`input[data-rule-trigger-audience="${ruleId}"]:checked`);
   const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${ruleId}"]`);
+  const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${ruleId}"]`);
+  const triggerGiftImageUrlInput = document.querySelector(`[data-rule-gift-image-url="${ruleId}"]`);
 
   return normalizeRule({
     ...rule,
     name: nameInput?.value ?? rule.name,
     metric: metricInput?.value ?? rule.metric,
     threshold: Number(thresholdInput?.value ?? rule.threshold),
+    userCooldownSeconds: Math.max(0, Number(cooldownInput?.value ?? rule.userCooldownSeconds) || 0),
     enabled: enabledToggle?.checked ?? rule.enabled,
     queueId: normalizeQueueId(queueSelect?.value ?? rule.queueId, 1),
     soundId: soundSelect?.value ?? rule.soundId,
     webhookUrl: webhookUrlInput?.value?.trim() ?? rule.webhookUrl,
+    feedbackOverlayEnabled: feedbackOverlayEnabledInput?.checked ?? rule.feedbackOverlayEnabled,
+    feedbackOverlayTitle: feedbackOverlayTitleInput?.value?.trim() ?? rule.feedbackOverlayTitle,
+    feedbackOverlayMessage: feedbackOverlayMessageInput?.value?.trim() ?? rule.feedbackOverlayMessage,
+    feedbackOverlayAccentColor: normalizeOverlayAccentColor(feedbackOverlayAccentColorInput?.value ?? rule.feedbackOverlayAccentColor),
     triggerAudience: triggerAudienceInput?.value ?? rule.triggerAudience,
-    triggerUsername: normalizeUserKey(triggerUsernameInput?.value ?? rule.triggerUsername)
+    triggerUsername: normalizeUserKey(triggerUsernameInput?.value ?? rule.triggerUsername),
+    triggerEmoteName: String(document.querySelector(`[data-rule-emote-name-input="${ruleId}"]`)?.value ?? rule.triggerEmoteName ?? "").trim(),
+    triggerGiftName: String(triggerGiftNameInput?.value ?? rule.triggerGiftName ?? "").trim(),
+    triggerGiftImageUrl: String(triggerGiftImageUrlInput?.value ?? rule.triggerGiftImageUrl ?? "").trim()
+    });
+  }
+
+function getCustomRuleSearchHaystack(rule) {
+  return [
+    rule.name,
+    getMetricDisplayLabel(rule.metric),
+    rule.metric,
+    getTriggerAudienceLabel(rule),
+    rule.triggerAudience,
+    rule.triggerUsername ? `@${rule.triggerUsername}` : "",
+    rule.triggerEmoteId,
+    rule.triggerEmoteName,
+    rule.triggerGiftName,
+    getMetricThresholdLabel(rule.metric),
+    rule.userCooldownSeconds ? `${rule.userCooldownSeconds} second cooldown` : "",
+    rule.userCooldownSeconds ? `cooldown ${rule.userCooldownSeconds}s` : ""
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function resolveCustomRuleSearchCriteria(searchText = "") {
+  const normalized = String(searchText ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return {
+      audience: "",
+      trigger: ""
+    };
+  }
+
+  const audienceAliases = new Map([
+    ["everyone", "everyone"],
+    ["all", "everyone"],
+    ["follower", "follower"],
+    ["followers", "follower"],
+    ["subscriber", "subscriber"],
+    ["subscribers", "subscriber"],
+    ["moderator", "moderator"],
+    ["moderators", "moderator"],
+    ["mod", "moderator"],
+    ["mods", "moderator"],
+    ["top gifter", "topGifter"],
+    ["topgifter", "topGifter"],
+    ["top gifter", "topGifter"],
+    ["specific user", "specificUser"],
+    ["user", "specificUser"]
+  ]);
+
+  const triggerAliases = new Map([
+    ["follow", "follows"],
+    ["follows", "follows"],
+    ["like", "likes"],
+    ["likes", "likes"],
+    ["tap", "likes"],
+    ["taps", "likes"],
+    ["join", "join"],
+    ["joins", "join"],
+    ["first activity", "firstActivity"],
+    ["first user activity", "firstActivity"],
+    ["comment", "anyComment"],
+    ["comments", "anyComment"],
+    ["any comment", "anyComment"],
+    ["share", "shares"],
+    ["shares", "shares"],
+    ["coin", "coins"],
+    ["coins", "coins"],
+    ["gift coin", "coins"],
+    ["gift coins", "coins"],
+    ["gift value", "coins"],
+    ["specific gift", "specificGift"],
+    ["sub emote", "subEmote"],
+    ["sub emotes", "subEmote"],
+    ["fan emote", "fanEmote"],
+    ["fan emotes", "fanEmote"]
+  ]);
+
+  return {
+    audience: audienceAliases.get(normalized) ?? "",
+    trigger: triggerAliases.get(normalized) ?? ""
+  };
+}
+
+function getFilteredCustomRules(rules = []) {
+  const searchText = String(state.customRuleSearchText ?? "").trim().toLowerCase();
+  const audienceFilter = String(state.customRuleAudienceFilter ?? "all").trim() || "all";
+  const triggerFilter = String(state.customRuleTriggerFilter ?? "all").trim() || "all";
+  const criteriaSearch = resolveCustomRuleSearchCriteria(searchText);
+
+  return rules.filter((rule) => {
+    const effectiveRule = state.activeCustomRuleId === rule.id
+      ? (getEffectiveCustomRule(rule.id) ?? rule)
+      : rule;
+
+    if (audienceFilter !== "all" && String(effectiveRule.triggerAudience ?? "") !== audienceFilter) {
+      return false;
+    }
+
+    if (triggerFilter !== "all" && String(effectiveRule.metric ?? "") !== triggerFilter) {
+      return false;
+    }
+
+    if (!searchText) {
+      return true;
+    }
+
+    if (criteriaSearch.audience && String(effectiveRule.triggerAudience ?? "") !== criteriaSearch.audience) {
+      return false;
+    }
+
+    if (criteriaSearch.trigger && String(effectiveRule.metric ?? "") !== criteriaSearch.trigger) {
+      return false;
+    }
+
+    if (criteriaSearch.audience || criteriaSearch.trigger) {
+      return true;
+    }
+
+    return getCustomRuleSearchHaystack(effectiveRule).includes(searchText);
   });
 }
 
@@ -2823,8 +7113,8 @@ async function previewCustomRuleAction(ruleId) {
     return;
   }
 
-  if (!rule.soundId && !rule.webhookUrl) {
-    showToast("Choose a sound or enter a webhook URL to test this action.", "info");
+  if (!rule.soundId && !rule.webhookUrl && !hasCustomActionFeedbackOverlay(rule)) {
+    showToast("Choose a sound, enter a webhook URL, or enable a feedback overlay to test this action.", "info");
     searchInput?.focus();
     return;
   }
@@ -2866,7 +7156,16 @@ async function previewCustomRuleSound(ruleId) {
 }
 
 async function triggerCustomRule(rule, options = {}) {
-  const { testMode = false } = options;
+  const { testMode = false, sourceItem = null } = options;
+  const hasFeedbackOverlay = hasCustomActionFeedbackOverlay(rule);
+  if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay) {
+    return;
+  }
+
+  if (hasFeedbackOverlay) {
+    showCustomActionFeedbackOverlay(rule, sourceItem);
+  }
+
   if (!rule?.soundId && !rule?.webhookUrl) {
     return;
   }
@@ -2902,8 +7201,11 @@ async function triggerCustomRule(rule, options = {}) {
                 metric: rule.metric,
                 threshold: rule.threshold,
                 queueId: normalizeQueueId(rule.queueId, 1),
+                userCooldownSeconds: Math.max(0, Number(rule.userCooldownSeconds) || 0),
                 triggeredAt: new Date().toISOString(),
-                testMode
+                testMode,
+                sourceUser: sourceItem?.user ?? "",
+                sourceNickname: sourceItem?.nickname ?? ""
               })
             });
 
@@ -2927,6 +7229,17 @@ async function triggerCustomRule(rule, options = {}) {
 
 function renderCustomRules() {
   const rules = state.settings.customEventRules;
+  const filteredRules = getFilteredCustomRules(rules);
+
+  if (customRuleSearchInput) {
+    customRuleSearchInput.value = state.customRuleSearchText ?? "";
+  }
+  if (customRuleAudienceFilterInput) {
+    customRuleAudienceFilterInput.value = state.customRuleAudienceFilter ?? "all";
+  }
+  if (customRuleTriggerFilterInput) {
+    customRuleTriggerFilterInput.value = state.customRuleTriggerFilter ?? "all";
+  }
 
   if (!rules.length) {
     customRuleList.innerHTML = "";
@@ -2940,7 +7253,13 @@ function renderCustomRules() {
     return;
   }
 
-  const cards = rules.map((rule) => {
+  if (!filteredRules.length) {
+    customRuleList.innerHTML = "";
+    setStatusMessage(customRuleStatus, "info", `No event actions match the current filters. Showing 0 of ${rules.length}.`);
+    return;
+  }
+
+  const cards = filteredRules.map((rule) => {
     const isEditing = state.activeCustomRuleId === rule.id;
     const options = getSoundOptionList("", rule.soundId);
     const optionsMarkup = options
@@ -2954,32 +7273,36 @@ function renderCustomRules() {
       const actionSummary = [
         hasSound ? `sound: ${selectedSound?.title}` : "",
         hasWebhook ? "webhook enabled" : "",
-        getQueueLabel(rule.queueId)
+        hasCustomActionFeedbackOverlay(rule) ? "feedback overlay" : "",
+        getQueueLabel(rule.queueId),
+        rule.userCooldownSeconds > 0 ? `user cooldown ${rule.userCooldownSeconds}s` : ""
       ].filter(Boolean).join(" and ");
+      const triggerSummary = rule.metric === "specificGift"
+        ? `Trigger when ${escapeHtml(rule.triggerGiftName || "a selected gift")} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}`
+        : rule.metric === "subEmote" || rule.metric === "fanEmote"
+          ? `Trigger when ${escapeHtml(rule.triggerEmoteName || getMetricDisplayLabel(rule.metric))} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}`
+          : `Trigger when ${escapeHtml(getMetricDisplayLabel(rule.metric))} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}`;
       return `
-        <article class="custom-rule-card" data-rule-id="${escapeHtml(rule.id)}">
-          <div class="custom-rule-top">
-            <div>
-              <strong>${escapeHtml(rule.name)}</strong>
-                <p class="helper-text">
-                Trigger when ${escapeHtml(rule.metric)} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}${actionSummary ? ` with ${escapeHtml(actionSummary)}.` : "."}
-                </p>
-              </div>
-              <div class="custom-rule-top-actions">
-                <label class="toggle-switch compact-switch custom-inline-toggle" title="Enable or disable this rule">
-                  <input type="checkbox" data-custom-toggle="${escapeHtml(rule.id)}" ${rule.enabled ? "checked" : ""} />
-                  <span class="switch-ui"></span>
-                  <span class="sr-only">${rule.enabled ? "Disable" : "Enable"} ${escapeHtml(rule.name)}</span>
-                </label>
-                <span class="status-pill ${rule.enabled ? "success" : "muted"}">${rule.enabled ? "Enabled" : "Disabled"}</span>
-              </div>
+        <article class="custom-rule-card custom-rule-card-compact" data-rule-id="${escapeHtml(rule.id)}">
+          <div class="custom-rule-compact-summary">
+            <strong>${escapeHtml(rule.name)}</strong>
+            <span class="helper-text custom-rule-inline-text">${triggerSummary}${actionSummary ? ` with ${escapeHtml(actionSummary)}.` : "."}</span>
+          </div>
+          <div class="custom-rule-top-actions">
+            <label class="toggle-switch compact-switch custom-inline-toggle" title="Enable or disable this rule">
+              <input type="checkbox" data-custom-toggle="${escapeHtml(rule.id)}" ${rule.enabled ? "checked" : ""} />
+              <span class="switch-ui"></span>
+              <span class="sr-only">${rule.enabled ? "Disable" : "Enable"} ${escapeHtml(rule.name)}</span>
+            </label>
+            <span class="status-pill ${rule.enabled ? "success" : "muted"}">${rule.enabled ? "Enabled" : "Disabled"}</span>
+            <div class="custom-rule-actions custom-rule-actions-compact">
+              <button type="button" class="ghost icon-button compact-icon-button" data-custom-edit="${escapeHtml(rule.id)}" title="Edit rule" aria-label="Edit rule">&#9998;</button>
+              <button type="button" class="ghost icon-button compact-icon-button" data-custom-duplicate="${escapeHtml(rule.id)}" title="Duplicate rule" aria-label="Duplicate rule">&#10697;</button>
+              <button type="button" class="ghost icon-button compact-icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
+              <button type="button" class="ghost icon-button compact-icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
             </div>
-            <div class="custom-rule-actions">
-              <button type="button" class="ghost icon-button" data-custom-edit="${escapeHtml(rule.id)}" title="Edit rule" aria-label="Edit rule">&#9998;</button>
-              <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
-              <button type="button" class="ghost icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
-            </div>
-          </article>
+          </div>
+        </article>
         `;
       }
 
@@ -2990,7 +7313,15 @@ function renderCustomRules() {
               <strong>Editing custom action</strong>
               <p class="helper-text">Set the threshold, sound, and enabled state before saving this rule.</p>
             </div>
-            <button type="button" class="ghost icon-button" data-custom-collapse="${escapeHtml(rule.id)}" title="Close editor" aria-label="Close editor">&#10005;</button>
+            <div class="custom-rule-top-actions">
+              <label class="toggle-switch compact-switch custom-inline-toggle" title="Enable or disable this rule">
+                <input type="checkbox" data-rule-enabled-toggle="${escapeHtml(rule.id)}" ${rule.enabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="sr-only">${rule.enabled ? "Disable" : "Enable"} ${escapeHtml(rule.name)}</span>
+              </label>
+              <span class="status-pill ${rule.enabled ? "success" : "muted"}">${rule.enabled ? "Enabled" : "Disabled"}</span>
+              <button type="button" class="ghost icon-button" data-custom-collapse="${escapeHtml(rule.id)}" title="Close editor" aria-label="Close editor">&#10005;</button>
+            </div>
           </div>
 
         <div class="custom-rule-grid">
@@ -3050,6 +7381,18 @@ function renderCustomRules() {
             <div class="event-builder-options">
               <div class="event-trigger-options">
                 <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="join" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "join" ? "checked" : ""} />
+                  <span>Join</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="firstActivity" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "firstActivity" ? "checked" : ""} />
+                  <span>First user activity</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="anyComment" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "anyComment" ? "checked" : ""} />
+                  <span>Any comment</span>
+                </label>
+                <label class="trigger-audience-option">
                   <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="follows" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "follows" ? "checked" : ""} />
                   <span>Follow</span>
                 </label>
@@ -3065,10 +7408,86 @@ function renderCustomRules() {
                   <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="coins" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "coins" ? "checked" : ""} />
                   <span>Sending a gift with min. coins value</span>
                 </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="specificGift" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "specificGift" ? "checked" : ""} />
+                  <span>Sending a specific gift</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="subEmote" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "subEmote" ? "checked" : ""} />
+                  <span>Sub emote</span>
+                </label>
+                <label class="trigger-audience-option">
+                  <input type="radio" name="trigger-metric-${escapeHtml(rule.id)}" value="fanEmote" data-rule-metric="${escapeHtml(rule.id)}" ${rule.metric === "fanEmote" ? "checked" : ""} />
+                  <span>Fan emote</span>
+                </label>
+              </div>
+              <div class="gift-trigger-picker ${rule.metric === "specificGift" ? "" : "is-hidden"}" data-rule-gift-picker-wrapper="${escapeHtml(rule.id)}">
+                <input type="hidden" data-rule-gift-name="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerGiftName || "")}" />
+                <input type="hidden" data-rule-gift-image-url="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerGiftImageUrl || "")}" />
+                <label class="field">
+                  <span>Select gift trigger</span>
+                  <details class="gift-trigger-dropdown" data-rule-gift-dropdown="${escapeHtml(rule.id)}">
+                    <summary class="gift-trigger-selected-card" data-rule-gift-selected="${escapeHtml(rule.id)}">
+                      ${getGiftSelectorSummaryMarkup(rule)}
+                    </summary>
+                    <div class="gift-trigger-toolbar">
+                        <button
+                          type="button"
+                          class="ghost compact-button"
+                          data-rule-gift-refresh="${escapeHtml(rule.id)}"
+                        >
+                        Refresh from TikTok LIVE
+                      </button>
+                    </div>
+                    <label class="field gift-trigger-search-field">
+                      <span>Filter gifts</span>
+                      <input
+                        type="search"
+                        data-rule-gift-search="${escapeHtml(rule.id)}"
+                        placeholder="Search gift name"
+                        autocomplete="off"
+                      />
+                      <small class="field-hint" data-rule-gift-status="${escapeHtml(rule.id)}">Showing the built-in gift catalog plus any learned TikTok gift data. Enter a username that is live and click Refresh from TikTok LIVE to enrich it with trusted artwork and room-specific gifts.</small>
+                    </label>
+                    <div class="gift-trigger-options-list" data-rule-gift-options="${escapeHtml(rule.id)}">
+                      ${getKnownGiftOptionsMarkup(rule.id, rule.triggerGiftName)}
+                    </div>
+                  </details>
+                </label>
+              </div>
+              <div class="gift-trigger-picker ${["subEmote", "fanEmote"].includes(rule.metric) ? "" : "is-hidden"}" data-rule-emote-picker-wrapper="${escapeHtml(rule.id)}">
+                <input type="hidden" data-rule-emote-id-input="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerEmoteId || "")}" />
+                <input type="hidden" data-rule-emote-name-input="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerEmoteName || "")}" />
+                <input type="hidden" data-rule-emote-image-url-input="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerEmoteImageUrl || "")}" />
+                <label class="field">
+                  <span>Select ${rule.metric === "fanEmote" ? "fan" : "sub"} emote trigger</span>
+                  <details class="gift-trigger-dropdown" data-rule-emote-dropdown="${escapeHtml(rule.id)}">
+                    <summary class="gift-trigger-selected-card" data-rule-emote-selected="${escapeHtml(rule.id)}">
+                      ${getEmoteSelectorSummaryMarkup(rule)}
+                    </summary>
+                    <label class="field gift-trigger-search-field">
+                      <span>Filter emotes</span>
+                      <input
+                        type="search"
+                        data-rule-emote-search="${escapeHtml(rule.id)}"
+                        placeholder="Search emote name"
+                        autocomplete="off"
+                      />
+                    </label>
+                    <div class="gift-trigger-options-list" data-rule-emote-options="${escapeHtml(rule.id)}">
+                      ${getEmoteOptionsMarkup(rule.id, rule.metric, rule.triggerEmoteName)}
+                    </div>
+                  </details>
+                </label>
               </div>
               <label class="field" data-rule-threshold-wrapper="${escapeHtml(rule.id)}">
                 <span data-rule-threshold-label="${escapeHtml(rule.id)}">${escapeHtml(getMetricThresholdLabel(rule.metric))}</span>
                 <input data-rule-threshold="${escapeHtml(rule.id)}" type="number" min="1" step="1" value="${escapeHtml(String(rule.threshold))}" />
+              </label>
+              <label class="field">
+                <span>User cooldown (seconds)</span>
+                <input data-rule-user-cooldown="${escapeHtml(rule.id)}" type="number" min="0" step="1" value="${escapeHtml(String(Math.max(0, Number(rule.userCooldownSeconds) || 0)))}" />
+                <small class="field-hint">Prevents the same user from triggering this rule again until the cooldown expires.</small>
               </label>
             </div>
           </fieldset>
@@ -3109,13 +7528,52 @@ function renderCustomRules() {
                 autocomplete="off"
               />
             </label>
+
+            <fieldset class="field field-span-2 event-builder-group">
+              <div class="event-builder-label">
+                <span>Viewer feedback overlay</span>
+              </div>
+              <div class="event-builder-options">
+                <label class="toggle-switch">
+                  <input type="checkbox" data-rule-feedback-overlay-enabled="${escapeHtml(rule.id)}" ${rule.feedbackOverlayEnabled ? "checked" : ""} />
+                  <span class="switch-ui"></span>
+                  <span class="switch-copy">Show a custom overlay message for the user who triggered this action</span>
+                </label>
+                <div class="field-grid ${rule.feedbackOverlayEnabled ? "" : "is-hidden"}" data-rule-feedback-overlay-fields="${escapeHtml(rule.id)}">
+                  <label class="field">
+                    <span>Overlay title</span>
+                    <input
+                      data-rule-feedback-overlay-title="${escapeHtml(rule.id)}"
+                      type="text"
+                      value="${escapeHtml(rule.feedbackOverlayTitle || "Viewer Feedback")}"
+                      placeholder="Viewer Feedback"
+                      autocomplete="off"
+                    />
+                  </label>
+                  <label class="field">
+                    <span>Accent color</span>
+                    <input data-rule-feedback-overlay-accent="${escapeHtml(rule.id)}" type="color" value="${escapeHtml(normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor))}" />
+                  </label>
+                  <label class="field field-span-2">
+                    <span>Overlay message</span>
+                    <textarea
+                      data-rule-feedback-overlay-message="${escapeHtml(rule.id)}"
+                      rows="3"
+                      placeholder="{username} sent {gift sent}. Cool down time: {Cool down time}"
+                    >${escapeHtml(rule.feedbackOverlayMessage || "")}</textarea>
+                    <small class="field-hint">Available tokens: <code>{username}</code>, <code>{gift sent}</code>, <code>{Cool down time}</code>, <code>{rule name}</code></small>
+                  </label>
+                </div>
+              </div>
+            </fieldset>
         </div>
 
-          <div class="custom-rule-actions">
-            <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
-            <button type="button" class="ghost icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
-            <button type="button" class="icon-button save-icon-button" data-custom-save="${escapeHtml(rule.id)}" title="Save rule" aria-label="Save rule">&#10003;</button>
-          </div>
+        <div class="custom-rule-actions">
+          <button type="button" class="ghost icon-button" data-custom-duplicate="${escapeHtml(rule.id)}" title="Duplicate rule" aria-label="Duplicate rule">&#10697;</button>
+          <button type="button" class="ghost icon-button" data-custom-preview="${escapeHtml(rule.id)}" title="Test action" aria-label="Test action">&#9654;</button>
+          <button type="button" class="ghost icon-button danger-icon-button" data-custom-delete="${escapeHtml(rule.id)}" title="Delete rule" aria-label="Delete rule">&#128465;</button>
+          <button type="button" class="icon-button save-icon-button" data-custom-save="${escapeHtml(rule.id)}" title="Save rule" aria-label="Save rule">&#10003;</button>
+        </div>
         </article>
       `;
   });
@@ -3127,18 +7585,42 @@ function renderCustomRules() {
   } else if (!state.soundCatalogLoaded) {
     setStatusMessage(customRuleStatus, "info", "Loading sound library for custom rules...");
   } else {
-    setStatusMessage(customRuleStatus, "success", `${rules.length} custom event ${rules.length === 1 ? "action" : "actions"} ready.`);
+    setStatusMessage(
+      customRuleStatus,
+      "success",
+      filteredRules.length === rules.length
+        ? `${rules.length} custom event ${rules.length === 1 ? "action" : "actions"} ready.`
+        : `Showing ${filteredRules.length} of ${rules.length} custom event ${rules.length === 1 ? "action" : "actions"}.`
+    );
   }
 }
 
-function refreshRuleSoundOptions(ruleId, searchText) {
+async function refreshRuleSoundOptions(ruleId, searchText) {
   const select = document.querySelector(`[data-rule-sound-select="${ruleId}"]`);
   const rule = state.settings.customEventRules.find((item) => item.id === ruleId);
   if (!select || !rule) {
     return;
   }
 
-  const options = getSoundOptionList(searchText, rule.soundId);
+  const requestId = state.soundCatalogSearchRequestId + 1;
+  state.soundCatalogSearchRequestId = requestId;
+  const normalizedSearch = String(searchText ?? "").trim();
+
+  if (normalizedSearch.length >= 2) {
+    try {
+      await ensureSoundCatalogSearch(normalizedSearch);
+      state.soundCatalogError = "";
+    } catch (error) {
+      state.soundCatalogError = error.message || "Unable to search the website sound library.";
+      setStatusMessage(customRuleStatus, "error", state.soundCatalogError);
+    }
+  }
+
+  if (requestId !== state.soundCatalogSearchRequestId) {
+    return;
+  }
+
+  const options = getSoundOptionList(normalizedSearch, rule.soundId);
   const optionsMarkup = options
     .map((sound) => `<option value="${escapeHtml(sound.id)}" ${sound.id === rule.soundId ? "selected" : ""}>${escapeHtml(sound.title)}</option>`)
     .join("");
@@ -3158,6 +7640,51 @@ function updateTriggerAudienceVisibility(ruleId, triggerAudience) {
   wrapper.classList.toggle("is-hidden", triggerAudience !== "specificUser");
 }
 
+function updateGiftTriggerVisibility(ruleId, metric) {
+  const wrapper = document.querySelector(`[data-rule-gift-picker-wrapper="${ruleId}"]`);
+  if (!wrapper) {
+    return;
+  }
+
+  wrapper.classList.toggle("is-hidden", metric !== "specificGift");
+}
+
+function updateEmoteTriggerVisibility(ruleId, metric) {
+  const wrapper = document.querySelector(`[data-rule-emote-picker-wrapper="${ruleId}"]`);
+  if (!wrapper) {
+    return;
+  }
+
+  wrapper.classList.toggle("is-hidden", !["subEmote", "fanEmote"].includes(metric));
+}
+
+function updateFeedbackOverlayVisibility(ruleId, enabled) {
+  const wrapper = document.querySelector(`[data-rule-feedback-overlay-fields="${ruleId}"]`);
+  if (!wrapper) {
+    return;
+  }
+
+  wrapper.classList.toggle("is-hidden", !enabled);
+}
+
+function renderGiftOptionList(ruleId, searchText = "") {
+  const giftNameInput = document.querySelector(`[data-rule-gift-name="${ruleId}"]`);
+  const optionsContainer = document.querySelector(`[data-rule-gift-options="${ruleId}"]`);
+
+  if (!optionsContainer) {
+    return;
+  }
+
+  optionsContainer.innerHTML = getKnownGiftOptionsMarkup(ruleId, giftNameInput?.value ?? "", searchText);
+}
+
+function setGiftTriggerStatus(ruleId, message) {
+  const status = document.querySelector(`[data-rule-gift-status="${ruleId}"]`);
+  if (status) {
+    status.textContent = message;
+  }
+}
+
 function updateMetricThresholdLabel(ruleId, metric) {
   const label = document.querySelector(`[data-rule-threshold-label="${ruleId}"]`);
   if (!label) {
@@ -3165,6 +7692,31 @@ function updateMetricThresholdLabel(ruleId, metric) {
   }
 
   label.textContent = getMetricThresholdLabel(metric);
+  updateGiftTriggerVisibility(ruleId, metric);
+  updateEmoteTriggerVisibility(ruleId, metric);
+}
+
+function renderEmoteOptionList(ruleId, metric, searchText = "") {
+  const emoteIdInput = document.querySelector(`[data-rule-emote-id-input="${ruleId}"]`);
+  const emoteNameInput = document.querySelector(`[data-rule-emote-name-input="${ruleId}"]`);
+  const emoteImageUrlInput = document.querySelector(`[data-rule-emote-image-url-input="${ruleId}"]`);
+  const optionsContainer = document.querySelector(`[data-rule-emote-options="${ruleId}"]`);
+  const selectedContainer = document.querySelector(`[data-rule-emote-selected="${ruleId}"]`);
+
+  if (!optionsContainer || !selectedContainer) {
+    return;
+  }
+
+  const selectedRule = normalizeRule({
+    metric,
+    triggerEmoteId: String(emoteIdInput?.value ?? "").trim(),
+    triggerEmoteName: String(emoteNameInput?.value ?? "").trim()
+      || String(emoteIdInput?.value ?? "").trim(),
+    triggerEmoteImageUrl: String(emoteImageUrlInput?.value ?? "").trim()
+  });
+
+  selectedContainer.innerHTML = getEmoteSelectorSummaryMarkup(selectedRule);
+  optionsContainer.innerHTML = getEmoteOptionsMarkup(ruleId, metric, emoteNameInput?.value ?? "", searchText);
 }
 
 function focusCustomRuleEditor(ruleId) {
@@ -3182,8 +7734,24 @@ function focusCustomRuleEditor(ruleId) {
   });
 }
 
+function resetCustomRuleFilters() {
+  state.customRuleSearchText = "";
+  state.customRuleAudienceFilter = "all";
+  state.customRuleTriggerFilter = "all";
+
+  if (customRuleSearchInput) {
+    customRuleSearchInput.value = "";
+  }
+  if (customRuleAudienceFilterInput) {
+    customRuleAudienceFilterInput.value = "all";
+  }
+  if (customRuleTriggerFilterInput) {
+    customRuleTriggerFilterInput.value = "all";
+  }
+}
+
 function incrementUserMetric(metric, userId, amount) {
-  const normalizedMetric = ["follows", "likes", "shares", "coins"].includes(metric) ? metric : null;
+  const normalizedMetric = ["follows", "likes", "comments", "shares", "coins", "subEmote", "fanEmote", "join", "firstActivity"].includes(metric) ? metric : null;
   const normalizedUserId = String(userId ?? "").trim().toLowerCase();
   const safeAmount = Number(amount) || 0;
 
@@ -3194,6 +7762,47 @@ function incrementUserMetric(metric, userId, amount) {
   const metricMap = state.sessionUserMetrics[normalizedMetric];
   const currentValue = metricMap.get(normalizedUserId) ?? 0;
   metricMap.set(normalizedUserId, currentValue + safeAmount);
+}
+
+function incrementGiftMetric(userId, giftName, amount) {
+  const normalizedUserId = normalizeUserKey(userId);
+  const normalizedGiftName = normalizeGiftKey(giftName);
+  const safeAmount = Math.max(0, Number(amount) || 0);
+
+  if (!normalizedUserId || !normalizedGiftName || safeAmount <= 0) {
+    return;
+  }
+
+  const totalCurrent = Number(state.sessionGiftMetrics.total.get(normalizedGiftName) ?? 0);
+  state.sessionGiftMetrics.total.set(normalizedGiftName, totalCurrent + safeAmount);
+
+  const userGiftMap = state.sessionGiftMetrics.byUser.get(normalizedUserId) ?? new Map();
+  const userCurrent = Number(userGiftMap.get(normalizedGiftName) ?? 0);
+  userGiftMap.set(normalizedGiftName, userCurrent + safeAmount);
+  state.sessionGiftMetrics.byUser.set(normalizedUserId, userGiftMap);
+}
+
+function incrementEmoteMetric(metric, userId, emoteId, emoteName, amount = 1) {
+  const normalizedMetric = metric === "fanEmote" ? "fanEmote" : "subEmote";
+  const normalizedUserId = normalizeUserKey(userId);
+  const normalizedEmoteKey = String(emoteId || emoteName || "").trim().toLowerCase();
+  const safeAmount = Math.max(0, Number(amount) || 0);
+
+  if (!normalizedUserId || !normalizedEmoteKey || safeAmount <= 0) {
+    return;
+  }
+
+  const totalMap = state.sessionEmoteMetrics?.[normalizedMetric]?.total;
+  const byUserMap = state.sessionEmoteMetrics?.[normalizedMetric]?.byUser;
+  if (!totalMap || !byUserMap) {
+    return;
+  }
+
+  totalMap.set(normalizedEmoteKey, Number(totalMap.get(normalizedEmoteKey) ?? 0) + safeAmount);
+
+  const userEmoteMap = byUserMap.get(normalizedUserId) ?? new Map();
+  userEmoteMap.set(normalizedEmoteKey, Number(userEmoteMap.get(normalizedEmoteKey) ?? 0) + safeAmount);
+  byUserMap.set(normalizedUserId, userEmoteMap);
 }
 
 function updateSessionUserProfile(item) {
@@ -3222,6 +7831,44 @@ function updateSessionUserProfile(item) {
   return nextProfile;
 }
 
+function createFirstActivityItem(item) {
+  const userId = normalizeUserKey(item?.user);
+  if (!userId) {
+    return null;
+  }
+
+  const previousActivity = Number(
+    state.sessionUserMetrics.join.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.firstActivity.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.follows.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.likes.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.comments.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.shares.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.coins.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.subEmote.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.fanEmote.get(userId) ?? 0
+  );
+
+  if (previousActivity > 0) {
+    return null;
+  }
+
+  return {
+    ...item,
+    id: `${item?.id ?? "activity"}-first-activity`,
+    type: "firstActivity",
+    message: "triggered their first activity this session"
+  };
+}
+
 function getTopGifterUserId() {
   let topUserId = "";
   let topCoins = 0;
@@ -3240,12 +7887,144 @@ function getTopGifterUserId() {
 function clearRuleTriggerState(ruleId) {
   state.triggeredCustomRuleIds.delete(ruleId);
   state.customRuleTriggerCounts.delete(ruleId);
+  state.customRuleUserCooldowns.delete(ruleId);
 
   for (const key of Array.from(state.customRuleTriggerCounts.keys())) {
     if (key.startsWith(`${ruleId}:`)) {
       state.customRuleTriggerCounts.delete(key);
     }
   }
+}
+
+function getRuleCooldownUserKey(item) {
+  return normalizeUserKey(item?.user || "");
+}
+
+function getRuleUserCooldownExpiry(ruleId, userKey) {
+  if (!ruleId || !userKey) {
+    return 0;
+  }
+  const ruleCooldowns = state.customRuleUserCooldowns.get(ruleId);
+  return Number(ruleCooldowns?.get(userKey) ?? 0) || 0;
+}
+
+function isRuleUserOnCooldown(rule, item) {
+  const cooldownSeconds = Math.max(0, Number(rule?.userCooldownSeconds) || 0);
+  if (cooldownSeconds <= 0) {
+    return false;
+  }
+  const userKey = getRuleCooldownUserKey(item);
+  if (!userKey) {
+    return false;
+  }
+  return getRuleUserCooldownExpiry(rule.id, userKey) > Date.now();
+}
+
+function setRuleUserCooldown(rule, item) {
+  const cooldownSeconds = Math.max(0, Number(rule?.userCooldownSeconds) || 0);
+  if (cooldownSeconds <= 0) {
+    return;
+  }
+  const userKey = getRuleCooldownUserKey(item);
+  if (!userKey) {
+    return;
+  }
+  const ruleCooldowns = state.customRuleUserCooldowns.get(rule.id) ?? new Map();
+  ruleCooldowns.set(userKey, Date.now() + (cooldownSeconds * 1000));
+  state.customRuleUserCooldowns.set(rule.id, ruleCooldowns);
+}
+
+function doesItemMatchRuleMetric(rule, item) {
+  const metric = rule?.metric;
+  if (!metric || !item) {
+    return false;
+  }
+  if (metric === "join") {
+    return item.type === "join";
+  }
+  if (metric === "firstActivity") {
+    return item.type === "firstActivity";
+  }
+  if (metric === "anyComment") {
+    return item.type === "chat";
+  }
+  if (metric === "follows") {
+    return item.type === "follow";
+  }
+  if (metric === "likes") {
+    return item.type === "like";
+  }
+  if (metric === "shares") {
+    return item.type === "share";
+  }
+  if (metric === "coins" || metric === "specificGift") {
+    return item.type === "gift";
+  }
+  if (metric === "subEmote") {
+    return item.type === "subEmote" || (item.type === "chat" && Array.isArray(item.emotes) && item.emotes.length > 0 && Boolean(item.isSubscriber));
+  }
+  if (metric === "fanEmote") {
+    return item.type === "fanEmote" || (item.type === "chat" && Array.isArray(item.emotes) && item.emotes.length > 0 && !item.isSubscriber);
+  }
+  return false;
+}
+
+function doesItemMatchRuleAudience(rule, item) {
+  const userKey = normalizeUserKey(item?.user || "");
+  if (!userKey) {
+    return false;
+  }
+  const profile = state.sessionUserProfiles.get(userKey) ?? {};
+  switch (rule?.triggerAudience) {
+    case "follower":
+      return Boolean(profile?.followedThisSession);
+    case "subscriber":
+      return Boolean(profile?.isSubscriber);
+    case "moderator":
+      return Boolean(profile?.isModerator);
+    case "topGifter":
+      return getTopGifterUserId() === userKey;
+    case "specificUser":
+      return normalizeUserKey(rule?.triggerUsername) === userKey;
+    case "everyone":
+    default:
+      return true;
+  }
+}
+
+function hasCustomActionFeedbackOverlay(rule) {
+  return Boolean(rule?.feedbackOverlayEnabled && String(rule?.feedbackOverlayMessage ?? "").trim());
+}
+
+function getCustomActionOverlayTokenReplacements(rule, sourceItem = null) {
+  return {
+    username: sourceItem?.user ? `@${sourceItem.user}` : "",
+    "gift sent": String(sourceItem?.giftName ?? "").trim(),
+    "cool down time": `${Math.max(0, Number(rule?.userCooldownSeconds) || 0)} seconds`,
+    "rule name": String(rule?.name ?? "").trim()
+  };
+}
+
+function showCustomActionFeedbackOverlay(rule, sourceItem = null) {
+  if (!hasCustomActionFeedbackOverlay(rule)) {
+    return;
+  }
+
+  const replacements = getCustomActionOverlayTokenReplacements(rule, sourceItem);
+  const title = formatNamedTemplate(String(rule.feedbackOverlayTitle || "Viewer Feedback"), replacements);
+  const message = formatNamedTemplate(String(rule.feedbackOverlayMessage || ""), replacements);
+  if (!message) {
+    return;
+  }
+
+  showHostedFeedbackOverlay({
+    title: title || "Viewer Feedback",
+    message,
+    commandType: String(rule?.name ?? "Custom action").trim(),
+    username: replacements.username,
+    accentColor: normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor),
+    sourceType: "custom-action"
+  });
 }
 
 function shouldSpeakChatItem(item) {
@@ -3387,6 +8166,154 @@ function voiceLabelFromSelect() {
   return ttsVoiceSelect.options[ttsVoiceSelect.selectedIndex]?.text ?? "Default voice";
 }
 
+function getResolvedElevenLabsApiKey() {
+  const inputValue = String(ttsElevenApiKeyInput?.value ?? "").trim();
+  if (inputValue) {
+    return inputValue;
+  }
+
+  return String(state.settings?.ttsElevenApiKey ?? "").trim();
+}
+
+function formatUsageNumber(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return "--";
+  }
+
+  return numericValue.toLocaleString("en-GB");
+}
+
+function formatUsageResetDate(unixSeconds) {
+  const numericValue = Number(unixSeconds);
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    return "--";
+  }
+
+  return new Date(numericValue * 1000).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short"
+  });
+}
+
+function renderElevenLabsUsagePanel() {
+  if (!ttsElevenLabsUsagePanel) {
+    return;
+  }
+
+  const isElevenLabs = ttsProviderSelect.value === "elevenlabs";
+  ttsElevenLabsUsagePanel.classList.toggle("is-hidden", !isElevenLabs);
+  const resolvedApiKey = getResolvedElevenLabsApiKey();
+  if (ttsElevenLabsRefreshButton) {
+    ttsElevenLabsRefreshButton.disabled = !isElevenLabs || elevenLabsUsageState.loading || !resolvedApiKey;
+  }
+
+  if (!isElevenLabs) {
+    return;
+  }
+
+  const usage = elevenLabsUsageState.data;
+  ttsElevenLabsPlan.textContent = `Plan ${usage?.tier ? String(usage.tier).replace(/_/g, " ") : "--"}`;
+  ttsElevenLabsUsed.textContent = formatUsageNumber(usage?.used);
+  ttsElevenLabsLimit.textContent = usage?.limit == null ? "--" : formatUsageNumber(usage?.limit);
+  ttsElevenLabsRemaining.textContent = usage?.remaining == null ? "--" : formatUsageNumber(usage?.remaining);
+  ttsElevenLabsReset.textContent = formatUsageResetDate(usage?.nextResetUnix);
+
+  if (elevenLabsUsageState.loading) {
+    setStatusMessage(ttsElevenLabsUsageStatus, "info", "Loading ElevenLabs account usage details...");
+    return;
+  }
+
+  if (elevenLabsUsageState.error) {
+    setStatusMessage(ttsElevenLabsUsageStatus, "error", elevenLabsUsageState.error);
+    ttsElevenLabsPlan.textContent = "Plan error";
+    return;
+  }
+
+  if (!resolvedApiKey) {
+    setStatusMessage(ttsElevenLabsUsageStatus, "info", "Enter your ElevenLabs API key to load account usage details.");
+    return;
+  }
+
+  if (!usage) {
+    setStatusMessage(ttsElevenLabsUsageStatus, "info", "Account usage details will appear here once they load.");
+    return;
+  }
+
+  const overageHint = usage.canExtend && usage.remaining === 0
+    ? " Usage-based overage may still be available."
+    : "";
+  setStatusMessage(
+    ttsElevenLabsUsageStatus,
+    "success",
+    `Subscription ${usage.status || "active"}. Used ${formatUsageNumber(usage?.used)} of ${usage?.limit == null ? "--" : formatUsageNumber(usage?.limit)} credits.${overageHint}`
+  );
+}
+
+async function refreshElevenLabsUsage(options = {}) {
+  const isElevenLabs = ttsProviderSelect.value === "elevenlabs";
+  const apiKey = getResolvedElevenLabsApiKey();
+
+  if (!isElevenLabs) {
+    elevenLabsUsageState.loading = false;
+    elevenLabsUsageState.apiKey = "";
+    elevenLabsUsageState.data = null;
+    elevenLabsUsageState.error = "";
+    renderElevenLabsUsagePanel();
+    return;
+  }
+
+  if (!apiKey) {
+    elevenLabsUsageState.loading = false;
+    elevenLabsUsageState.apiKey = "";
+    elevenLabsUsageState.data = null;
+    elevenLabsUsageState.error = "";
+    renderElevenLabsUsagePanel();
+    return;
+  }
+
+  if (!options.force && !options.silent && elevenLabsUsageState.apiKey === apiKey && elevenLabsUsageState.data) {
+    renderElevenLabsUsagePanel();
+    return;
+  }
+
+  elevenLabsUsageState.loading = true;
+  elevenLabsUsageState.apiKey = apiKey;
+  elevenLabsUsageState.error = "";
+  renderElevenLabsUsagePanel();
+
+  try {
+    const usage = await app.getElevenLabsUsage({ apiKey });
+    if (elevenLabsUsageState.apiKey !== apiKey) {
+      return;
+    }
+    elevenLabsUsageState.data = usage;
+    elevenLabsUsageState.error = "";
+  } catch (error) {
+    if (elevenLabsUsageState.apiKey !== apiKey) {
+      return;
+    }
+    elevenLabsUsageState.data = null;
+    elevenLabsUsageState.error = error.message || "Unable to load ElevenLabs usage details.";
+  } finally {
+    if (elevenLabsUsageState.apiKey === apiKey) {
+      elevenLabsUsageState.loading = false;
+    }
+    renderElevenLabsUsagePanel();
+  }
+}
+
+function scheduleElevenLabsUsageRefresh(delayMs = 500) {
+  if (elevenLabsUsageRefreshTimer) {
+    window.clearTimeout(elevenLabsUsageRefreshTimer);
+  }
+
+  elevenLabsUsageRefreshTimer = window.setTimeout(() => {
+    elevenLabsUsageRefreshTimer = null;
+    void refreshElevenLabsUsage({ force: true });
+  }, delayMs);
+}
+
 function getStyleAdjustedPitch() {
   const styleProfile = TTS_STYLE_PROFILES.natural;
   const basePitch = Number(ttsPitchInput.value) || 1;
@@ -3411,6 +8338,8 @@ function updateTtsProviderVisibility() {
   ttsElevenModeField.classList.toggle("is-hidden", !isElevenLabs);
   ttsElevenApiKeyField.classList.toggle("is-hidden", !isElevenLabs);
   ttsElevenModelField.classList.toggle("is-hidden", !isElevenLabs);
+  renderElevenLabsUsagePanel();
+  void refreshElevenLabsUsage({ silent: true });
 }
 
 function enqueueSpeech(text, options = {}) {
@@ -3513,6 +8442,10 @@ async function translateChatItem(item) {
     return item;
   }
 
+  if (String(item.message ?? "").trim().startsWith("!")) {
+    return item;
+  }
+
   try {
     const result = await app.translateText({
       text: item.message,
@@ -3539,12 +8472,18 @@ async function handleMyTtsVoiceCommand(item) {
     return false;
   }
 
-  const match = String(item.message ?? "").trim().match(/^!myttsvoice\s+(\d+)\s*$/i);
+  const messageText = String(item.message ?? item.text ?? "").trim();
+  const match = messageText.match(/^!myttsvoice\s+(\d+)\s*$/i);
   if (!match) {
     return false;
   }
 
-  const availableEntries = getAvailableTtsVoiceEntries();
+  const providerKey = getCurrentTtsProviderKey();
+  let availableEntries = getAvailableTtsVoiceEntries();
+  if (!availableEntries.length) {
+    await loadVoices();
+    availableEntries = getAvailableTtsVoiceEntries();
+  }
   const selectedNumber = Number(match[1]);
   const selectedEntry = availableEntries.find((entry) => entry.index === selectedNumber);
 
@@ -3558,7 +8497,7 @@ async function handleMyTtsVoiceCommand(item) {
     return true;
   }
 
-  await saveUserAssignedTtsVoice(item.user, selectedEntry.value);
+  await saveUserAssignedTtsVoice(item.user, selectedEntry.value, providerKey);
   showCommandFeedbackOverlay("myttsvoice", {
     user: `@${item.user}`,
     voiceLabel: selectedEntry.label,
@@ -3581,6 +8520,8 @@ async function handleIncomingChat(payload) {
     detectedLanguage: payload.detectedLanguage ?? null
   });
 
+  const firstActivityItem = createFirstActivityItem(item);
+
   updateSessionUserProfile(item);
   void reportAuthenticatedDebugTrace("Chat received", "Received live chat or interaction event.", {
     itemType: item.type,
@@ -3589,8 +8530,36 @@ async function handleIncomingChat(payload) {
     translatedText: String(item.translatedText || "").slice(0, 120)
   });
 
+  if (item.type === "join") {
+    state.sessionMetrics.join += 1;
+    incrementUserMetric("join", item.user, 1);
+  }
+
+  if (firstActivityItem) {
+    state.sessionMetrics.firstActivity += 1;
+    incrementUserMetric("firstActivity", firstActivityItem.user, 1);
+  }
+
   if (item.type === "chat") {
     state.statState.chatTimestamps.push(Date.now());
+    state.sessionMetrics.comments += 1;
+    incrementUserMetric("comments", item.user, 1);
+    pushChatOverlayItem(item);
+    if (Array.isArray(item.emotes) && item.emotes.length) {
+      const derivedMetric = item.isSubscriber ? "subEmote" : "fanEmote";
+      for (const emote of item.emotes) {
+        state.sessionMetrics[derivedMetric] += 1;
+        incrementUserMetric(derivedMetric, item.user, 1);
+        incrementEmoteMetric(derivedMetric, item.user, emote?.emoteId, emote?.emoteName, 1);
+        void rememberKnownTikTokEmote(
+          derivedMetric,
+          emote?.emoteName,
+          emote?.emoteImageUrl,
+          emote?.emoteId,
+          state.username
+        );
+      }
+    }
   }
 
   if (item.type === "gift") {
@@ -3599,6 +8568,9 @@ async function handleIncomingChat(payload) {
     state.statState.gifts += giftCount;
     state.sessionMetrics.coins += totalCoins;
     incrementUserMetric("coins", item.user, totalCoins);
+    incrementGiftMetric(item.user, item.giftName, giftCount);
+    pushGiftOverlayItem(item);
+    void rememberKnownTikTokGift(item.giftName, item.giftImageUrl, item.coinValue, item.giftId);
   }
 
   if (item.type === "follow") {
@@ -3620,6 +8592,25 @@ async function handleIncomingChat(payload) {
       state.sessionMetrics.likes += likeIncrement;
     }
     incrementUserMetric("likes", item.user, likeIncrement);
+    syncLikesOverlayState();
+  }
+
+  if (item.type === "subEmote") {
+    state.sessionMetrics.subEmote += 1;
+    incrementUserMetric("subEmote", item.user, 1);
+    incrementEmoteMetric("subEmote", item.user, item.emoteId, item.emoteName, 1);
+    void rememberKnownTikTokEmote("subEmote", item.emoteName, item.emoteImageUrl, item.emoteId, state.username);
+  }
+
+  if (item.type === "fanEmote") {
+    state.sessionMetrics.fanEmote += 1;
+    incrementUserMetric("fanEmote", item.user, 1);
+    incrementEmoteMetric("fanEmote", item.user, item.emoteId, item.emoteName, 1);
+    void rememberKnownTikTokEmote("fanEmote", item.emoteName, item.emoteImageUrl, item.emoteId, state.username);
+  }
+
+  if (["chat", "gift", "follow", "share", "like"].includes(item.type)) {
+    syncViewerStatsOverlayState();
   }
 
   state.chatItems.unshift(item);
@@ -3632,10 +8623,24 @@ async function handleIncomingChat(payload) {
     renderTtsVoiceManagerUserSuggestions();
   }
   updateStats();
-  checkCustomRules();
+  checkCustomRules(item);
+  if (firstActivityItem) {
+    checkCustomRules(firstActivityItem);
+  }
+  triggerBirthdayViewerActionIfNeeded(item);
 
   const handledListCommands = await handleListCommandsCommand(item);
   if (handledListCommands) {
+    return;
+  }
+
+  const handledCastVoteCommand = await handleCastVoteCommand(item);
+  if (handledCastVoteCommand) {
+    return;
+  }
+
+  const handledVoteCommand = await handleVoteCommand(item);
+  if (handledVoteCommand) {
     return;
   }
 
@@ -3653,7 +8658,7 @@ async function handleIncomingChat(payload) {
   }
 }
 
-function checkCustomRules() {
+function checkCustomRules(sourceItem = null) {
   for (const rule of state.settings.customEventRules) {
     if (!rule.enabled) {
       continue;
@@ -3675,8 +8680,20 @@ function checkCustomRules() {
     state.customRuleTriggerCounts.set(rule.id, currentCount);
 
     for (let triggerIndex = previousCount; triggerIndex < currentCount; triggerIndex += 1) {
+      if (sourceItem) {
+        if (!doesItemMatchRuleMetric(rule, sourceItem)) {
+          continue;
+        }
+        if (!doesItemMatchRuleAudience(rule, sourceItem)) {
+          continue;
+        }
+        if (isRuleUserOnCooldown(rule, sourceItem)) {
+          continue;
+        }
+        setRuleUserCooldown(rule, sourceItem);
+      }
       showToast(`Custom action triggered: ${rule.name}`, "success");
-      void triggerCustomRule(rule);
+      void triggerCustomRule(rule, { sourceItem });
     }
   }
 }
@@ -3697,6 +8714,12 @@ async function loadVoices() {
       });
       setStatusMessage(ttsStatus, "error", error.message || "Unable to load voices.");
     }
+
+  if (ttsProviderSelect.value === "elevenlabs") {
+    void refreshElevenLabsUsage({ force: true });
+  } else {
+    renderElevenLabsUsagePanel();
+  }
 
   const selectedVoice = state.settings.ttsVoice;
   const options = getAvailableTtsVoiceEntries().map((entry) => {
@@ -3726,6 +8749,7 @@ async function loadVoices() {
   }
 
   updateTtsStatus();
+  renderElevenLabsUsagePanel();
 }
 
 function applySettingsToUi() {
@@ -3740,6 +8764,7 @@ function applySettingsToUi() {
   translationTargetLanguageSelect.value = settings.translationTargetLanguage;
   translationProviderUrlInput.value = "Google online translator";
   translationApiKeyInput.value = "Free built-in mode";
+  updateTikTokSessionUi();
 
   ttsEnabledInput.checked = settings.ttsEnabled;
   ttsProviderSelect.value = settings.ttsProvider || "builtin";
@@ -3762,13 +8787,33 @@ function applySettingsToUi() {
     commandFeedbackDurationInput.value = String(Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000));
     commandFeedbackTemplateMyttsvoiceInput.value = settings.commandFeedbackTemplates?.myttsvoice ?? "";
     commandFeedbackTemplateListcommandsInput.value = settings.commandFeedbackTemplates?.listcommands ?? "";
+    votingEnabledInput.checked = Boolean(settings.votingEnabled);
+    votingStartRoleInput.value = ["everyone", "subscribers", "moderators"].includes(String(settings.votingStartRole ?? "").trim().toLowerCase())
+      ? String(settings.votingStartRole).trim().toLowerCase()
+      : "everyone";
+    votingOverlayOrientationInput.value = String(settings.votingOverlayOrientation ?? "").trim().toLowerCase() === "vertical" ? "vertical" : "horizontal";
+    viewerStatsOverlayFilterInput.value = ["everyone", "subscriber", "moderator", "username"].includes(String(settings.viewerStatsOverlayFilter ?? "").trim().toLowerCase())
+      ? String(settings.viewerStatsOverlayFilter).trim().toLowerCase()
+      : "everyone";
+    viewerStatsOverlayUsernameInput.value = String(settings.viewerStatsOverlayUsername ?? "").trim();
+    if (!settings.activeOverlayDesignerTemplateId) {
+      settings.activeOverlayDesignerTemplateId = settings.overlayDesignerTemplates?.[0]?.id ?? "";
+    }
     updateTtsProviderVisibility();
 
   updateRatePitchVolumeLabels();
   updateTranslationStatus();
   updateTtsStatus();
+  renderElevenLabsUsagePanel();
+  updateVotingStatus();
+  updateVoteOverlayControls();
+  updateViewerStatsOverlayControls();
+  renderOverlayDesignerControls();
   updateHeaderPills();
   renderCustomRules();
+  applyDashboardCardVisibility();
+  applyMainScreenPinnedCards();
+  applySavedCardCollapseState();
 }
 
 async function initializeAuthShell() {
@@ -3785,7 +8830,14 @@ async function initializeAuthShell() {
       await claimActiveConnectionSession({ silent: true });
       showDashboardForUser(state.authenticatedUser);
       return;
-    } catch {
+    } catch (error) {
+      if (isAuthServiceUnavailableError(error)) {
+        showDashboardForUser(state.authenticatedUser);
+        setAuthStatus("info", `Signed in as ${state.authenticatedUser?.displayName || state.authenticatedUser?.email || "saved user"}.`);
+        setAuthSessionCheckStatus("error", "Session check: Unavailable");
+        showToast("Signed in with saved session. Live auth checks are temporarily unavailable.", "info");
+        return;
+      }
       await persistSettings({ authUser: null });
     }
   }
@@ -3857,6 +8909,7 @@ function wireHeaderEvents() {
           state.username = "";
           state.roomId = null;
           clearLiveInteractionState();
+          clearHostedFeedOverlayState();
           resetSessionMetrics();
           updateHeaderPills();
           setConnectionUiState();
@@ -3924,6 +8977,7 @@ function wireHeaderEvents() {
         state.username = "";
         state.roomId = null;
         clearLiveInteractionState();
+        clearHostedFeedOverlayState();
         updateHeaderPills();
           if (isInsufficientCreditsError(error)) {
             try {
@@ -3954,20 +9008,11 @@ function wireHeaderEvents() {
   });
 
   settingsProfileSelect?.addEventListener("change", async (event) => {
-    const nextProfileId = event.target.value;
     try {
-      await switchSettingsProfile(nextProfileId);
+      await handleSettingsProfileSelection(event.target.value);
     } catch (error) {
-      showToast(error.message || "Unable to switch settings profiles.", "error");
+      showToast(error.message || "Unable to update the profile menu action.", "error");
       renderSettingsProfileOptions();
-    }
-  });
-
-  settingsProfileCreateButton?.addEventListener("click", async () => {
-    try {
-      await createSettingsProfile();
-    } catch (error) {
-      showToast(error.message || "Unable to create a new settings profile.", "error");
     }
   });
 
@@ -3980,6 +9025,28 @@ function wireHeaderEvents() {
       await saveSettingsProfileFromModal();
     } catch (error) {
       showToast(error.message || "Unable to create a new settings profile.", "error");
+    }
+  });
+
+  openLayoutCustomizerButton?.addEventListener("click", () => {
+    openLayoutCustomizerModal();
+  });
+
+  layoutCustomizerCloseButton?.addEventListener("click", () => {
+    closeLayoutCustomizerModal();
+  });
+
+  layoutCustomizerModal?.addEventListener("click", (event) => {
+    if (event.target === layoutCustomizerModal) {
+      closeLayoutCustomizerModal();
+    }
+  });
+
+  layoutCustomizerSaveButton?.addEventListener("click", async () => {
+    try {
+      await saveDashboardLayoutVisibility();
+    } catch (error) {
+      showToast(error.message || "Unable to save the dashboard layout.", "error");
     }
   });
 
@@ -3996,29 +9063,6 @@ function wireHeaderEvents() {
     }
   });
 
-  settingsProfileDeleteButton?.addEventListener("click", async () => {
-    try {
-      await deleteSettingsProfile();
-    } catch (error) {
-      showToast(error.message || "Unable to delete that settings profile.", "error");
-    }
-  });
-
-  settingsProfileExportButton?.addEventListener("click", async () => {
-    try {
-      await exportSettingsBundle();
-    } catch (error) {
-      showToast(error.message || "Unable to export the current settings.", "error");
-    }
-  });
-
-  settingsProfileImportButton?.addEventListener("click", async () => {
-    try {
-      await importSettingsBundle();
-    } catch (error) {
-      showToast(error.message || "Unable to import settings from that file.", "error");
-    }
-  });
 
   usernameInput.addEventListener("input", () => {
     if (rememberUsernameInput.checked) {
@@ -4116,6 +9160,10 @@ function wireAuthEvents() {
       setAuthStatus("error", error.message || "Unable to open the credit top-up page right now.");
     }
   });
+
+  openControlsLayerButton?.addEventListener("click", () => openFocusedControlsLayer());
+  openOverlaysLayerButton?.addEventListener("click", () => openFocusedControlsLayer());
+  openEventActionsLayerButton?.addEventListener("click", () => openFocusedEventActionsLayer());
 
   registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4315,6 +9363,141 @@ function wireChatToolbarEvents() {
       showToast(error.message || "Unable to open the queue overlay.", "error");
     }
   });
+  chatOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = chatOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The chat overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Chat overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the chat overlay URL.", "error");
+    }
+  });
+  chatOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = chatOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The chat overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the chat overlay.", "error");
+    }
+  });
+  giftOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = giftOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The gift overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Gift overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the gift overlay URL.", "error");
+    }
+  });
+  giftOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = giftOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The gift overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the gift overlay.", "error");
+    }
+  });
+  likesOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = likesOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The like leaderboard overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Like leaderboard overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the like leaderboard overlay URL.", "error");
+    }
+  });
+  likesOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = likesOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The like leaderboard overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the like leaderboard overlay.", "error");
+    }
+  });
+  viewerStatsOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = viewerStatsOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The viewer stats overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Viewer stats overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the viewer stats overlay URL.", "error");
+    }
+  });
+  viewerStatsOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = viewerStatsOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The viewer stats overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the viewer stats overlay.", "error");
+    }
+  });
+  voteOverlayCopyButton.addEventListener("click", async () => {
+    const overlayUrl = voteOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The voting overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Voting overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the voting overlay URL.", "error");
+    }
+  });
+  voteOverlayOpenButton.addEventListener("click", async () => {
+    const overlayUrl = voteOverlayUrlInput.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The voting overlay URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the voting overlay.", "error");
+    }
+  });
   commandFeedbackOverlayCopyButton.addEventListener("click", async () => {
     const overlayUrl = commandFeedbackOverlayUrlInput.value.trim();
     if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
@@ -4352,6 +9535,15 @@ function wireChatToolbarEvents() {
     if (event.key === "Escape" && settingsProfileModal && !settingsProfileModal.hidden) {
       closeSettingsProfileModal();
     }
+    if (event.key === "Escape" && layoutCustomizerModal && !layoutCustomizerModal.hidden) {
+      closeLayoutCustomizerModal();
+    }
+    if (event.key === "Escape" && overlayDesignerModal && !overlayDesignerModal.hidden) {
+      closeOverlayDesignerModal();
+    }
+    if (event.key === "Escape" && sidebarLayer && !sidebarLayer.hidden) {
+      closeSidebarLayer();
+    }
   });
 }
 
@@ -4361,23 +9553,610 @@ function wireTabEvents() {
   }
   tabEventsWired = true;
 
-  controlsTabButton.addEventListener("click", () => setActiveTab("controls"));
-  eventActionsTabButton.addEventListener("click", () => setActiveTab("event-actions"));
+  controlsTabButton?.addEventListener("click", () => setActiveTab("controls"));
+  overlaysTabButton?.addEventListener("click", () => setActiveTab("controls"));
+  eventActionsTabButton?.addEventListener("click", () => setActiveTab("event-actions"));
+  sidebarLayerCloseButton?.addEventListener("click", () => closeSidebarLayer());
+  sidebarLayer?.addEventListener("click", (event) => {
+    if (event.target === sidebarLayer) {
+      closeSidebarLayer();
+    }
+  });
+}
+
+function wireOverlayDesignerEvents() {
+  if (overlayDesignerEventsWired) {
+    return;
+  }
+  overlayDesignerEventsWired = true;
+
+  overlayDesignerOpenButton?.addEventListener("click", openOverlayDesignerModal);
+  overlayDesignerCloseButton?.addEventListener("click", closeOverlayDesignerModal);
+  overlayDesignerModal?.addEventListener("click", (event) => {
+    if (event.target === overlayDesignerModal) {
+      closeOverlayDesignerModal();
+    }
+  });
+
+  overlayDesignerTemplateSelect?.addEventListener("change", () => {
+    applyOverlayDesignerSettings({
+      activeOverlayDesignerTemplateId: overlayDesignerTemplateSelect.value
+    }, { persist: "schedule" });
+  });
+
+  overlayDesignerModalTemplateSelect?.addEventListener("change", () => {
+    applyOverlayDesignerSettings({
+      activeOverlayDesignerTemplateId: overlayDesignerModalTemplateSelect.value
+    }, { persist: "schedule" });
+  });
+
+  overlayDesignerCopyButton?.addEventListener("click", async () => {
+    const overlayUrl = getOverlayDesignerPreviewUrl();
+    if (!overlayUrl) {
+      showToast("The overlay designer URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Overlay designer URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the overlay designer URL.", "error");
+    }
+  });
+
+  overlayDesignerPreviewButton?.addEventListener("click", async () => {
+    const overlayUrl = getOverlayDesignerPreviewUrl();
+    if (!overlayUrl) {
+      showToast("The overlay designer URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the overlay designer preview.", "error");
+    }
+  });
+
+  overlayDesignerTestButton?.addEventListener("click", async () => {
+    const overlayUrl = getOverlayDesignerPreviewUrl();
+    if (!overlayUrl) {
+      showToast("The overlay designer URL is not ready yet.", "error");
+      return;
+    }
+
+    try {
+      await app.updateOverlayDesignerState({
+        activeTemplateId: getActiveOverlayDesignerTemplateId(),
+        templates: getOverlayDesignerTemplates(),
+        runtime: createOverlayDesignerTestRuntimeState()
+      });
+      await app.openExternal(overlayUrl);
+      showToast("Opened the local preview with sample overlay data.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to test the overlay designer preview.", "error");
+    }
+  });
+
+    [
+      [queueOverlayTemplateSelect, "queue"],
+      [chatOverlayTemplateSelect, "chat"],
+      [giftOverlayTemplateSelect, "gift"],
+      [likesOverlayTemplateSelect, "likes"],
+      [viewerStatsOverlayTemplateSelect, "viewerStats"],
+      [commandFeedbackOverlayTemplateSelect, "commandFeedback"],
+      [voteOverlayTemplateSelect, "vote"]
+    ].forEach(([selectElement, overlayKey]) => {
+    selectElement?.addEventListener("change", () => {
+      setOverlayDesignerAssignment(overlayKey, selectElement.value);
+    });
+  });
+
+    [
+      [queueOverlayCustomizeButton, "queue"],
+      [chatOverlayCustomizeButton, "chat"],
+      [giftOverlayCustomizeButton, "gift"],
+      [likesOverlayCustomizeButton, "likes"],
+      [viewerStatsOverlayCustomizeButton, "viewerStats"],
+      [commandFeedbackOverlayCustomizeButton, "commandFeedback"],
+      [voteOverlayCustomizeButton, "vote"]
+    ].forEach(([button, overlayKey]) => {
+    button?.addEventListener("click", () => {
+      openOverlayDesignerForAssignment(overlayKey);
+    });
+  });
+
+    [
+      [queueOverlayResetButton, "queue"],
+      [chatOverlayResetButton, "chat"],
+      [giftOverlayResetButton, "gift"],
+      [likesOverlayResetButton, "likes"],
+      [viewerStatsOverlayResetButton, "viewerStats"],
+      [commandFeedbackOverlayResetButton, "commandFeedback"],
+      [voteOverlayResetButton, "vote"]
+    ].forEach(([button, overlayKey]) => {
+      button?.addEventListener("click", () => {
+        setOverlayDesignerAssignment(overlayKey, "");
+        showToast("Overlay styling reset to default.", "success");
+      });
+    });
+
+    viewerStatsOverlayFilterInput?.addEventListener("change", () => {
+      persistSettings({
+        viewerStatsOverlayFilter: viewerStatsOverlayFilterInput.value,
+        viewerStatsOverlayUsername: viewerStatsOverlayUsernameInput?.value ?? ""
+      }).then(() => {
+        updateViewerStatsOverlayControls();
+        syncViewerStatsOverlayState();
+      }).catch((error) => {
+        showToast(error.message || "Unable to save viewer stats overlay filter.", "error");
+      });
+    });
+
+    viewerStatsOverlayUsernameInput?.addEventListener("input", () => {
+      state.settings = ensureSettingsShape({
+        ...state.settings,
+        viewerStatsOverlayFilter: viewerStatsOverlayFilterInput?.value ?? "everyone",
+        viewerStatsOverlayUsername: viewerStatsOverlayUsernameInput.value
+      });
+      syncViewerStatsOverlayState();
+    });
+
+    viewerStatsOverlayUsernameInput?.addEventListener("change", () => {
+      persistSettings({
+        viewerStatsOverlayFilter: viewerStatsOverlayFilterInput?.value ?? "everyone",
+        viewerStatsOverlayUsername: viewerStatsOverlayUsernameInput.value
+      }).then(() => {
+        updateViewerStatsOverlayControls();
+        syncViewerStatsOverlayState();
+      }).catch((error) => {
+        showToast(error.message || "Unable to save viewer stats overlay username filter.", "error");
+      });
+    });
+
+  [
+    [overlayDesignerTemplateNameInput, (value) => ({ name: String(value ?? "").trim() || "Overlay Template" })],
+    [overlayDesignerCanvasWidthInput, (value) => ({ width: Math.max(320, Number(value) || 1920) })],
+    [overlayDesignerCanvasHeightInput, (value) => ({ height: Math.max(320, Number(value) || 1080) })],
+    [overlayDesignerBackgroundColorInput, (value) => ({ backgroundColor: normalizeOverlayDesignerHex(value, "#08111f") })],
+    [overlayDesignerBackgroundOpacityInput, (value) => ({ backgroundOpacity: clampOverlayDesignerNumber(value, 0, 1, 0.45) })],
+    [overlayDesignerBackgroundImageInput, (value) => ({ backgroundImage: String(value ?? "").trim() })],
+    [overlayDesignerBackgroundVideoInput, (value) => ({ backgroundVideo: String(value ?? "").trim() })],
+    [overlayDesignerAutoLoadInput, (value) => ({ autoLoad: String(value ?? "").trim() })]
+  ].forEach(([input, mapper]) => {
+    input?.addEventListener("input", () => {
+      updateActiveOverlayDesignerTemplate((template) => ({
+        ...template,
+        ...mapper(input.value)
+      }));
+      renderOverlayDesignerModal();
+    });
+  });
+
+  [
+    [overlayElementNameInput, (value, element) => ({ ...element, name: String(value ?? "").trim() || element.name })],
+    [overlayElementContentInput, (value, element) => ({ ...element, content: String(value ?? "") })],
+    [overlayElementSourceInput, (value, element) => ({ ...element, source: String(value ?? "").trim() })],
+    [overlayElementWidgetStyleInput, (value, element) => ({ ...element, widgetStyle: ["defaultOverlay", "simple"].includes(String(value ?? "").trim()) ? String(value ?? "").trim() : element.widgetStyle })],
+    [overlayElementColorInput, (value, element) => ({ ...element, color: normalizeOverlayDesignerHex(value, element.color) })],
+    [overlayElementMutedTextColorInput, (value, element) => ({ ...element, mutedTextColor: normalizeOverlayDesignerHex(value, element.mutedTextColor) })],
+    [overlayElementSuccessColorInput, (value, element) => ({ ...element, successColor: normalizeOverlayDesignerHex(value, element.successColor) })],
+    [overlayElementGlowColorInput, (value, element) => ({ ...element, glowColor: normalizeOverlayDesignerHex(value, element.glowColor) })],
+    [overlayElementBackgroundColorInput, (value, element) => ({ ...element, backgroundColor: normalizeOverlayDesignerHex(value, element.backgroundColor) })],
+    [overlayElementBackgroundOpacityInput, (value, element) => ({ ...element, backgroundOpacity: clampOverlayDesignerNumber(value, 0, 1, element.backgroundOpacity) })],
+    [overlayElementBorderColorInput, (value, element) => ({ ...element, borderColor: normalizeOverlayDesignerHex(value, element.borderColor) })],
+    [overlayElementBorderWidthInput, (value, element) => ({ ...element, borderWidth: clampOverlayDesignerNumber(value, 0, 24, element.borderWidth) })],
+    [overlayElementBorderRadiusInput, (value, element) => ({ ...element, borderRadius: clampOverlayDesignerNumber(value, 0, 240, element.borderRadius) })],
+    [overlayElementBlurInput, (value, element) => ({ ...element, blur: clampOverlayDesignerNumber(value, 0, 40, element.blur) })],
+    [overlayElementAnimationInput, (value, element) => ({ ...element, animation: String(value ?? "").trim() || "none" })],
+    [overlayElementBindingInput, (value, element) => ({ ...element, binding: String(value ?? "").trim() })]
+  ].forEach(([input, mapper]) => {
+    input?.addEventListener("input", () => {
+      updateSelectedOverlayDesignerElement((element) => mapper(input.value, element));
+      renderOverlayDesignerModal();
+    });
+  });
+
+  [
+    [overlayElementXInput, (value, element) => ({ ...element, x: Math.max(0, Number(value) || 0) })],
+    [overlayElementYInput, (value, element) => ({ ...element, y: Math.max(0, Number(value) || 0) })],
+    [overlayElementWidthInput, (value, element) => ({ ...element, autoWidth: false, width: Math.max(OVERLAY_DESIGNER_MIN_SIZE, Number(value) || element.width) })],
+    [overlayElementHeightInput, (value, element) => ({ ...element, autoHeight: false, height: Math.max(OVERLAY_DESIGNER_MIN_SIZE, Number(value) || element.height) })],
+    [overlayElementRotationInput, (value, element) => ({ ...element, rotation: clampOverlayDesignerNumber(value, -360, 360, element.rotation) })],
+    [overlayElementOpacityInput, (value, element) => ({ ...element, opacity: clampOverlayDesignerNumber(value, 0, 1, element.opacity) })],
+    [overlayElementFontFamilyInput, (value, element) => ({ ...element, fontFamily: String(value ?? "").trim() || element.fontFamily })],
+    [overlayElementFontSizeInput, (value, element) => ({ ...element, fontSize: clampOverlayDesignerNumber(value, 10, 240, element.fontSize) })],
+    [overlayElementFontWeightInput, (value, element) => ({ ...element, fontWeight: clampOverlayDesignerNumber(value, 100, 900, element.fontWeight) })],
+    [overlayElementLetterSpacingInput, (value, element) => ({ ...element, letterSpacing: clampOverlayDesignerNumber(value, -4, 24, element.letterSpacing) })]
+  ].forEach(([input, mapper]) => {
+    const commit = () => {
+      updateSelectedOverlayDesignerElement((element) => mapper(input.value, element));
+      renderOverlayDesignerModal();
+    };
+
+    input?.addEventListener("change", commit);
+    input?.addEventListener("blur", commit);
+  });
+
+  [
+    [overlayElementAutoWidthInput, "autoWidth", overlayElementWidthInput],
+    [overlayElementAutoHeightInput, "autoHeight", overlayElementHeightInput]
+  ].forEach(([input, key, pairedInput]) => {
+    input?.addEventListener("change", () => {
+      updateSelectedOverlayDesignerElement((element) => ({
+        ...element,
+        [key]: Boolean(input.checked)
+      }));
+      if (pairedInput) {
+        pairedInput.disabled = Boolean(input.checked);
+      }
+      renderOverlayDesignerModal();
+    });
+  });
+
+  overlayDesignerCanvasPreset?.addEventListener("change", () => {
+    const [width, height] = String(overlayDesignerCanvasPreset.value ?? "1920x1080")
+      .split("x")
+      .map((value) => Math.max(320, Number(value) || 0));
+    updateActiveOverlayDesignerTemplate((template) => ({
+      ...template,
+      width,
+      height
+    }));
+    renderOverlayDesignerModal();
+  });
+
+  overlayDesignerZoom?.addEventListener("change", () => {
+    state.overlayDesignerZoom = Number(overlayDesignerZoom.value) || 1;
+    renderOverlayDesignerModal();
+  });
+  overlayDesignerShowGridInput?.addEventListener("change", () => {
+    state.overlayDesignerShowGrid = overlayDesignerShowGridInput.checked;
+    renderOverlayDesignerModal();
+  });
+  overlayDesignerSnapGridInput?.addEventListener("change", () => {
+    state.overlayDesignerSnapGrid = overlayDesignerSnapGridInput.checked;
+  });
+  overlayDesignerShowSafezoneInput?.addEventListener("change", () => {
+    state.overlayDesignerShowSafezone = overlayDesignerShowSafezoneInput.checked;
+    renderOverlayDesignerModal();
+  });
+  overlayDesignerLightThemeInput?.addEventListener("change", () => {
+    state.overlayDesignerLightTheme = overlayDesignerLightThemeInput.checked;
+    renderOverlayDesignerModal();
+  });
+
+  document.querySelectorAll("[data-overlay-add]").forEach((button) => {
+    button.addEventListener("click", () => addOverlayDesignerElement(button.dataset.overlayAdd));
+  });
+
+  overlayDesignerLayerList?.addEventListener("click", (event) => {
+    const selectButton = event.target.closest("[data-overlay-layer-select]");
+    const visibleButton = event.target.closest("[data-overlay-layer-toggle-visible]");
+    const lockButton = event.target.closest("[data-overlay-layer-toggle-lock]");
+    const moveButton = event.target.closest("[data-overlay-layer-move]");
+    const duplicateButton = event.target.closest("[data-overlay-layer-duplicate]");
+    const deleteButton = event.target.closest("[data-overlay-layer-delete]");
+
+    if (visibleButton) {
+      event.stopPropagation();
+      const elementId = visibleButton.dataset.overlayLayerToggleVisible;
+      updateActiveOverlayDesignerTemplate((template) => ({
+        ...template,
+        elements: template.elements.map((element) => element.id === elementId ? { ...element, visible: !element.visible } : element)
+      }));
+      renderOverlayDesignerModal();
+      return;
+    }
+
+    if (lockButton) {
+      event.stopPropagation();
+      const elementId = lockButton.dataset.overlayLayerToggleLock;
+      updateActiveOverlayDesignerTemplate((template) => ({
+        ...template,
+        elements: template.elements.map((element) => element.id === elementId ? { ...element, locked: !element.locked } : element)
+      }));
+      renderOverlayDesignerModal();
+      return;
+    }
+
+    if (moveButton) {
+      event.stopPropagation();
+      moveOverlayDesignerElementLayer(moveButton.dataset.overlayLayerMove, moveButton.dataset.overlayLayerDirection);
+      renderOverlayDesignerModal();
+      return;
+    }
+
+    if (duplicateButton) {
+      event.stopPropagation();
+      selectOverlayDesignerElement(duplicateButton.dataset.overlayLayerDuplicate);
+      duplicateSelectedOverlayDesignerElement();
+      return;
+    }
+
+    if (deleteButton) {
+      event.stopPropagation();
+      selectOverlayDesignerElement(deleteButton.dataset.overlayLayerDelete);
+      deleteSelectedOverlayDesignerElement();
+      return;
+    }
+
+    if (selectButton) {
+      selectOverlayDesignerElement(selectButton.dataset.overlayLayerSelect);
+    }
+  });
+
+  overlayDesignerNewTemplateButton?.addEventListener("click", () => {
+    const newTemplate = createOverlayDesignerTemplate(`Overlay Template ${getOverlayDesignerTemplates().length + 1}`);
+    pushOverlayDesignerHistory();
+    applyOverlayDesignerSettings({
+      overlayDesignerTemplates: [...getOverlayDesignerTemplates(), newTemplate],
+      activeOverlayDesignerTemplateId: newTemplate.id
+    }, { persist: "schedule" });
+    state.overlayDesignerSelectedElementId = newTemplate.elements[0]?.id ?? "";
+    renderOverlayDesignerModal();
+  });
+
+  overlayDesignerDuplicateTemplateButton?.addEventListener("click", () => {
+    const template = getActiveOverlayDesignerTemplate();
+    if (!template) {
+      return;
+    }
+    const duplicate = {
+      ...template,
+      id: createOverlayDesignerId("overlay-template"),
+      name: `${template.name} Copy`,
+      builtinKey: "",
+      elements: template.elements.map((element) => ({
+        ...element,
+        id: createOverlayDesignerId("overlay-element")
+      }))
+    };
+    pushOverlayDesignerHistory();
+    applyOverlayDesignerSettings({
+      overlayDesignerTemplates: [...getOverlayDesignerTemplates(), duplicate],
+      activeOverlayDesignerTemplateId: duplicate.id
+    }, { persist: "schedule" });
+    state.overlayDesignerSelectedElementId = duplicate.elements[0]?.id ?? "";
+    renderOverlayDesignerModal();
+  });
+
+  overlayDesignerDeleteTemplateButton?.addEventListener("click", () => {
+    const templates = getOverlayDesignerTemplates();
+    if (templates.length <= 1) {
+      showToast("Keep at least one overlay template.", "info");
+      return;
+    }
+
+    const activeTemplateId = getActiveOverlayDesignerTemplateId();
+    const remaining = templates.filter((template) => template.id !== activeTemplateId);
+    pushOverlayDesignerHistory();
+    applyOverlayDesignerSettings({
+      overlayDesignerTemplates: remaining,
+      activeOverlayDesignerTemplateId: remaining[0]?.id ?? ""
+    }, { persist: "schedule" });
+    state.overlayDesignerSelectedElementId = remaining[0]?.elements?.[0]?.id ?? "";
+    renderOverlayDesignerModal();
+  });
+
+  overlayDesignerExportTemplateButton?.addEventListener("click", () => {
+    const template = getActiveOverlayDesignerTemplate();
+    if (!template) {
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(template, null, 2)], { type: "application/json" });
+    const exportUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = exportUrl;
+    anchor.download = `${template.name.replace(/[^a-z0-9-_]+/gi, "-").toLowerCase() || "overlay-template"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(exportUrl);
+  });
+
+  overlayDesignerImportTemplateButton?.addEventListener("click", () => {
+    overlayDesignerImportInput?.click();
+  });
+
+  overlayDesignerImportInput?.addEventListener("change", async () => {
+    const file = overlayDesignerImportInput.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const raw = await file.text();
+      const imported = JSON.parse(raw);
+      const importedTemplates = Array.isArray(imported?.templates)
+        ? normalizeOverlayDesignerTemplates(imported.templates)
+        : [normalizeOverlayDesignerTemplates([imported])[0]];
+      const firstTemplateId = importedTemplates[0]?.id ?? "";
+      pushOverlayDesignerHistory();
+      applyOverlayDesignerSettings({
+        overlayDesignerTemplates: [...getOverlayDesignerTemplates(), ...importedTemplates],
+        activeOverlayDesignerTemplateId: firstTemplateId
+      }, { persist: "schedule" });
+      state.overlayDesignerSelectedElementId = importedTemplates[0]?.elements?.[0]?.id ?? "";
+      renderOverlayDesignerModal();
+      showToast("Overlay template imported.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to import that overlay template.", "error");
+    } finally {
+      overlayDesignerImportInput.value = "";
+    }
+  });
+
+  overlayDesignerUndoButton?.addEventListener("click", () => {
+    const previous = state.overlayDesignerHistoryUndo.pop();
+    if (!previous) {
+      return;
+    }
+    state.overlayDesignerHistoryRedo.push(snapshotOverlayDesignerHistory());
+    restoreOverlayDesignerHistory(previous, "undo");
+  });
+
+  overlayDesignerRedoButton?.addEventListener("click", () => {
+    const next = state.overlayDesignerHistoryRedo.pop();
+    if (!next) {
+      return;
+    }
+    state.overlayDesignerHistoryUndo.push(snapshotOverlayDesignerHistory());
+    restoreOverlayDesignerHistory(next, "redo");
+  });
+
+  overlayDesignerStage?.addEventListener("click", (event) => {
+    const elementNode = event.target.closest("[data-overlay-element-id]");
+    if (!elementNode) {
+      selectOverlayDesignerElement("");
+      return;
+    }
+    selectOverlayDesignerElement(elementNode.dataset.overlayElementId);
+  });
+
+  overlayDesignerStage?.addEventListener("dblclick", (event) => {
+    const elementNode = event.target.closest("[data-overlay-element-id]");
+    if (!elementNode) {
+      return;
+    }
+    selectOverlayDesignerElement(elementNode.dataset.overlayElementId);
+    duplicateSelectedOverlayDesignerElement();
+  });
+
+  overlayDesignerStage?.addEventListener("pointerdown", (event) => {
+    const elementNode = event.target.closest("[data-overlay-element-id]");
+    if (!elementNode) {
+      return;
+    }
+
+    const elementId = elementNode.dataset.overlayElementId;
+    const selectedElement = getActiveOverlayDesignerTemplate()?.elements.find((element) => element.id === elementId);
+    if (!selectedElement || selectedElement.locked) {
+      return;
+    }
+
+    selectOverlayDesignerElement(elementId);
+    const handleType = event.target.dataset.overlayHandle || "move";
+    state.overlayDesignerPointerState = {
+      elementId,
+      mode: handleType === "resize" ? "resize" : handleType === "rotate" ? "rotate" : "move",
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: { ...selectedElement }
+    };
+    elementNode.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  window.addEventListener("pointermove", (event) => {
+    const pointerState = state.overlayDesignerPointerState;
+    if (!pointerState) {
+      return;
+    }
+
+    const deltaX = (event.clientX - pointerState.startX) / state.overlayDesignerZoom;
+    const deltaY = (event.clientY - pointerState.startY) / state.overlayDesignerZoom;
+
+    updateSelectedOverlayDesignerElement((element) => {
+      if (element.id !== pointerState.elementId) {
+        return element;
+      }
+
+      if (pointerState.mode === "resize") {
+        return {
+          ...element,
+          autoWidth: false,
+          autoHeight: false,
+          width: Math.max(OVERLAY_DESIGNER_MIN_SIZE, applyOverlayDesignerSnap(pointerState.origin.width + deltaX)),
+          height: Math.max(OVERLAY_DESIGNER_MIN_SIZE, applyOverlayDesignerSnap(pointerState.origin.height + deltaY))
+        };
+      }
+
+      if (pointerState.mode === "rotate") {
+        return {
+          ...element,
+          rotation: clampOverlayDesignerNumber(pointerState.origin.rotation + (deltaX * 0.65), -360, 360, pointerState.origin.rotation)
+        };
+      }
+
+      return {
+        ...element,
+        x: Math.max(0, applyOverlayDesignerSnap(pointerState.origin.x + deltaX)),
+        y: Math.max(0, applyOverlayDesignerSnap(pointerState.origin.y + deltaY))
+      };
+    }, { persist: "schedule" });
+    renderOverlayDesignerModal();
+  });
+
+  window.addEventListener("pointerup", () => {
+    state.overlayDesignerPointerState = null;
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (overlayDesignerModal?.hidden) {
+      return;
+    }
+
+    if (isEditableDesignerTarget(event.target)) {
+      return;
+    }
+
+    if ((event.key === "Delete" || event.key === "Backspace") && getSelectedOverlayDesignerElement()) {
+      deleteSelectedOverlayDesignerElement();
+      event.preventDefault();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && getSelectedOverlayDesignerElement()) {
+      duplicateSelectedOverlayDesignerElement();
+      event.preventDefault();
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+      if (event.shiftKey) {
+        overlayDesignerRedoButton?.click();
+      } else {
+        overlayDesignerUndoButton?.click();
+      }
+      event.preventDefault();
+      return;
+    }
+
+    const selectedElement = getSelectedOverlayDesignerElement();
+    if (!selectedElement || selectedElement.locked) {
+      return;
+    }
+
+    const movement = event.shiftKey ? 10 : 1;
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      updateSelectedOverlayDesignerElement((element) => ({
+        ...element,
+        x: event.key === "ArrowLeft" ? Math.max(0, element.x - movement) : event.key === "ArrowRight" ? element.x + movement : element.x,
+        y: event.key === "ArrowUp" ? Math.max(0, element.y - movement) : event.key === "ArrowDown" ? element.y + movement : element.y
+      }), { persist: "schedule" });
+      renderOverlayDesignerModal();
+      event.preventDefault();
+    }
+  });
 }
 
 function wireSettingsEvents() {
   [
-      translationEnabledInput,
-      translationTargetLanguageSelect,
-        ttsEnabledInput,
-        ttsProviderSelect,
-        ttsRandomVoiceInput,
+        translationEnabledInput,
+        translationTargetLanguageSelect,
+          ttsEnabledInput,
+          ttsProviderSelect,
+          ttsRandomVoiceInput,
         ttsElevenModeSelect,
         ttsElevenApiKeyInput,
         ttsElevenModelSelect,
         ttsIncludeUsernameInput,
         ttsReadGiftsInput,
         ttsGiftMinCoinsInput,
+        votingEnabledInput,
+        votingStartRoleInput,
+        votingOverlayOrientationInput,
       ttsVoiceSelect,
       ttsQueueSelect,
       ttsRateInput,
@@ -4395,26 +10174,46 @@ function wireSettingsEvents() {
         updateRatePitchVolumeLabels();
         updateTranslationStatus();
         updateTtsStatus();
+        void refreshElevenLabsUsage({ force: element === ttsProviderSelect || element === ttsElevenApiKeyInput });
+        updateVotingStatus();
+        updateVoteOverlayControls();
+        syncVoteOverlayState();
         updateHeaderPills();
         scheduleSettingsSave();
       });
     });
 
   [
-    commandFeedbackDurationInput,
-    commandFeedbackTemplateMyttsvoiceInput,
-    commandFeedbackTemplateListcommandsInput
-  ].forEach((element) => {
-    element.addEventListener("input", () => {
-      scheduleSettingsSave();
+      commandFeedbackDurationInput,
+      commandFeedbackTemplateMyttsvoiceInput,
+      commandFeedbackTemplateListcommandsInput
+    ].forEach((element) => {
+      element.addEventListener("input", () => {
+        scheduleSettingsSave();
+      });
     });
-  });
 
       [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput].forEach((element) => {
         element.addEventListener("change", () => {
           void loadVoices();
         });
       });
+
+  ttsElevenApiKeyInput?.addEventListener("input", () => {
+    if (ttsProviderSelect.value !== "elevenlabs") {
+      return;
+    }
+
+    elevenLabsUsageState.data = null;
+    elevenLabsUsageState.error = "";
+    elevenLabsUsageState.apiKey = getResolvedElevenLabsApiKey();
+    renderElevenLabsUsagePanel();
+    scheduleElevenLabsUsageRefresh();
+  });
+
+  ttsElevenLabsRefreshButton?.addEventListener("click", () => {
+    void refreshElevenLabsUsage({ force: true });
+  });
 
   [ttsProviderSelect, ttsElevenModeSelect, ttsElevenModelSelect, ttsVoiceSelect, ttsQueueSelect].forEach((element) => {
     element.addEventListener("change", () => {
@@ -4426,6 +10225,10 @@ function wireSettingsEvents() {
 
   ttsRateInput.addEventListener("input", updateRatePitchVolumeLabels);
   ttsPitchInput.addEventListener("input", updateRatePitchVolumeLabels);
+
+  votingTestButton?.addEventListener("click", () => {
+    startVotingOverlayTest();
+  });
   ttsVolumeInput.addEventListener("input", updateRatePitchVolumeLabels);
 
   ttsTestButton.addEventListener("click", () => {
@@ -4436,8 +10239,52 @@ function wireSettingsEvents() {
   });
 
   ttsManageUserVoicesButton.addEventListener("click", () => {
-    openTtsVoiceManagerModal();
+    void openTtsVoiceManagerModal().catch((error) => {
+      showToast(error.message || "Unable to open the custom TTS voice manager.", "error");
+    });
   });
+
+    tiktokRefreshEmotesButton?.addEventListener("click", () => {
+      void refreshAuthenticatedTikTokEmotes().catch((error) => {
+        setStatusMessage(tiktokSessionStatus, "error", error.message || "Unable to refresh TikTok emotes.");
+        showToast(error.message || "Unable to refresh TikTok emotes.", "error");
+      });
+    });
+
+    tiktokSigninButton?.addEventListener("click", () => {
+      void (async () => {
+        try {
+          setStatusMessage(tiktokSessionStatus, "info", "Opening TikTok sign-in...");
+          const result = await app.beginTikTokSignIn();
+          const sessionId = String(result?.sessionId ?? "").trim();
+          const ttTargetIdc = String(result?.ttTargetIdc ?? "").trim();
+          if (!sessionId || !ttTargetIdc) {
+            throw new Error("TikTok sign-in completed, but the required cookies were not captured.");
+          }
+          await persistSettings({ tiktokSessionId: sessionId, tiktokTargetIdc: ttTargetIdc });
+          updateTikTokSessionUi();
+          showToast("TikTok sign-in connected.", "success");
+        } catch (error) {
+          updateTikTokSessionUi();
+          setStatusMessage(tiktokSessionStatus, "error", error.message || "Unable to sign in to TikTok.");
+          showToast(error.message || "Unable to sign in to TikTok.", "error");
+        }
+      })();
+    });
+
+    tiktokSignoutButton?.addEventListener("click", () => {
+      void (async () => {
+        try {
+          await app.signOutTikTok();
+          await persistSettings({ tiktokSessionId: "", tiktokTargetIdc: "" });
+          updateTikTokSessionUi();
+          showToast("TikTok sign-in removed.", "success");
+        } catch (error) {
+          setStatusMessage(tiktokSessionStatus, "error", error.message || "Unable to sign out of TikTok.");
+          showToast(error.message || "Unable to sign out of TikTok.", "error");
+        }
+      })();
+    });
 
   ttsVoiceManagerCloseButton.addEventListener("click", closeTtsVoiceManagerModal);
   ttsVoiceManagerModal.addEventListener("click", (event) => {
@@ -4452,6 +10299,11 @@ function wireSettingsEvents() {
 
   ttsVoiceManagerAddButton.addEventListener("click", async () => {
     const normalizedUser = normalizeUserKey(ttsVoiceManagerUsernameInput.value);
+    const providerKey = ttsVoiceManagerModal?.dataset.providerKey || getCurrentTtsProviderKey();
+    if (!state.voices.length) {
+      await loadVoices();
+      renderTtsVoiceManager();
+    }
     const voiceValue = String(ttsVoiceManagerVoiceSelect.value ?? "").trim();
 
     if (!normalizedUser) {
@@ -4466,7 +10318,7 @@ function wireSettingsEvents() {
       return;
     }
 
-    await saveUserAssignedTtsVoice(normalizedUser, voiceValue);
+    await saveUserAssignedTtsVoice(normalizedUser, voiceValue, providerKey);
     renderTtsVoiceManager();
     ttsVoiceManagerUsernameInput.value = "";
     ttsVoiceManagerVoiceSelect.value = "";
@@ -4483,8 +10335,10 @@ function wireSettingsEvents() {
 
     void (async () => {
       if (saveButton) {
+        const row = saveButton.closest("[data-tts-voice-user]");
         const userKey = saveButton.dataset.ttsVoiceSave;
-        const select = ttsVoiceManagerList.querySelector(`[data-tts-voice-select="${CSS.escape(userKey)}"]`);
+        const providerKey = saveButton.dataset.ttsVoiceProvider || row?.dataset.ttsVoiceProvider || ttsVoiceManagerModal?.dataset.providerKey || getCurrentTtsProviderKey();
+        const select = row?.querySelector("[data-tts-voice-select]");
         const voiceValue = String(select?.value ?? "").trim();
 
         if (!voiceValue) {
@@ -4493,15 +10347,17 @@ function wireSettingsEvents() {
           return;
         }
 
-        await saveUserAssignedTtsVoice(userKey, voiceValue);
+        await saveUserAssignedTtsVoice(userKey, voiceValue, providerKey);
         renderTtsVoiceManager();
         showToast(`Updated the custom TTS voice for @${userKey}.`, "success");
         return;
       }
 
       if (removeButton) {
+        const row = removeButton.closest("[data-tts-voice-user]");
         const userKey = removeButton.dataset.ttsVoiceRemove;
-        await removeUserAssignedTtsVoice(userKey);
+        const providerKey = removeButton.dataset.ttsVoiceProvider || row?.dataset.ttsVoiceProvider || ttsVoiceManagerModal?.dataset.providerKey || getCurrentTtsProviderKey();
+        await removeUserAssignedTtsVoice(userKey, providerKey);
         renderTtsVoiceManager();
         showToast(`Removed the custom TTS voice for @${userKey}.`, "info");
       }
@@ -4512,14 +10368,32 @@ function wireSettingsEvents() {
 }
 
 function wireCustomRuleEvents() {
-  addCustomRuleButton.addEventListener("click", async () => {
-    await ensureSoundCatalog();
-    const nextRule = createDraftRule();
-    state.settings.customEventRules = [...state.settings.customEventRules, nextRule];
-    state.activeCustomRuleId = nextRule.id;
-    setActiveTab("event-actions");
+    addCustomRuleButton.addEventListener("click", async () => {
+      void ensureSoundCatalog();
+      void refreshKnownTikTokGiftCatalog();
+      const nextRule = createDraftRule();
+      state.settings.customEventRules = [...state.settings.customEventRules, nextRule];
+      state.activeCustomRuleId = nextRule.id;
+      resetCustomRuleFilters();
+      openEventActionsWorkspace({ preferInline: true });
+      renderCustomRules();
+      await persistSettings({ customEventRules: state.settings.customEventRules });
+      focusCustomRuleEditor(nextRule.id);
+    });
+
+  customRuleSearchInput?.addEventListener("input", (event) => {
+    state.customRuleSearchText = String(event.target.value ?? "");
     renderCustomRules();
-    focusCustomRuleEditor(nextRule.id);
+  });
+
+  customRuleAudienceFilterInput?.addEventListener("change", (event) => {
+    state.customRuleAudienceFilter = String(event.target.value ?? "all") || "all";
+    renderCustomRules();
+  });
+
+  customRuleTriggerFilterInput?.addEventListener("change", (event) => {
+    state.customRuleTriggerFilter = String(event.target.value ?? "all") || "all";
+    renderCustomRules();
   });
 
   customRuleList.addEventListener("click", async (event) => {
@@ -4528,13 +10402,16 @@ function wireCustomRuleEvents() {
       return;
     }
 
-      const editId = target.dataset.customEdit;
-      if (editId) {
-        state.activeCustomRuleId = editId;
-        renderCustomRules();
-        focusCustomRuleEditor(editId);
-        return;
-      }
+        const editId = target.dataset.customEdit;
+        if (editId) {
+          void refreshKnownTikTokGiftCatalog();
+          state.activeCustomRuleId = editId;
+          resetCustomRuleFilters();
+          openEventActionsWorkspace({ preferInline: true });
+          renderCustomRules();
+          focusCustomRuleEditor(editId);
+          return;
+        }
 
     const collapseId = target.dataset.customCollapse;
     if (collapseId) {
@@ -4550,10 +10427,44 @@ function wireCustomRuleEvents() {
       return;
     }
 
+    const duplicateId = target.dataset.customDuplicate;
+    if (duplicateId) {
+      const sourceRule = state.settings.customEventRules.find((rule) => rule.id === duplicateId);
+      if (!sourceRule) {
+        return;
+      }
+
+      const duplicatedRule = createDuplicateRule(getEffectiveCustomRule(duplicateId) ?? sourceRule);
+      state.settings.customEventRules = [...state.settings.customEventRules, duplicatedRule];
+      state.activeCustomRuleId = duplicatedRule.id;
+      resetCustomRuleFilters();
+      openEventActionsWorkspace({ preferInline: true });
+      renderCustomRules();
+      await persistSettings({ customEventRules: state.settings.customEventRules });
+      focusCustomRuleEditor(duplicatedRule.id);
+      showToast("Custom event action duplicated.", "success");
+      return;
+    }
+
     const previewSoundId = target.dataset.customPreviewSound;
     if (previewSoundId) {
       await ensureSoundCatalog();
       await previewCustomRuleSound(previewSoundId);
+      return;
+    }
+
+    const giftRefreshRuleId = target.dataset.ruleGiftRefresh;
+    if (giftRefreshRuleId) {
+      setGiftTriggerStatus(giftRefreshRuleId, "Refreshing gifts from TikTok LIVE...");
+      const result = await refreshKnownTikTokGiftCatalog(usernameInput?.value || state.username || state.settings?.rememberedUsername || "");
+      renderGiftOptionList(giftRefreshRuleId, document.querySelector(`[data-rule-gift-search="${giftRefreshRuleId}"]`)?.value ?? "");
+      if (result?.gifts?.length) {
+        setGiftTriggerStatus(giftRefreshRuleId, `Loaded ${result.gifts.length} gifts from the current TikTok LIVE room.`);
+      } else if (result?.error) {
+        setGiftTriggerStatus(giftRefreshRuleId, result.error);
+      } else {
+        setGiftTriggerStatus(giftRefreshRuleId, "No TikTok gift catalog was returned for this room.");
+      }
       return;
     }
 
@@ -4579,14 +10490,34 @@ function wireCustomRuleEvents() {
       const nameInput = document.querySelector(`[data-rule-name="${saveId}"]`);
       const metricInput = document.querySelector(`input[data-rule-metric="${saveId}"]:checked`);
       const thresholdInput = document.querySelector(`[data-rule-threshold="${saveId}"]`);
+      const userCooldownInput = document.querySelector(`[data-rule-user-cooldown="${saveId}"]`);
       const soundSelect = document.querySelector(`[data-rule-sound-select="${saveId}"]`);
       const queueSelect = document.querySelector(`[data-rule-queue="${saveId}"]`);
       const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${saveId}"]`);
+      const feedbackOverlayEnabledInput = document.querySelector(`[data-rule-feedback-overlay-enabled="${saveId}"]`);
+      const feedbackOverlayTitleInput = document.querySelector(`[data-rule-feedback-overlay-title="${saveId}"]`);
+      const feedbackOverlayMessageInput = document.querySelector(`[data-rule-feedback-overlay-message="${saveId}"]`);
+      const feedbackOverlayAccentInput = document.querySelector(`[data-rule-feedback-overlay-accent="${saveId}"]`);
       const triggerAudienceInput = document.querySelector(`input[data-rule-trigger-audience="${saveId}"]:checked`);
       const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${saveId}"]`);
+      const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${saveId}"]`);
+      const triggerGiftImageUrlInput = document.querySelector(`[data-rule-gift-image-url="${saveId}"]`);
+      const triggerEmoteIdInput = document.querySelector(`[data-rule-emote-id-input="${saveId}"]`);
+      const triggerEmoteNameInput = document.querySelector(`[data-rule-emote-name-input="${saveId}"]`);
+      const triggerEmoteImageUrlInput = document.querySelector(`[data-rule-emote-image-url-input="${saveId}"]`);
       const webhookUrl = webhookUrlInput?.value?.trim() ?? "";
       const triggerAudience = triggerAudienceInput?.value ?? "everyone";
       const triggerUsername = normalizeUserKey(triggerUsernameInput?.value ?? "");
+      const metric = metricInput?.value ?? "follows";
+      const triggerGiftName = String(triggerGiftNameInput?.value ?? "").trim();
+      const triggerGiftImageUrl = String(triggerGiftImageUrlInput?.value ?? "").trim();
+      const triggerEmoteId = String(triggerEmoteIdInput?.value ?? "").trim();
+      const triggerEmoteName = String(triggerEmoteNameInput?.value ?? "").trim();
+      const triggerEmoteImageUrl = String(triggerEmoteImageUrlInput?.value ?? "").trim();
+      const feedbackOverlayEnabled = Boolean(feedbackOverlayEnabledInput?.checked);
+      const feedbackOverlayTitle = String(feedbackOverlayTitleInput?.value ?? "").trim();
+      const feedbackOverlayMessage = String(feedbackOverlayMessageInput?.value ?? "").trim();
+      const feedbackOverlayAccentColor = normalizeOverlayAccentColor(feedbackOverlayAccentInput?.value ?? "");
 
       if (webhookUrl) {
         try {
@@ -4604,17 +10535,39 @@ function wireCustomRuleEvents() {
         return;
       }
 
+      if (metric === "specificGift" && !triggerGiftName) {
+        showToast("Choose a gift before saving this trigger.", "error");
+        return;
+      }
+
+      if ((metric === "subEmote" || metric === "fanEmote") && !triggerEmoteName) {
+        showToast("Choose an emote before saving this trigger.", "error");
+        return;
+      }
+
       const updatedRule = normalizeRule({
         ...state.settings.customEventRules[ruleIndex],
         name: nameInput?.value ?? "",
-        metric: metricInput?.value ?? "follows",
+        metric,
         threshold: Number(thresholdInput?.value ?? 1),
-        enabled: state.settings.customEventRules[ruleIndex]?.enabled !== false,
+        userCooldownSeconds: Math.max(0, Number(userCooldownInput?.value ?? 0) || 0),
+        enabled: document.querySelector(`[data-rule-enabled-toggle="${saveId}"]`)?.checked
+          ?? document.querySelector(`[data-custom-toggle="${saveId}"]`)?.checked
+          ?? (state.settings.customEventRules[ruleIndex]?.enabled !== false),
         queueId: normalizeQueueId(queueSelect?.value ?? 1, 1),
         soundId: soundSelect?.value ?? "",
         webhookUrl,
+        feedbackOverlayEnabled,
+        feedbackOverlayTitle: feedbackOverlayEnabled ? feedbackOverlayTitle : "",
+        feedbackOverlayMessage: feedbackOverlayEnabled ? feedbackOverlayMessage : "",
+        feedbackOverlayAccentColor: feedbackOverlayEnabled ? feedbackOverlayAccentColor : "#53dcff",
         triggerAudience,
-        triggerUsername
+        triggerUsername,
+        triggerEmoteId: metric === "subEmote" || metric === "fanEmote" ? triggerEmoteId : "",
+        triggerEmoteName: metric === "subEmote" || metric === "fanEmote" ? triggerEmoteName : "",
+        triggerEmoteImageUrl: metric === "subEmote" || metric === "fanEmote" ? triggerEmoteImageUrl : "",
+        triggerGiftName: metric === "specificGift" ? triggerGiftName : "",
+        triggerGiftImageUrl: metric === "specificGift" ? triggerGiftImageUrl : ""
       });
 
       state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
@@ -4629,11 +10582,22 @@ function wireCustomRuleEvents() {
 
   customRuleList.addEventListener("input", (event) => {
     const searchId = event.target.dataset.ruleSoundSearch;
-    if (!searchId) {
+    if (searchId) {
+      void refreshRuleSoundOptions(searchId, event.target.value);
       return;
     }
 
-    refreshRuleSoundOptions(searchId, event.target.value);
+    const giftSearchRuleId = event.target.dataset.ruleGiftSearch;
+    if (giftSearchRuleId) {
+      renderGiftOptionList(giftSearchRuleId, event.target.value);
+      return;
+    }
+
+    const emoteSearchRuleId = event.target.dataset.ruleEmoteSearch;
+    if (emoteSearchRuleId) {
+      const metric = document.querySelector(`input[data-rule-metric="${emoteSearchRuleId}"]:checked`)?.value ?? "subEmote";
+      renderEmoteOptionList(emoteSearchRuleId, metric, event.target.value);
+    }
   });
 
   customRuleList.addEventListener("change", async (event) => {
@@ -4646,21 +10610,94 @@ function wireCustomRuleEvents() {
     const metricRuleId = event.target.dataset.ruleMetric;
     if (metricRuleId) {
       updateMetricThresholdLabel(metricRuleId, event.target.value);
+      if (event.target.value === "subEmote" || event.target.value === "fanEmote") {
+        const emoteSearchInput = document.querySelector(`[data-rule-emote-search="${metricRuleId}"]`);
+        renderEmoteOptionList(metricRuleId, event.target.value, emoteSearchInput?.value ?? "");
+      }
       return;
     }
 
-    const toggleId = event.target.dataset.customToggle;
+    const feedbackOverlayRuleId = event.target.dataset.ruleFeedbackOverlayEnabled;
+    if (feedbackOverlayRuleId) {
+      updateFeedbackOverlayVisibility(feedbackOverlayRuleId, Boolean(event.target.checked));
+      return;
+    }
+
+    const toggleId = event.target.dataset.customToggle || event.target.dataset.ruleEnabledToggle;
     if (!toggleId) {
       return;
     }
 
     const nextEnabled = Boolean(event.target.checked);
     state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
-      rule.id === toggleId ? { ...rule, enabled: nextEnabled } : rule
+      rule.id === toggleId ? normalizeRule({ ...rule, enabled: nextEnabled }) : rule
     );
     clearRuleTriggerState(toggleId);
     await persistSettings({ customEventRules: state.settings.customEventRules });
+    renderCustomRules();
     showToast(`Custom action ${nextEnabled ? "enabled" : "disabled"}.`, "success");
+  });
+
+  customRuleList.addEventListener("click", (event) => {
+    const emoteOption = event.target.closest("[data-rule-emote-option]");
+    if (emoteOption) {
+      const ruleId = emoteOption.dataset.ruleEmoteOption;
+      const emoteId = String(emoteOption.dataset.ruleEmoteId ?? "").trim();
+      const emoteName = String(emoteOption.dataset.ruleEmoteName ?? "").trim();
+      const emoteImageUrl = String(emoteOption.dataset.ruleEmoteImageUrl ?? "").trim();
+      const metric = document.querySelector(`input[data-rule-metric="${ruleId}"]:checked`)?.value ?? "subEmote";
+      const emoteIdInput = document.querySelector(`[data-rule-emote-id-input="${ruleId}"]`);
+      const emoteNameInput = document.querySelector(`[data-rule-emote-name-input="${ruleId}"]`);
+      const emoteImageUrlInput = document.querySelector(`[data-rule-emote-image-url-input="${ruleId}"]`);
+      const dropdown = document.querySelector(`[data-rule-emote-dropdown="${ruleId}"]`);
+      const emoteSearchInput = document.querySelector(`[data-rule-emote-search="${ruleId}"]`);
+
+      if (emoteIdInput) {
+        emoteIdInput.value = emoteId;
+      }
+      if (emoteNameInput) {
+        emoteNameInput.value = emoteName;
+      }
+      if (emoteImageUrlInput) {
+        emoteImageUrlInput.value = emoteImageUrl;
+      }
+      renderEmoteOptionList(ruleId, metric, emoteSearchInput?.value ?? "");
+      if (dropdown) {
+        dropdown.open = false;
+      }
+      return;
+    }
+
+    const giftOption = event.target.closest("[data-rule-gift-option]");
+    if (!giftOption) {
+      return;
+    }
+
+    const ruleId = giftOption.dataset.ruleGiftOption;
+    const giftName = String(giftOption.dataset.giftName ?? "").trim();
+    const giftImageUrl = String(giftOption.dataset.giftImageUrl ?? "").trim();
+    const giftNameInput = document.querySelector(`[data-rule-gift-name="${ruleId}"]`);
+    const giftImageUrlInput = document.querySelector(`[data-rule-gift-image-url="${ruleId}"]`);
+    const selectedCard = document.querySelector(`[data-rule-gift-selected="${ruleId}"]`);
+    const dropdown = document.querySelector(`[data-rule-gift-dropdown="${ruleId}"]`);
+    const giftSearchInput = document.querySelector(`[data-rule-gift-search="${ruleId}"]`);
+
+    if (giftNameInput) {
+      giftNameInput.value = giftName;
+    }
+    if (giftImageUrlInput) {
+      giftImageUrlInput.value = giftImageUrl;
+    }
+    if (selectedCard) {
+      selectedCard.innerHTML = getGiftSelectorSummaryMarkup({
+        triggerGiftName: giftName,
+        triggerGiftImageUrl: giftImageUrl
+      });
+    }
+    renderGiftOptionList(ruleId, giftSearchInput?.value ?? "");
+    if (dropdown) {
+      dropdown.open = false;
+    }
   });
 }
 
@@ -4670,9 +10707,13 @@ function wireAppEvents() {
       state.connected = Boolean(payload.connectionState.connected);
       state.username = payload.connectionState.username ?? "";
       state.roomId = payload.connectionState.roomId ?? null;
+      state.statState.viewerCount = Number.isFinite(Number(payload.connectionState.viewerCount))
+        ? Math.trunc(Number(payload.connectionState.viewerCount))
+        : null;
 
       if (!state.connected) {
         state.connecting = false;
+        clearHostedFeedOverlayState();
         resetSessionMetrics();
       }
 
@@ -4681,16 +10722,19 @@ function wireAppEvents() {
       updateStats();
     }
 
-    const level = payload?.level === "error" ? "error" : payload?.level === "success" ? "success" : "info";
+    const toastPayload = sanitizeStatusToastPayload(payload);
     if (payload?.connectionState && payload.connectionState.connected === false) {
       state.connected = false;
       state.roomId = null;
       clearLiveInteractionState();
+      clearHostedFeedOverlayState();
       resetSessionMetrics();
       updateHeaderPills();
       setConnectionUiState();
     }
-    showToast(payload?.message || "Connection status updated.", level);
+    if (!toastPayload.suppress) {
+      showToast(toastPayload.message, toastPayload.level);
+    }
   });
 
   app.onUpdateStatus((payload) => {
@@ -4720,6 +10764,9 @@ async function initializeApp() {
   state.connected = Boolean(connectionState?.connected);
   state.username = connectionState?.username ?? "";
   state.roomId = connectionState?.roomId ?? null;
+  state.statState.viewerCount = Number.isFinite(Number(connectionState?.viewerCount))
+    ? Math.trunc(Number(connectionState.viewerCount))
+    : null;
 
   applySettingsToUi();
   updateFooterVersion();
@@ -4734,24 +10781,34 @@ async function initializeApp() {
   await Promise.all([
     loadVoices(),
     ensureSoundCatalog(),
-    loadQueueOverlayInfo(),
-    loadCommandFeedbackOverlayInfo()
+    loadOverlayInfoBundle(),
+    loadOverlayDesignerInfo()
   ]);
+
+  void refreshKnownTikTokGiftCatalog();
 
   updateTtsStatus();
   updateTranslationStatus();
   updateUpdateStatus();
   renderChatList();
   syncQueueOverlayState();
+  syncChatOverlayState();
+  syncGiftOverlayState();
+  syncLikesOverlayState();
+  syncViewerStatsOverlayState();
+  syncVoteOverlayState();
 }
 
 wireHeaderEvents();
 wireAuthEvents();
 wireChatToolbarEvents();
 wireTabEvents();
+wireOverlayDesignerEvents();
 wireSettingsEvents();
 wireCustomRuleEvents();
 wireAppEvents();
+initializeCollapsibleCards();
+applyMainScreenPinnedCards();
 setActiveTab("controls");
 updateRatePitchVolumeLabels();
 updateUpdateStatus();
