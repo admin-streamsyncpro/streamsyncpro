@@ -37,6 +37,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
   updateCommandFeedbackOverlayState(payload) {
     return ipcRenderer.invoke("overlay:update-command-feedback-state", payload);
   },
+  getLikeRaceOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-like-race-info");
+  },
+  updateLikeRaceOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-like-race-state", payload);
+  },
+  getSpinWheelOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-spin-wheel-info");
+  },
+  updateSpinWheelOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-spin-wheel-state", payload);
+  },
   getOverlayDesignerInfo() {
     return ipcRenderer.invoke("overlay:get-designer-info");
   },
@@ -73,6 +85,27 @@ contextBridge.exposeInMainWorld("desktopApp", {
   getElevenLabsUsage(payload) {
     return ipcRenderer.invoke("tts:get-elevenlabs-usage", payload);
   },
+  browseXttsSampleFile() {
+    return ipcRenderer.invoke("tts:browse-xtts-sample-file");
+  },
+  exportXttsVoice(payload) {
+    return ipcRenderer.invoke("tts:export-xtts-voice", payload);
+  },
+  importXttsVoice() {
+    return ipcRenderer.invoke("tts:import-xtts-voice");
+  },
+  checkXttsService(payload) {
+    return ipcRenderer.invoke("tts:check-xtts-service", payload);
+  },
+  startXttsService(payload) {
+    return ipcRenderer.invoke("tts:start-xtts-service", payload);
+  },
+  getTtsCacheInfo() {
+    return ipcRenderer.invoke("tts:get-cache-info");
+  },
+  clearTtsCache() {
+    return ipcRenderer.invoke("tts:clear-cache");
+  },
   speakToFile(payload) {
     return ipcRenderer.invoke("tts:speak-to-file", payload);
   },
@@ -87,6 +120,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   resolveSoundAlertAudio(soundId) {
     return ipcRenderer.invoke("sound-alerts:resolve-audio", { soundId });
+  },
+  browseLocalSoundFile() {
+    return ipcRenderer.invoke("sound-alerts:browse-local-file");
   },
   onChat(callback) {
     const handler = (_event, payload) => callback(payload);

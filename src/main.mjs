@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:http";
 import log from "electron-log";
 import fsSync from "node:fs";
@@ -22,6 +23,12 @@ const __dirname = path.dirname(__filename);
 const { NsisUpdater } = electronUpdater;
 const execFileAsync = promisify(execFile);
 const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
+const XTTS_SERVICE_SCRIPT_PATH = path.join(__dirname, "..", "tools", "xtts_v2_service.py");
+const XTTS_SERVICE_PYTHON_PATH = path.join(__dirname, "..", ".venv-xtts", "Scripts", "python.exe");
+const XTTS_LEGACY_SERVICE_ROOT = path.join(os.homedir(), "Documents", "Codex", "2026-05-14", "build-a-node-js-desktop-app");
+const TTS_CACHE_MAX_TEXT_LENGTH = 500;
+const TTS_CACHE_MAX_FILES = 500;
+const TTS_CACHE_VERSION = 2;
 const DEFAULT_GITHUB_OWNER = "admin-streamsyncpro";
 const DEFAULT_GITHUB_REPO = "streamsyncpro";
 const QUEUE_OVERLAY_PREFERRED_PORT = 46321;
@@ -32,6 +39,7 @@ const MYINSTANTS_SEARCH_URL = "https://www.myinstants.com/en/search/";
 const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MYINSTANTS_MAX_PAGES = 50;
 const MYINSTANTS_SEARCH_MAX_PAGES = 8;
+const LOCAL_SOUND_ID_PREFIX = "local-file:";
 const DEFAULT_CUSTOM_EVENT_RULES = [];
 const SETTINGS_READ_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
 const SETTINGS_READ_RETRY_DELAYS_MS = [120, 250, 500, 900];
@@ -69,6 +77,39 @@ let commandFeedbackOverlayState = {
   visibleUntil: null,
   durationMs: 6000
 };
+let likeRaceOverlayState = {
+  raceEnabled: false,
+  raceStatus: "idle",
+  countdownSeconds: 10,
+  totalSpaces: 1000,
+  likeMultiplier: 1,
+  giftMultiplier: 5,
+  racers: [],
+  leaderboard: [],
+  currentLeader: null,
+  previousLeader: null,
+  winner: null,
+  lastRaceWinner: null,
+  commentaryQueue: [],
+  ttsSettings: {},
+  overlaySettings: {},
+  stats: {},
+  updatedAt: null
+};
+let spinWheelOverlayState = {
+  visible: false,
+  phase: "idle",
+  spinId: "",
+  durationMs: 5200,
+  resultDurationMs: 5000,
+  arrowPosition: "right",
+  selectedIndex: 0,
+  winnerLabel: "",
+  triggeredBy: "",
+  triggerUser: null,
+  segments: [],
+  updatedAt: null
+};
 let overlayDesignerState = {
   activeTemplateId: "",
   templates: [],
@@ -83,6 +124,10 @@ let myInstantsCatalogCache = {
 const myInstantsSoundLookup = new Map();
 const myInstantsAudioUrlCache = new Map();
 let lastCpuUsageSample = null;
+let xttsServiceProcess = null;
+let xttsServiceStartingPromise = null;
+let startupSettingsPromise = null;
+let startupOverlayPromise = null;
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -124,6 +169,7 @@ function getOverlayUrlBundle(pathname) {
 
   const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
   const localUrl = `http://127.0.0.1:${queueOverlayPort}${normalizedPath}`;
+  const hostnameUrl = `http://localhost:${queueOverlayPort}${normalizedPath}`;
   const networkInterfaces = os.networkInterfaces();
   let networkHost = "";
 
@@ -145,6 +191,7 @@ function getOverlayUrlBundle(pathname) {
   return {
     url: networkUrl || localUrl,
     localUrl,
+    hostnameUrl,
     networkUrl
   };
 }
@@ -203,6 +250,7 @@ let settings = {
   authRememberedEmail: "",
   rememberedUsername: "",
   rememberUsername: false,
+  autoConnectOnLaunch: false,
   rememberedUsernames: [],
   tiktokSessionId: "",
   tiktokTargetIdc: "",
@@ -220,19 +268,47 @@ let settings = {
   ttsVolume: 1,
   ttsQueue: 1,
   ttsIncludeUsername: true,
+  ttsReadPunctuation: false,
   ttsReadGifts: false,
   ttsGiftMinCoins: 0,
   ttsElevenMode: "free",
   ttsElevenApiKey: "",
   ttsElevenModel: "eleven_flash_v2_5",
+  ttsXttsServiceUrl: "http://127.0.0.1:8020",
+  ttsXttsLanguage: "en",
+  ttsXttsSplitSentences: false,
+  ttsXttsVoices: [],
+  ttsVoiceLockGiftName: "",
   ttsAudience: {
     allViewers: true,
     subscribers: false,
     moderators: false
   },
+  ttsModeration: {
+    mutedUsers: [],
+    shadowMutedUsers: [],
+    blockedWords: [],
+    timedOutUsers: {},
+    slowModeSeconds: 0,
+    userCooldownSeconds: 0,
+    filters: {
+      blockedWords: true,
+      urls: true,
+      privateInfo: true,
+      fakeDonation: true,
+      unsafeInstructions: true,
+      unicodeAbuse: true,
+      repeatedCharacters: true,
+      repeatedWords: true,
+      excessiveCaps: true,
+      excessiveEmojis: true,
+      obfuscatedBypass: true
+    }
+  },
     ttsUserVoiceAssignments: {
       builtin: {},
-      elevenlabs: {}
+      elevenlabs: {},
+      xtts: {}
     },
     userNotes: {},
     knownTikTokGifts: [],
@@ -250,7 +326,17 @@ let settings = {
   },
   votingEnabled: false,
   votingStartRole: "everyone",
-  votingOverlayOrientation: "horizontal"
+  votingOverlayOrientation: "horizontal",
+  spinWheelSettings: {
+    enabled: true,
+    commandEnabled: true,
+    giftName: "",
+    eventRuleId: "",
+    durationMs: 5200,
+    resultDurationMs: 5000,
+    arrowPosition: "right",
+    segments: []
+  }
 };
 
 log.initialize();
@@ -293,8 +379,17 @@ function getCommandFeedbackOverlayUrl() {
   return getOverlayUrlBundle("/command-feedback-overlay").url;
 }
 
+function getLikeRaceOverlayUrl() {
+  return getOverlayUrlBundle("/like-race-overlay").hostnameUrl;
+}
+
+function getSpinWheelOverlayUrl() {
+  const overlayUrls = getOverlayUrlBundle("/spin-wheel-overlay");
+  return overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url;
+}
+
 function getOverlayDesignerPreviewUrl(templateId = "") {
-  const baseUrl = getOverlayUrlBundle("/overlay-designer-preview").url;
+  const baseUrl = getOverlayUrlBundle("/overlay-designer-preview").hostnameUrl;
   if (!baseUrl) {
     return "";
   }
@@ -384,6 +479,104 @@ function sanitizeOverlayDesignerStatePayload(payload = {}) {
   };
 }
 
+function sanitizeLikeRaceOverlayState(payload = {}) {
+  const racers = Array.isArray(payload.racers)
+    ? payload.racers
+        .map((racer, index) => ({
+          userId: String(racer?.userId ?? racer?.username ?? `racer-${index}`).trim() || `racer-${index}`,
+          username: String(racer?.username ?? "viewer").trim() || "viewer",
+          displayName: String(racer?.displayName ?? racer?.username ?? "Viewer").trim() || "Viewer",
+          profilePictureUrl: String(racer?.profilePictureUrl ?? "").trim(),
+          spacesMoved: Math.max(0, Number(racer?.spacesMoved) || 0),
+          progressPercent: Math.max(0, Math.min(100, Number(racer?.progressPercent) || 0)),
+          trackPosition: Math.max(0, Math.min(1, Number(racer?.trackPosition) || 0)),
+          likesReceived: Math.max(0, Number(racer?.likesReceived) || 0),
+          giftsReceived: Math.max(0, Number(racer?.giftsReceived) || 0),
+          giftCoinsReceived: Math.max(0, Number(racer?.giftCoinsReceived) || 0),
+          lastActionTime: Number(racer?.lastActionTime) || Date.now(),
+          isInactive: Boolean(racer?.isInactive),
+          hasTriggeredInactiveCommentary: Boolean(racer?.hasTriggeredInactiveCommentary),
+          currentRank: Math.max(1, Number(racer?.currentRank) || index + 1),
+          previousRank: Math.max(1, Number(racer?.previousRank) || index + 1),
+          speechBubble: String(racer?.speechBubble ?? "").trim()
+        }))
+        .slice(0, 100)
+    : [];
+
+  const leaderboard = Array.isArray(payload.leaderboard)
+    ? payload.leaderboard.slice(0, 20)
+    : racers
+        .slice()
+        .sort((left, right) => right.spacesMoved - left.spacesMoved)
+        .slice(0, 10);
+
+  return {
+    raceEnabled: Boolean(payload.raceEnabled),
+    raceStatus: ["idle", "lobby", "countdown", "running", "finished"].includes(String(payload.raceStatus ?? "idle"))
+      ? String(payload.raceStatus)
+      : "idle",
+    countdownSeconds: Math.max(0, Number(payload.countdownSeconds) || 0),
+    countdownEndsAt: String(payload.countdownEndsAt ?? "").trim(),
+    totalSpaces: Math.max(1, Number(payload.totalSpaces) || 1000),
+    likeMultiplier: Math.max(0, Number(payload.likeMultiplier) || 1),
+    giftMultiplier: Math.max(0, Number(payload.giftMultiplier) || 5),
+    racers,
+    leaderboard,
+    currentLeader: payload.currentLeader ?? null,
+    previousLeader: payload.previousLeader ?? null,
+    winner: payload.winner ?? null,
+    lastRaceWinner: payload.lastRaceWinner ?? null,
+    commentaryQueue: Array.isArray(payload.commentaryQueue) ? payload.commentaryQueue.slice(-12) : [],
+    ttsSettings: payload.ttsSettings && typeof payload.ttsSettings === "object" ? payload.ttsSettings : {},
+    overlaySettings: payload.overlaySettings && typeof payload.overlaySettings === "object" ? payload.overlaySettings : {},
+    stats: payload.stats && typeof payload.stats === "object" ? payload.stats : {},
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function sanitizeSpinWheelOverlayState(payload = {}) {
+  const fallbackColors = ["#15c66f", "#9bd400", "#ffd027", "#1598e8", "#7345c8", "#d61e11", "#ff871c", "#9bc7c7"];
+  const segments = Array.isArray(payload.segments)
+    ? payload.segments
+        .map((segment, index) => ({
+          id: String(segment?.id ?? `spin-segment-${index}`).trim() || `spin-segment-${index}`,
+          label: String(segment?.label ?? `Action ${index + 1}`).trim() || `Action ${index + 1}`,
+          color: /^#[0-9a-fA-F]{6}$/.test(String(segment?.color ?? "").trim())
+            ? String(segment.color).trim()
+            : fallbackColors[index % fallbackColors.length],
+          actionRuleId: String(segment?.actionRuleId ?? "").trim()
+        }))
+        .slice(0, 16)
+    : [];
+  const phase = ["idle", "spinning", "result"].includes(String(payload.phase ?? "idle"))
+    ? String(payload.phase)
+    : "idle";
+  const selectedIndex = Math.max(0, Math.min(Math.max(0, segments.length - 1), Math.trunc(Number(payload.selectedIndex) || 0)));
+
+  return {
+    visible: Boolean(payload.visible) || phase === "spinning" || phase === "result",
+    phase,
+    spinId: String(payload.spinId ?? "").trim(),
+    durationMs: Math.max(1000, Math.min(30000, Number(payload.durationMs) || 5200)),
+    resultDurationMs: Math.max(1000, Math.min(30000, Number(payload.resultDurationMs) || 5000)),
+    arrowPosition: ["right", "top", "bottom", "left"].includes(String(payload.arrowPosition ?? "").trim().toLowerCase())
+      ? String(payload.arrowPosition).trim().toLowerCase()
+      : "right",
+    selectedIndex,
+    winnerLabel: String(payload.winnerLabel ?? segments[selectedIndex]?.label ?? "").trim(),
+    triggeredBy: String(payload.triggeredBy ?? "").trim(),
+    triggerUser: payload.triggerUser && typeof payload.triggerUser === "object"
+      ? {
+          username: String(payload.triggerUser.username ?? "").trim(),
+          displayName: String(payload.triggerUser.displayName ?? "").trim(),
+          profilePictureUrl: String(payload.triggerUser.profilePictureUrl ?? "").trim()
+        }
+      : null,
+    segments,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function broadcastOverlayDesignerState() {
   const eventPayload = `data: ${JSON.stringify({ ok: true, state: overlayDesignerState })}\n\n`;
   for (const client of overlayDesignerClients) {
@@ -440,6 +633,36 @@ async function serveOverlayDesignerPreviewHtml(response) {
   }
 }
 
+async function serveLikeRaceOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "like-race-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve Like Race overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Like Race overlay unavailable.");
+  }
+}
+
+async function serveSpinWheelOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "spin-wheel-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve Spin Wheel overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Spin Wheel overlay unavailable.");
+  }
+}
+
 function buildQueueOverlayServer() {
   return createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -456,6 +679,16 @@ function buildQueueOverlayServer() {
 
     if (requestUrl.pathname === "/overlay-designer-preview") {
       await serveOverlayDesignerPreviewHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/like-race-overlay") {
+      await serveLikeRaceOverlayHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/spin-wheel-overlay") {
+      await serveSpinWheelOverlayHtml(response);
       return;
     }
 
@@ -495,6 +728,34 @@ function buildQueueOverlayServer() {
         ok: true,
         overlayUrl: getOverlayDesignerPreviewUrl(requestedTemplateId),
         state: overlayDesignerState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/like-race-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getLikeRaceOverlayUrl(),
+        state: likeRaceOverlayState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/spin-wheel-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getSpinWheelOverlayUrl(),
+        state: spinWheelOverlayState
       }));
       return;
     }
@@ -558,15 +819,26 @@ async function startQueueOverlayServer() {
 }
 
   function createWindow() {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+      return;
+    }
+
     mainWindow = new BrowserWindow({
+      title: "Stream Sync Pro LIVE",
       width: 1200,
       height: 780,
       minWidth: 860,
       minHeight: 620,
       resizable: true,
       maximizable: true,
+      frame: true,
+      transparent: false,
+      skipTaskbar: false,
       autoHideMenuBar: true,
       backgroundColor: "#071124",
+      show: true,
       webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -575,7 +847,27 @@ async function startQueueOverlayServer() {
   });
 
   mainWindow.setMenuBarVisibility(false);
+  mainWindow.center();
+  mainWindow.setSkipTaskbar(false);
+  mainWindow.show();
+  mainWindow.focus();
+  mainWindow.setAlwaysOnTop(true, "screen-saver");
+  setTimeout(() => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+    mainWindow.setAlwaysOnTop(false);
+    mainWindow.show();
+    mainWindow.focus();
+  }, 500);
   mainWindow.loadFile(path.join(__dirname, "index.html"));
+  mainWindow.once("ready-to-show", () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      return;
+    }
+    mainWindow.show();
+    mainWindow.focus();
+  });
   mainWindow.on("close", (event) => {
     if (isFlushingWindowClose) {
       return;
@@ -782,6 +1074,11 @@ function normalizeCustomEventRules(source = []) {
     return [];
   }
 
+  const normalizeTimeValue = (value) => {
+    const match = String(value ?? "").trim().match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+    return match ? `${match[1]}:${match[2]}` : "";
+  };
+
     return source
       .map((rule, index) => ({
         id: String(rule?.id ?? `rule-${index + 1}`),
@@ -793,7 +1090,9 @@ function normalizeCustomEventRules(source = []) {
         webhookUrl: String(rule?.webhookUrl ?? "").trim(),
         queueId: Math.min(10, Math.max(1, Number(rule?.queueId) || 1)),
         userCooldownSeconds: Math.max(0, Number(rule?.userCooldownSeconds) || 0),
-        triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser"].includes(rule?.triggerAudience)
+        disableWindowStartTime: normalizeTimeValue(rule?.disableWindowStartTime),
+        disableWindowEndTime: normalizeTimeValue(rule?.disableWindowEndTime),
+        triggerAudience: ["everyone", "follower", "subscriber", "moderator", "topGifter", "specificUser", "birthday"].includes(rule?.triggerAudience)
           ? rule.triggerAudience
           : "everyone",
         triggerUsername: String(rule?.triggerUsername ?? "").trim().replace(/^@/, "").toLowerCase(),
@@ -837,6 +1136,15 @@ async function loadSettings() {
     myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
   };
+  settings.ttsProvider = String(settings.ttsProvider ?? "").trim() === "elevenlabs" ? "elevenlabs" : "builtin";
+  settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
+  settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
+  settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
+  settings.ttsUserVoiceAssignments = {
+    builtin: settings.ttsUserVoiceAssignments?.builtin ?? {},
+    elevenlabs: settings.ttsUserVoiceAssignments?.elevenlabs ?? {},
+    xtts: settings.ttsUserVoiceAssignments?.xtts ?? {}
+  };
 
   // Keep updater settings pinned to the built-in GitHub Releases repo.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
@@ -860,6 +1168,15 @@ async function saveSettings(partialSettings) {
   settings.commandFeedbackTemplates = {
     myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
+  };
+  settings.ttsProvider = String(settings.ttsProvider ?? "").trim() === "elevenlabs" ? "elevenlabs" : "builtin";
+  settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
+  settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
+  settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
+  settings.ttsUserVoiceAssignments = {
+    builtin: settings.ttsUserVoiceAssignments?.builtin ?? {},
+    elevenlabs: settings.ttsUserVoiceAssignments?.elevenlabs ?? {},
+    xtts: settings.ttsUserVoiceAssignments?.xtts ?? {}
   };
 
   updateConfig = getGitHubUpdateConfig(settings);
@@ -1120,7 +1437,7 @@ async function searchMyInstantsCatalog(query) {
   for (let pageNumber = 1; pageNumber <= MYINSTANTS_SEARCH_MAX_PAGES; pageNumber += 1) {
     const pageUrl = getMyInstantsSearchPageUrl(normalizedQuery, pageNumber);
     const response = await fetch(pageUrl);
-    if (response.status === 404 && pageNumber > 1) {
+    if (response.status === 404) {
       break;
     }
 
@@ -1164,16 +1481,70 @@ async function resolveMyInstantsAudioUrl(soundId) {
     return myInstantsAudioUrlCache.get(soundId);
   }
 
-  const sound = myInstantsSoundLookup.get(soundId)
+  let sound = myInstantsSoundLookup.get(soundId)
     ?? (await fetchMyInstantsCatalog(false)).find((entry) => entry.id === soundId);
 
+  if (!sound?.pageUrl && String(soundId).startsWith("/en/instant/")) {
+    sound = {
+      id: soundId,
+      title: "",
+      pageUrl: new URL(soundId, MYINSTANTS_CATEGORY_URL).toString()
+    };
+  }
+
   if (!sound?.pageUrl) {
-    throw new Error("That sound could not be found in the MyInstants catalog.");
+    const searchToken = String(soundId).replace(/[-_]+/g, " ").trim();
+    const searchResults = await searchMyInstantsCatalog(searchToken).catch(() => []);
+    sound = searchResults.find((entry) => entry.id === soundId);
+  }
+
+  if (!sound?.pageUrl) {
+    throw new Error("That sound is no longer available in the MyInstants catalog. Search for the sound again or choose a local file.");
   }
 
   const audioUrl = await resolveMyInstantsDownloadUrl(sound.pageUrl);
   myInstantsAudioUrlCache.set(soundId, audioUrl);
   return audioUrl;
+}
+
+function getLocalSoundPath(soundId) {
+  const value = String(soundId ?? "").trim();
+  if (!value.startsWith(LOCAL_SOUND_ID_PREFIX)) {
+    return "";
+  }
+  return value.slice(LOCAL_SOUND_ID_PREFIX.length).trim();
+}
+
+function getAudioMimeType(filePath) {
+  const extension = path.extname(String(filePath ?? "")).toLowerCase();
+  if (extension === ".wav") {
+    return "audio/wav";
+  }
+  if (extension === ".ogg") {
+    return "audio/ogg";
+  }
+  if (extension === ".m4a" || extension === ".mp4" || extension === ".aac") {
+    return "audio/mp4";
+  }
+  if (extension === ".flac") {
+    return "audio/flac";
+  }
+  return "audio/mpeg";
+}
+
+async function resolveLocalSoundAudioUrl(soundId) {
+  const filePath = getLocalSoundPath(soundId);
+  if (!filePath) {
+    throw new Error("No local sound file was selected.");
+  }
+
+  const stats = await fs.stat(filePath).catch(() => null);
+  if (!stats?.isFile()) {
+    throw new Error("The selected local sound file could not be found.");
+  }
+
+  const bytes = await fs.readFile(filePath);
+  return `data:${getAudioMimeType(filePath)};base64,${bytes.toString("base64")}`;
 }
 
 async function ensureTtsScript() {
@@ -1301,6 +1672,413 @@ function dedupeElevenLabsVoices(voices = []) {
   }
 
   return deduped;
+}
+
+function normalizeXttsVoices(source = []) {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+
+  const seen = new Set();
+  return source
+    .map((voice) => {
+      const id = String(voice?.id ?? "").trim();
+      const name = String(voice?.name ?? "").trim();
+      const legacySamplePath = String(voice?.samplePath ?? "").trim();
+      const samplePaths = Array.from(new Set([
+        legacySamplePath,
+        ...(Array.isArray(voice?.samplePaths) ? voice.samplePaths : [])
+      ].map((samplePath) => String(samplePath ?? "").trim()).filter(Boolean))).slice(0, 12);
+      const youtubeUrl = String(voice?.youtubeUrl ?? "").trim();
+      return {
+        id,
+        name,
+        samplePath: samplePaths[0] ?? "",
+        samplePaths,
+        youtubeUrl,
+        tuning: {
+          strength: Math.max(0, Math.min(1, Number(voice?.tuning?.strength ?? voice?.tuning?.cloneStrength ?? 0.75) || 0.75)),
+          echo: Math.max(0, Math.min(1, Number(voice?.tuning?.echo ?? 0) || 0)),
+          reverb: Math.max(0, Math.min(1, Number(voice?.tuning?.reverb ?? 0) || 0)),
+          robotic: Math.max(0, Math.min(1, Number(voice?.tuning?.robotic ?? 0) || 0)),
+          rate: Math.max(0.7, Math.min(1.5, Number(voice?.tuning?.rate ?? 1) || 1)),
+          pitch: Math.max(0.5, Math.min(1.8, Number(voice?.tuning?.pitch ?? 1) || 1))
+        },
+        createdAt: Number(voice?.createdAt) || Date.now()
+      };
+    })
+    .filter((voice) => {
+      if (!voice.id || !voice.name || (!voice.samplePaths.length && !voice.youtubeUrl) || seen.has(voice.id)) {
+        return false;
+      }
+      seen.add(voice.id);
+      return true;
+    })
+    .slice(0, 100);
+}
+
+function createXttsImportVoiceId() {
+  return `xtts-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function sanitizeFileNamePart(value, fallback = "xtts-voice") {
+  return String(value ?? "")
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "-")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || fallback;
+}
+
+function normalizeXttsServiceUrl(value) {
+  const url = String(value ?? "").trim() || "http://127.0.0.1:8020";
+  try {
+    const parsed = new URL(url);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("XTTS service URL must start with http:// or https://.");
+    }
+    return parsed.toString().replace(/\/$/, "");
+  } catch {
+    throw new Error("Enter a valid XTTS service URL, for example http://127.0.0.1:8020.");
+  }
+}
+
+function formatXttsServiceUnavailableError(serviceUrl, error = null) {
+  const suffix = error?.message ? ` ${error.message}` : "";
+  return `XTTS service is not running or cannot be reached at ${serviceUrl}. Install/configure the local XTTS service, or start your XTTS server, then click "Check XTTS service" in the app.${suffix}`.trim();
+}
+
+async function checkXttsServiceReachable(serviceUrl, timeoutMs = 3500) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${serviceUrl}/health`, {
+      signal: controller.signal
+    }).catch(async (error) => {
+      if (error?.name === "AbortError") {
+        throw error;
+      }
+      return fetch(serviceUrl, {
+        signal: controller.signal
+      });
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return true;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function waitForXttsService(serviceUrl, timeoutMs = 120000) {
+  const startedAt = Date.now();
+  let lastError = null;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      await checkXttsServiceReachable(serviceUrl, 2500);
+      return true;
+    } catch (error) {
+      lastError = error;
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+  }
+
+  throw new Error(formatXttsServiceUnavailableError(serviceUrl, lastError));
+}
+
+function getXttsServiceFileCandidates() {
+  const appRoot = path.join(__dirname, "..");
+  const resourceRoot = process.resourcesPath || appRoot;
+  const roots = [
+    appRoot,
+    process.cwd(),
+    resourceRoot,
+    path.join(resourceRoot, "app.asar.unpacked"),
+    XTTS_LEGACY_SERVICE_ROOT
+  ];
+
+  const seen = new Set();
+  return roots
+    .map((rootPath) => path.resolve(rootPath))
+    .filter((rootPath) => {
+      if (seen.has(rootPath)) {
+        return false;
+      }
+      seen.add(rootPath);
+      return true;
+    })
+    .map((rootPath) => ({
+      rootPath,
+      pythonPath: path.join(rootPath, ".venv-xtts", "Scripts", "python.exe"),
+      scriptPath: path.join(rootPath, "tools", "xtts_v2_service.py")
+    }));
+}
+
+function resolveXttsServiceFiles() {
+  return getXttsServiceFileCandidates().find((candidate) =>
+    fsSync.existsSync(candidate.pythonPath) && fsSync.existsSync(candidate.scriptPath)
+  ) ?? null;
+}
+
+async function startLocalXttsService(payload = {}) {
+  const serviceUrl = normalizeXttsServiceUrl(payload?.xttsServiceUrl);
+
+  try {
+    await checkXttsServiceReachable(serviceUrl, 1500);
+    return {
+      ok: true,
+      started: false,
+      message: `XTTS service is already running at ${serviceUrl}.`
+    };
+  } catch {
+    // Continue and try the bundled/local service.
+  }
+
+  if (xttsServiceProcess && !xttsServiceProcess.killed) {
+    await waitForXttsService(serviceUrl);
+    return {
+      ok: true,
+      started: false,
+      message: `XTTS service is running at ${serviceUrl}.`
+    };
+  }
+
+  if (xttsServiceStartingPromise) {
+    await xttsServiceStartingPromise;
+    return {
+      ok: true,
+      started: false,
+      message: `XTTS service is running at ${serviceUrl}.`
+    };
+  }
+
+  const serviceFiles = resolveXttsServiceFiles();
+  if (!serviceFiles) {
+    const searchedRoots = getXttsServiceFileCandidates().map((candidate) => candidate.rootPath).join("; ");
+    throw new Error(`Cannot auto-start XTTS because .venv-xtts\\Scripts\\python.exe and tools\\xtts_v2_service.py were not found. Searched: ${searchedRoots}.`);
+  }
+
+  xttsServiceStartingPromise = (async () => {
+    xttsServiceProcess = spawn(serviceFiles.pythonPath, ["-u", serviceFiles.scriptPath], {
+      cwd: serviceFiles.rootPath,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    xttsServiceProcess.stdout?.on("data", (chunk) => {
+      log.info(`[XTTS] ${String(chunk).trim()}`);
+    });
+    xttsServiceProcess.stderr?.on("data", (chunk) => {
+      log.warn(`[XTTS] ${String(chunk).trim()}`);
+    });
+    xttsServiceProcess.on("exit", (code, signal) => {
+      log.info(`XTTS service exited`, { code, signal });
+      xttsServiceProcess = null;
+    });
+
+    await waitForXttsService(serviceUrl);
+  })();
+
+  try {
+    await xttsServiceStartingPromise;
+    return {
+      ok: true,
+      started: true,
+      message: `Started XTTS service at ${serviceUrl}.`
+    };
+  } finally {
+    xttsServiceStartingPromise = null;
+  }
+}
+
+function getAudioExtensionFromContentType(contentType = "") {
+  const normalizedType = String(contentType).toLowerCase();
+  if (normalizedType.includes("mpeg") || normalizedType.includes("mp3")) {
+    return "mp3";
+  }
+  if (normalizedType.includes("wav") || normalizedType.includes("wave")) {
+    return "wav";
+  }
+  if (normalizedType.includes("ogg")) {
+    return "ogg";
+  }
+  return "wav";
+}
+
+function getTtsCacheDirectory() {
+  return path.join(app.getPath("userData"), "tts-cache");
+}
+
+function normalizeXttsLanguage(value) {
+  const language = String(value ?? "en").trim().toLowerCase();
+  const supported = new Set(["en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl", "cs", "ar", "zh-cn", "ja", "ko"]);
+  return supported.has(language) ? language : "en";
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
+  }
+
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+
+  return JSON.stringify(value);
+}
+
+function hashText(value = "") {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+
+function getTtsCacheKey(payload = {}) {
+  const provider = String(payload?.provider ?? "builtin").trim() || "builtin";
+  const xttsVoice = payload?.xttsVoice && typeof payload.xttsVoice === "object" ? payload.xttsVoice : {};
+  const xttsTuning = payload?.xttsTuning && typeof payload.xttsTuning === "object" ? payload.xttsTuning : {};
+  const keyPayload = {
+    cacheVersion: TTS_CACHE_VERSION,
+    provider,
+    text: String(payload?.text ?? ""),
+    voiceName: String(payload?.voiceName ?? ""),
+    voiceId: String(payload?.voiceId ?? ""),
+    mode: String(payload?.mode ?? ""),
+    modelId: String(payload?.modelId ?? ""),
+    apiKeyHash: payload?.apiKey ? hashText(payload.apiKey).slice(0, 16) : "",
+    style: String(payload?.style ?? "natural"),
+    language: provider === "xtts" ? normalizeXttsLanguage(payload?.xttsLanguage) : "",
+    rate: Number(payload?.rate) || 1,
+    pitch: provider === "xtts" ? 1 : Number(payload?.pitch) || 1,
+    xttsSplitSentences: Boolean(payload?.xttsSplitSentences),
+    xttsVoice: provider === "xtts"
+      ? {
+          id: String(xttsVoice?.id ?? ""),
+          name: String(xttsVoice?.name ?? ""),
+          samplePaths: Array.isArray(xttsVoice?.samplePaths) ? xttsVoice.samplePaths.map((samplePath) => String(samplePath)) : [],
+          youtubeUrl: String(xttsVoice?.youtubeUrl ?? "")
+        }
+      : null,
+    xttsStrength: provider === "xtts" ? Number(xttsTuning?.strength ?? xttsVoice?.tuning?.strength ?? 0.75) || 0.75 : null
+  };
+
+  return createHash("sha256").update(stableStringify(keyPayload)).digest("hex");
+}
+
+function shouldUseTtsCache(payload = {}) {
+  const text = String(payload?.text ?? "").trim();
+  if (!text || text.length > TTS_CACHE_MAX_TEXT_LENGTH) {
+    return false;
+  }
+
+  return ["builtin", "elevenlabs", "xtts"].includes(String(payload?.provider ?? "builtin").trim() || "builtin");
+}
+
+async function findCachedTtsFile(cacheKey) {
+  const cacheDirectory = getTtsCacheDirectory();
+  const entries = await fs.readdir(cacheDirectory, { withFileTypes: true }).catch(() => []);
+  const cachedEntry = entries.find((entry) => entry.isFile() && entry.name.startsWith(`${cacheKey}.`));
+  if (!cachedEntry) {
+    return "";
+  }
+
+  const filePath = path.join(cacheDirectory, cachedEntry.name);
+  await fs.utimes(filePath, new Date(), new Date()).catch(() => {});
+  return filePath;
+}
+
+async function pruneTtsCache() {
+  const cacheDirectory = getTtsCacheDirectory();
+  const entries = await fs.readdir(cacheDirectory, { withFileTypes: true }).catch(() => []);
+  const files = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const filePath = path.join(cacheDirectory, entry.name);
+    const stats = await fs.stat(filePath).catch(() => null);
+    if (stats) {
+      files.push({ filePath, mtimeMs: stats.mtimeMs });
+    }
+  }
+
+  files.sort((left, right) => right.mtimeMs - left.mtimeMs);
+  await Promise.all(files.slice(TTS_CACHE_MAX_FILES).map((file) => fs.unlink(file.filePath).catch(() => {})));
+}
+
+async function getTtsCacheInfo() {
+  const cacheDirectory = getTtsCacheDirectory();
+  const entries = await fs.readdir(cacheDirectory, { withFileTypes: true }).catch(() => []);
+  let fileCount = 0;
+  let totalBytes = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const stats = await fs.stat(path.join(cacheDirectory, entry.name)).catch(() => null);
+    if (stats) {
+      fileCount += 1;
+      totalBytes += stats.size;
+    }
+  }
+
+  return {
+    directory: cacheDirectory,
+    fileCount,
+    totalBytes,
+    maxFiles: TTS_CACHE_MAX_FILES,
+    maxTextLength: TTS_CACHE_MAX_TEXT_LENGTH
+  };
+}
+
+async function clearTtsCache() {
+  const cacheDirectory = getTtsCacheDirectory();
+  const entries = await fs.readdir(cacheDirectory, { withFileTypes: true }).catch(() => []);
+  let deleted = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    await fs.unlink(path.join(cacheDirectory, entry.name)).then(() => {
+      deleted += 1;
+    }).catch(() => {});
+  }
+
+  return {
+    ok: true,
+    deleted,
+    ...(await getTtsCacheInfo())
+  };
+}
+
+async function cacheSynthesizedTtsFile(cacheKey, sourceFilePath) {
+  const extension = path.extname(sourceFilePath) || ".wav";
+  const cacheDirectory = getTtsCacheDirectory();
+  await fs.mkdir(cacheDirectory, { recursive: true });
+  const cacheFilePath = path.join(cacheDirectory, `${cacheKey}${extension}`);
+  await fs.copyFile(sourceFilePath, cacheFilePath);
+  void pruneTtsCache();
+  return cacheFilePath;
+}
+
+function listXttsVoices(payload = {}) {
+  return normalizeXttsVoices(payload?.xttsVoices).map((voice) => ({
+    id: voice.id,
+    name: voice.name,
+    samplePath: voice.samplePath,
+    samplePaths: voice.samplePaths,
+    youtubeUrl: voice.youtubeUrl,
+    tuning: voice.tuning,
+    ttsKind: "xtts",
+    category: `${voice.samplePaths?.length || 0} samples${voice.youtubeUrl ? " + youtube" : ""}`
+  }));
 }
 
 function formatElevenLabsErrorMessage(rawErrorText = "") {
@@ -1515,7 +2293,129 @@ async function synthesizeElevenLabsSpeechToFile({ text, voiceId, modelId, style,
   return outputPath;
 }
 
+async function synthesizeXttsSpeechToFile({ text, xttsServiceUrl, xttsVoice, xttsTuning, xttsSplitSentences, xttsLanguage, rate, pitch }) {
+  const voice = normalizeXttsVoices([xttsVoice])[0] ?? null;
+  if (!voice) {
+    throw new Error("Choose or create an XTTS voice first.");
+  }
+
+  const serviceUrl = normalizeXttsServiceUrl(xttsServiceUrl);
+  const speakerWav = voice.samplePaths.length > 1 ? voice.samplePaths : voice.samplePath || voice.youtubeUrl;
+  const tuning = {
+    strength: Math.max(0, Math.min(1, Number(xttsTuning?.strength ?? voice.tuning?.strength ?? 0.75) || 0.75)),
+    echo: Math.max(0, Math.min(1, Number(xttsTuning?.echo ?? voice.tuning?.echo ?? 0) || 0)),
+    reverb: Math.max(0, Math.min(1, Number(xttsTuning?.reverb ?? voice.tuning?.reverb ?? 0) || 0)),
+    robotic: Math.max(0, Math.min(1, Number(xttsTuning?.robotic ?? voice.tuning?.robotic ?? 0) || 0))
+  };
+  const requestBody = JSON.stringify({
+      text,
+      voiceId: voice.id,
+      voiceName: voice.name,
+      language: normalizeXttsLanguage(xttsLanguage),
+      speaker_wav: speakerWav,
+      speakerWav,
+      samplePath: voice.samplePath,
+      samplePaths: voice.samplePaths,
+      youtubeUrl: voice.youtubeUrl,
+      split_sentences: Boolean(xttsSplitSentences),
+      splitSentences: Boolean(xttsSplitSentences),
+      enable_text_splitting: Boolean(xttsSplitSentences),
+      stream: false,
+      streaming: false,
+      trim_silence: false,
+      trimSilence: false,
+      add_trailing_silence_ms: 450,
+      trailingSilenceMs: 450,
+      clone_strength: tuning.strength,
+      cloneStrength: tuning.strength,
+      speaker_strength: tuning.strength,
+      speakerStrength: tuning.strength,
+      voice_strength: tuning.strength,
+      voiceStrength: tuning.strength,
+      speed: Math.max(0.75, Math.min(1.25, Number(rate) || 1)),
+      volume: 1
+  });
+  const requestOptions = {
+    method: "POST",
+    headers: {
+      Accept: "audio/wav, audio/mpeg, application/json",
+      "Content-Type": "application/json"
+    },
+    body: requestBody
+  };
+
+  let response = null;
+  try {
+    response = await fetch(`${serviceUrl}/tts`, requestOptions);
+  } catch (firstError) {
+    try {
+      await startLocalXttsService({ xttsServiceUrl: serviceUrl });
+      response = await fetch(`${serviceUrl}/tts`, requestOptions);
+    } catch (retryError) {
+      throw new Error(formatXttsServiceUnavailableError(serviceUrl, retryError || firstError));
+    }
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "");
+    throw new Error(errorText || `XTTS service returned ${response.status}.`);
+  }
+
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    const result = await response.json();
+    const audioBase64 = String(result?.audioBase64 ?? result?.audio ?? "").trim();
+    if (!audioBase64) {
+      throw new Error("XTTS service did not return audio.");
+    }
+    const extension = String(result?.extension ?? "wav").replace(/[^a-z0-9]/gi, "").toLowerCase() || "wav";
+    const outputPath = path.join(os.tmpdir(), `stream-sync-pro-xtts-${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`);
+    await fs.writeFile(outputPath, Buffer.from(audioBase64, "base64"));
+    return outputPath;
+  }
+
+  const extension = getAudioExtensionFromContentType(contentType);
+  const outputPath = path.join(os.tmpdir(), `stream-sync-pro-xtts-${Date.now()}-${Math.random().toString(16).slice(2)}.${extension}`);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  await fs.writeFile(outputPath, bytes);
+  return outputPath;
+}
+
 async function synthesizeSpeechToFile(payload = {}) {
+  if (payload?.bypassTtsCache) {
+    const directPayload = { ...payload };
+    delete directPayload.bypassTtsCache;
+    return synthesizeSpeechToFileDirect(directPayload);
+  }
+
+  if (shouldUseTtsCache(payload)) {
+    const cacheKey = getTtsCacheKey(payload);
+    const cachedFilePath = await findCachedTtsFile(cacheKey);
+    if (cachedFilePath) {
+      return {
+        filePath: cachedFilePath,
+        cached: true,
+        cacheKey
+      };
+    }
+
+    const synthesizedFilePath = await synthesizeSpeechToFile({
+      ...payload,
+      bypassTtsCache: true
+    });
+    const cacheFilePath = await cacheSynthesizedTtsFile(cacheKey, synthesizedFilePath.filePath ?? synthesizedFilePath);
+    await fs.unlink(synthesizedFilePath.filePath ?? synthesizedFilePath).catch(() => {});
+    return {
+      filePath: cacheFilePath,
+      cached: true,
+      cacheKey
+    };
+  }
+
+  return synthesizeSpeechToFileDirect(payload);
+}
+
+async function synthesizeSpeechToFileDirect(payload = {}) {
   if (payload?.provider === "elevenlabs") {
     if (!payload?.voiceId) {
       throw new Error("Choose an ElevenLabs voice first.");
@@ -1526,6 +2426,10 @@ async function synthesizeSpeechToFile(payload = {}) {
     }
 
     return synthesizeElevenLabsSpeechToFile(payload);
+  }
+
+  if (payload?.provider === "xtts") {
+    return synthesizeXttsSpeechToFile(payload);
   }
 
   return synthesizeWindowsSpeechToFile(payload);
@@ -1671,13 +2575,20 @@ app.whenReady().then(() => {
     configureAutoUpdater();
   });
 
-  return loadSettings().then(() => {
-    return startQueueOverlayServer().then(() => {
-      createWindow();
-      configureAutoUpdater();
-      checkForUpdatesOnLaunch().catch((error) => {
-        log.warn("Startup update check failed", error);
-      });
+  createWindow();
+
+  startupSettingsPromise = loadSettings().catch((error) => {
+    log.error("Startup settings load failed", error);
+  });
+
+  startupOverlayPromise = startupSettingsPromise.then(() => startQueueOverlayServer()).catch((error) => {
+    log.error("Startup overlay server failed", error);
+  });
+
+  startupOverlayPromise.then(() => {
+    configureAutoUpdater();
+    checkForUpdatesOnLaunch().catch((error) => {
+      log.warn("Startup update check failed", error);
     });
   });
 });
@@ -1729,6 +2640,11 @@ ipcMain.handle("tiktok:sign-out", async () => {
 });
 
 ipcMain.handle("app:get-settings", async () => {
+  if (startupSettingsPromise) {
+    await startupSettingsPromise.catch((error) => {
+      log.warn("Startup settings promise failed before renderer settings request", error);
+    });
+  }
   if (areSettingsLikelyDefaults(settings)) {
     try {
       await loadSettings();
@@ -1787,6 +2703,42 @@ ipcMain.handle("overlay:update-command-feedback-state", async (_event, payload) 
   return {
     ok: true,
     state: commandFeedbackOverlayState
+  };
+});
+
+ipcMain.handle("overlay:get-like-race-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/like-race-overlay");
+  return {
+    ...overlayUrls,
+    url: overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url,
+    port: queueOverlayPort,
+    state: likeRaceOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-like-race-state", async (_event, payload) => {
+  likeRaceOverlayState = sanitizeLikeRaceOverlayState(payload);
+  return {
+    ok: true,
+    state: likeRaceOverlayState
+  };
+});
+
+ipcMain.handle("overlay:get-spin-wheel-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/spin-wheel-overlay");
+  return {
+    ...overlayUrls,
+    url: overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url,
+    port: queueOverlayPort,
+    state: spinWheelOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-spin-wheel-state", async (_event, payload) => {
+  spinWheelOverlayState = sanitizeSpinWheelOverlayState(payload);
+  return {
+    ok: true,
+    state: spinWheelOverlayState
   };
 });
 
@@ -1865,7 +2817,7 @@ ipcMain.handle("app:export-settings-bundle", async (_event, payload) => {
 ipcMain.handle("app:import-settings-bundle", async () => {
   const openResult = await dialog.showOpenDialog(mainWindow, {
     title: "Import Stream Sync Pro settings",
-    properties: ["openFile"],
+    properties: ["openFile", "multiSelections"],
     filters: [
       { name: "JSON files", extensions: ["json"] }
     ]
@@ -1892,23 +2844,235 @@ ipcMain.handle("tts:get-voices", async (_event, payload) => {
     if (payload?.provider === "elevenlabs") {
       return listElevenLabsVoices(payload ?? {});
     }
+    if (payload?.provider === "xtts") {
+      return listXttsVoices(payload ?? {});
+    }
 
-  return listWindowsTtsVoices();
+  const windowsVoices = await listWindowsTtsVoices();
+  return [
+    ...windowsVoices.map((voice) => ({
+      ...voice,
+      ttsKind: "builtin"
+    })),
+    ...listXttsVoices(payload ?? {})
+  ];
 });
 
 ipcMain.handle("tts:get-elevenlabs-usage", async (_event, payload) => {
   return getElevenLabsUsageDetails(payload ?? {});
 });
 
- ipcMain.handle("tts:speak-to-file", async (_event, payload) => {
+ipcMain.handle("tts:browse-xtts-sample-file", async () => {
+  const openResult = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose XTTS voice sample",
+    properties: ["openFile"],
+    filters: [
+      { name: "Audio and video samples", extensions: ["wav", "mp3", "m4a", "aac", "flac", "ogg", "mp4", "mov", "webm", "mkv"] },
+      { name: "All files", extensions: ["*"] }
+    ]
+  });
+
+  if (openResult.canceled || !openResult.filePaths?.length) {
+    return { canceled: true };
+  }
+
   return {
-    filePath: await synthesizeSpeechToFile(payload)
+    canceled: false,
+    filePath: openResult.filePaths[0],
+    filePaths: openResult.filePaths
   };
+});
+
+ipcMain.handle("tts:export-xtts-voice", async (_event, payload) => {
+  const voice = normalizeXttsVoices([payload?.voice])[0] ?? null;
+  if (!voice) {
+    throw new Error("Select a valid XTTS voice to export.");
+  }
+
+  const sampleFiles = [];
+  const missingSamples = [];
+  for (const samplePath of voice.samplePaths) {
+    const stats = await fs.stat(samplePath).catch(() => null);
+    if (!stats?.isFile()) {
+      missingSamples.push(samplePath);
+      continue;
+    }
+
+    const bytes = await fs.readFile(samplePath);
+    sampleFiles.push({
+      fileName: path.basename(samplePath),
+      extension: path.extname(samplePath).toLowerCase(),
+      size: bytes.length,
+      originalPath: samplePath,
+      dataBase64: bytes.toString("base64")
+    });
+  }
+
+  if (!sampleFiles.length && !voice.youtubeUrl) {
+    throw new Error("This XTTS voice has no readable sample files to export. Add a sample again, then export.");
+  }
+
+  const exportVoice = {
+    ...voice,
+    samplePath: "",
+    samplePaths: []
+  };
+  const safeVoiceName = sanitizeFileNamePart(voice.name);
+  const bundle = {
+    type: "stream-sync-pro-xtts-voice",
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    voice: exportVoice,
+    sampleFiles,
+    missingSamples
+  };
+
+  const saveResult = await dialog.showSaveDialog(mainWindow, {
+    title: "Export XTTS voice",
+    defaultPath: path.join(app.getPath("documents"), `${safeVoiceName}.ssp-xtts-voice.json`),
+    filters: [
+      { name: "Stream Sync Pro XTTS voice", extensions: ["json"] },
+      { name: "JSON files", extensions: ["json"] }
+    ]
+  });
+
+  if (saveResult.canceled || !saveResult.filePath) {
+    return { canceled: true };
+  }
+
+  await fs.writeFile(saveResult.filePath, JSON.stringify(bundle, null, 2), "utf8");
+  return { canceled: false, filePath: saveResult.filePath };
+});
+
+ipcMain.handle("tts:import-xtts-voice", async () => {
+  const openResult = await dialog.showOpenDialog(mainWindow, {
+    title: "Import XTTS voice",
+    properties: ["openFile"],
+    filters: [
+      { name: "Stream Sync Pro XTTS voice", extensions: ["json"] },
+      { name: "JSON files", extensions: ["json"] }
+    ]
+  });
+
+  if (openResult.canceled || !openResult.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  const filePath = openResult.filePaths[0];
+  const content = await fs.readFile(filePath, "utf8");
+  let parsed = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error("The selected XTTS voice file is not valid JSON.");
+  }
+
+  const rawVoice = parsed?.voice ?? parsed;
+  const sampleFiles = Array.isArray(parsed?.sampleFiles) ? parsed.sampleFiles : [];
+  const importVoiceId = String(rawVoice?.id ?? "").trim() || createXttsImportVoiceId();
+  const importVoiceName = String(rawVoice?.name ?? "").trim();
+  if (!importVoiceName) {
+    throw new Error("That file does not contain a valid XTTS voice name.");
+  }
+
+  const restoredSamplePaths = [];
+  if (sampleFiles.length) {
+    const importDirectory = path.join(app.getPath("userData"), "xtts-voices", sanitizeFileNamePart(importVoiceId, "imported-voice"));
+    await fs.mkdir(importDirectory, { recursive: true });
+
+    for (let index = 0; index < sampleFiles.length; index += 1) {
+      const sample = sampleFiles[index] ?? {};
+      const extension = path.extname(String(sample.fileName ?? "")).toLowerCase()
+        || String(sample.extension ?? "").replace(/[^a-z0-9.]/gi, "").toLowerCase()
+        || ".wav";
+      const safeSampleName = sanitizeFileNamePart(path.basename(String(sample.fileName ?? `sample-${index + 1}${extension}`), extension), `sample-${index + 1}`);
+      const outputPath = path.join(importDirectory, `${String(index + 1).padStart(2, "0")}-${safeSampleName}${extension.startsWith(".") ? extension : `.${extension}`}`);
+      const dataBase64 = String(sample.dataBase64 ?? "").trim();
+      if (!dataBase64) {
+        continue;
+      }
+      await fs.writeFile(outputPath, Buffer.from(dataBase64, "base64"));
+      restoredSamplePaths.push(outputPath);
+    }
+  }
+
+  const fallbackSamplePaths = Array.isArray(rawVoice?.samplePaths)
+    ? rawVoice.samplePaths
+    : rawVoice?.samplePath
+      ? [rawVoice.samplePath]
+      : [];
+  const importedVoice = normalizeXttsVoices([{
+    ...rawVoice,
+    id: importVoiceId,
+    name: importVoiceName,
+    samplePath: restoredSamplePaths[0] ?? fallbackSamplePaths[0] ?? "",
+    samplePaths: restoredSamplePaths.length ? restoredSamplePaths : fallbackSamplePaths,
+    youtubeUrl: String(rawVoice?.youtubeUrl ?? "").trim(),
+    tuning: rawVoice?.tuning,
+    createdAt: Date.now()
+  }])[0] ?? null;
+
+  if (!importedVoice) {
+    throw new Error("That file does not contain a complete XTTS voice. It needs embedded samples or a YouTube source.");
+  }
+
+  return {
+    canceled: false,
+    filePath,
+    voice: importedVoice
+  };
+});
+
+ipcMain.handle("tts:check-xtts-service", async (_event, payload) => {
+  const serviceUrl = normalizeXttsServiceUrl(payload?.xttsServiceUrl);
+
+  try {
+    await checkXttsServiceReachable(serviceUrl);
+    return {
+      ok: true,
+      message: `XTTS service is reachable at ${serviceUrl}.`
+    };
+  } catch (error) {
+    throw new Error(formatXttsServiceUnavailableError(serviceUrl, error));
+  }
+});
+
+ipcMain.handle("tts:start-xtts-service", async (_event, payload) => {
+  return startLocalXttsService(payload ?? {});
+});
+
+ipcMain.handle("tts:get-cache-info", async () => {
+  return getTtsCacheInfo();
+});
+
+ipcMain.handle("tts:clear-cache", async () => {
+  return clearTtsCache();
+});
+
+ ipcMain.handle("tts:speak-to-file", async (_event, payload) => {
+  const result = await synthesizeSpeechToFile(payload);
+  if (typeof result === "string") {
+    return {
+      filePath: result,
+      cached: false
+    };
+  }
+
+  return result;
 });
 
 ipcMain.handle("tts:delete-file", async (_event, payload) => {
   try {
-    await fs.unlink(payload.filePath);
+    const filePath = String(payload?.filePath ?? "");
+    if (!filePath) {
+      return { ok: true };
+    }
+    const resolvedFilePath = path.resolve(filePath);
+    const cacheDirectory = path.resolve(getTtsCacheDirectory());
+    if (resolvedFilePath.startsWith(`${cacheDirectory}${path.sep}`)) {
+      return { ok: true, skippedCachedFile: true };
+    }
+    await fs.unlink(filePath);
   } catch (error) {
     if (error.code !== "ENOENT") {
       log.warn("Failed to delete temp TTS file", error);
@@ -1927,8 +3091,34 @@ ipcMain.handle("sound-alerts:get-catalog", async (_event, payload) => {
   return fetchMyInstantsCatalog(Boolean(payload?.refresh));
 });
 
-ipcMain.handle("sound-alerts:resolve-audio", async (_event, payload) => {
+ipcMain.handle("sound-alerts:browse-local-file", async () => {
+  const openResult = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose local sound file",
+    properties: ["openFile"],
+    filters: [
+      { name: "Audio files", extensions: ["mp3", "wav", "ogg", "m4a", "aac", "flac"] },
+      { name: "All files", extensions: ["*"] }
+    ]
+  });
+
+  if (openResult.canceled || !openResult.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  const filePath = openResult.filePaths[0];
   return {
-    audioUrl: await resolveMyInstantsAudioUrl(payload?.soundId ?? "")
+    canceled: false,
+    filePath,
+    name: path.basename(filePath),
+    soundId: `${LOCAL_SOUND_ID_PREFIX}${filePath}`
+  };
+});
+
+ipcMain.handle("sound-alerts:resolve-audio", async (_event, payload) => {
+  const soundId = String(payload?.soundId ?? "").trim();
+  return {
+    audioUrl: soundId.startsWith(LOCAL_SOUND_ID_PREFIX)
+      ? await resolveLocalSoundAudioUrl(soundId)
+      : await resolveMyInstantsAudioUrl(soundId)
   };
 });

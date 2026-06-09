@@ -153,6 +153,12 @@
               <button type="button" id="open-event-actions-layer-button" class="workspace-nav-button" title="Event actions" aria-label="Event actions">
                 <span aria-hidden="true">⚡</span>
               </button>
+              <button type="button" id="open-games-layer-button" class="workspace-nav-button" title="Games" aria-label="Games">
+                <span aria-hidden="true">G</span>
+              </button>
+              <button type="button" id="open-users-layer-button" class="workspace-nav-button" title="Users and points" aria-label="Users and points">
+                <span aria-hidden="true">U</span>
+              </button>
               <button type="button" id="open-layout-customizer-button" class="workspace-nav-button" title="Customize view" aria-label="Customize view">
                 <span aria-hidden="true">🧩</span>
               </button>
@@ -200,6 +206,13 @@
                   <span class="toggle-row remember-toggle-inline">
                     <input id="remember-username" type="checkbox" />
                     <span>Save</span>
+                  </span>
+                </label>
+                <label class="field compact-inline-field remember-field">
+                  <span>Auto connect</span>
+                  <span class="toggle-row remember-toggle-inline">
+                    <input id="auto-connect" type="checkbox" />
+                    <span>On open</span>
                   </span>
                 </label>
                 <button type="submit" id="connect-button">Connect</button>
@@ -347,6 +360,8 @@
                 </div>
               <div class="sidebar-tabs card">
                 <button type="button" id="controls-tab-button" class="sidebar-tab-button active">Controls</button>
+                <button type="button" id="games-tab-button" class="sidebar-tab-button">Games</button>
+                <button type="button" id="users-tab-button" class="sidebar-tab-button">Users</button>
                 <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
               </div>
 
@@ -590,6 +605,15 @@
                         <small>Use a random available TTS voice for each spoken message unless that user picked their own.</small>
                       </span>
                     </label>
+
+                    <label class="toggle-switch">
+                      <input id="tts-read-punctuation" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Read punctuation</strong>
+                        <small>Speak grammar marks such as comma, full stop, question mark, and exclamation mark.</small>
+                      </span>
+                    </label>
                   </div>
 
                   <div class="field-grid tts-support-grid">
@@ -626,7 +650,7 @@
                       <label class="field">
                         <span>TTS provider</span>
                         <select id="tts-provider">
-                          <option value="builtin">Built-in</option>
+                          <option value="builtin">Built-in / XTTS</option>
                           <option value="elevenlabs">ElevenLabs</option>
                         </select>
                       </label>
@@ -660,10 +684,165 @@
                         <small class="field-hint">This changes how ElevenLabs generates speech, not which voices appear in the Voice list. Differences can be subtle on the same voice, especially with very short test phrases.</small>
                       </label>
 
+                      <label class="field tts-xtts-only is-hidden field-span-2" id="tts-xtts-service-url-field">
+                        <span>XTTS service URL</span>
+                        <input
+                          id="tts-xtts-service-url"
+                          type="url"
+                          autocomplete="off"
+                          placeholder="http://127.0.0.1:8020"
+                        />
+                        <small class="field-hint">XTTS runs locally or on your own server. The app sends text and the selected voice samples to this endpoint.</small>
+                      </label>
+
+                      <div class="actions tts-xtts-only is-hidden xtts-service-actions" id="tts-xtts-service-actions">
+                        <button type="button" id="tts-xtts-start-service" class="ghost compact-button">Start XTTS service</button>
+                        <button type="button" id="tts-xtts-check-service" class="ghost compact-button">Check XTTS service</button>
+                        <button type="button" id="tts-xtts-open-help" class="ghost compact-button">XTTS setup help</button>
+                      </div>
+
+                      <label class="toggle-row compact-toggle tts-xtts-only is-hidden" id="tts-xtts-split-sentences-field">
+                        <input id="tts-xtts-split-sentences" type="checkbox" />
+                        <span>
+                          <strong>Split long text into sentences</strong>
+                          <small>Turn this off if XTTS adds small pauses between sentences or chunks.</small>
+                        </span>
+                      </label>
+
+                      <label class="field tts-xtts-only is-hidden" id="tts-xtts-language-field">
+                        <span>XTTS language</span>
+                        <select id="tts-xtts-language">
+                          <option value="en">English</option>
+                          <option value="es">Spanish</option>
+                          <option value="fr">French</option>
+                          <option value="de">German</option>
+                          <option value="it">Italian</option>
+                          <option value="pt">Portuguese</option>
+                          <option value="pl">Polish</option>
+                          <option value="tr">Turkish</option>
+                          <option value="ru">Russian</option>
+                          <option value="nl">Dutch</option>
+                          <option value="cs">Czech</option>
+                          <option value="ar">Arabic</option>
+                          <option value="zh-cn">Chinese</option>
+                          <option value="ja">Japanese</option>
+                          <option value="ko">Korean</option>
+                        </select>
+                        <small class="field-hint">Set this to the language the XTTS voice should speak. English is recommended for UK/US streams.</small>
+                      </label>
+
+                      <div class="field tts-xtts-only is-hidden" id="tts-cache-panel">
+                        <span>TTS cache</span>
+                        <div class="actions xtts-service-actions">
+                          <button type="button" id="tts-cache-refresh" class="ghost compact-button">Refresh cache</button>
+                          <button type="button" id="tts-cache-clear" class="ghost compact-button danger">Clear cache</button>
+                        </div>
+                        <small id="tts-cache-status" class="field-hint">Cache stores repeated short phrases for faster playback.</small>
+                      </div>
+
+                      <div class="field tts-xtts-only is-hidden field-span-2 xtts-voice-builder xtts-panel" id="tts-xtts-voice-builder">
+                        <div class="xtts-panel-head">
+                          <span class="xtts-panel-title">XTTS voice library</span>
+                          <small class="xtts-panel-copy">Create voices, add better samples, rename your selected voice, or move voices between installs.</small>
+                        </div>
+                        <div class="xtts-management-grid">
+                          <section class="xtts-subpanel" aria-label="Create or update XTTS voice">
+                            <span class="xtts-subpanel-title">Create or add samples</span>
+                            <input id="tts-xtts-voice-name" type="text" autocomplete="off" placeholder="Voice name, e.g. Tom custom" />
+                            <div class="xtts-sample-row">
+                              <input id="tts-xtts-sample-file" type="text" readonly placeholder="Choose a voice sample file" />
+                              <button type="button" id="tts-xtts-sample-browse" class="ghost compact-button">Browse</button>
+                            </div>
+                            <input id="tts-xtts-youtube-url" type="url" autocomplete="off" placeholder="Or paste a YouTube sample URL" />
+                            <div class="xtts-action-row">
+                              <button type="button" id="tts-xtts-create-voice" class="ghost">Add XTTS voice</button>
+                              <button type="button" id="tts-xtts-add-sample" class="ghost">Add sample to selected voice</button>
+                            </div>
+                          </section>
+                          <section class="xtts-subpanel" aria-label="Manage selected XTTS voice">
+                            <span class="xtts-subpanel-title">Selected voice tools</span>
+                            <input id="tts-xtts-rename-input" type="text" autocomplete="off" placeholder="Rename selected voice" />
+                            <div class="xtts-action-row">
+                              <button type="button" id="tts-xtts-rename-voice" class="ghost">Save voice name</button>
+                              <button type="button" id="tts-xtts-export-voice" class="ghost">Export selected voice</button>
+                              <button type="button" id="tts-xtts-import-voice" class="ghost">Import voice</button>
+                            </div>
+                            <small class="field-hint">Import/export includes the full XTTS voice package, not just its tuning settings.</small>
+                          </section>
+                        </div>
+                        <small class="field-hint">Best results come from clear 10-30 second samples with one speaker and little background noise. Add multiple samples to improve stability.</small>
+                      </div>
+
+                      <div class="field tts-xtts-only is-hidden field-span-2 xtts-voice-tuning xtts-panel" id="tts-xtts-voice-tuning">
+                        <div class="xtts-panel-head">
+                          <span class="xtts-panel-title">Selected voice tuning</span>
+                          <small class="xtts-panel-copy">Fine tune the selected XTTS voice. These settings stay with the voice and are shared across profiles.</small>
+                        </div>
+                        <div class="xtts-tuning-grid">
+                          <label class="field">
+                            <span>Clone strength</span>
+                            <input id="tts-xtts-strength" type="range" min="0" max="1" step="0.05" value="0.75" />
+                            <small id="tts-xtts-strength-value" class="field-hint">75%</small>
+                          </label>
+                          <label class="field">
+                            <span>Echo</span>
+                            <input id="tts-xtts-echo" type="range" min="0" max="1" step="0.05" value="0" />
+                            <small id="tts-xtts-echo-value" class="field-hint">0%</small>
+                          </label>
+                          <label class="field">
+                            <span>Reverb</span>
+                            <input id="tts-xtts-reverb" type="range" min="0" max="1" step="0.05" value="0" />
+                            <small id="tts-xtts-reverb-value" class="field-hint">0%</small>
+                          </label>
+                          <label class="field">
+                            <span>Robotic</span>
+                            <input id="tts-xtts-robotic" type="range" min="0" max="1" step="0.05" value="0" />
+                            <small id="tts-xtts-robotic-value" class="field-hint">0%</small>
+                          </label>
+                          <label class="field">
+                            <span>Voice rate</span>
+                            <input id="tts-xtts-rate" type="range" min="0.7" max="1.5" step="0.05" value="1" />
+                            <small id="tts-xtts-rate-value" class="field-hint">1.0x</small>
+                          </label>
+                          <label class="field">
+                            <span>Voice pitch</span>
+                            <input id="tts-xtts-pitch" type="range" min="0.5" max="1.8" step="0.05" value="1" />
+                            <small id="tts-xtts-pitch-value" class="field-hint">1.0x</small>
+                          </label>
+                        </div>
+                        <div class="xtts-tuning-actions">
+                          <button type="button" id="tts-xtts-save-tuning" class="ghost">Save tuning</button>
+                          <button type="button" id="tts-xtts-reset-tuning" class="ghost">Reset tuning</button>
+                          <button type="button" id="tts-xtts-delete-tuning-voice" class="ghost danger">Delete voice</button>
+                        </div>
+                        <small id="tts-xtts-tuning-status" class="field-hint">Select an XTTS voice to fine tune clone strength, echo, reverb, robotic tone, rate, and pitch.</small>
+                      </div>
+
                       <label class="field">
                         <span>Voice</span>
                         <select id="tts-voice"></select>
                         <small class="field-hint">Users can assign themselves a numbered voice with <code>!myttsvoice 3</code> in chat.</small>
+                      </label>
+
+                      <label class="field">
+                        <span>Voice lock gift</span>
+                        <input id="tts-voice-lock-gift" type="hidden" />
+                        <details class="gift-trigger-dropdown tts-voice-lock-gift-picker" id="tts-voice-lock-gift-dropdown">
+                          <summary class="gift-trigger-selected-card" id="tts-voice-lock-gift-selected">
+                            <span class="gift-trigger-selected-empty">Voice locking disabled.</span>
+                          </summary>
+                          <label class="field gift-trigger-search-field">
+                            <span>Search gift</span>
+                            <input
+                              type="search"
+                              id="tts-voice-lock-gift-search"
+                              placeholder="Search gift name"
+                              autocomplete="off"
+                            />
+                          </label>
+                          <div class="gift-trigger-options-list" id="tts-voice-lock-gift-options"></div>
+                        </details>
+                        <small class="field-hint">After sending this gift, a viewer can use <code>!lockmyttsvoice</code> to reserve their chosen voice until the stream disconnects.</small>
                       </label>
                   </div>
 
@@ -708,6 +887,17 @@
                     </label>
                   </div>
 
+                    <label class="field field-span-2 tts-test-text-field">
+                      <span>Test TTS text</span>
+                      <input
+                        id="tts-test-text"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="Type a custom phrase to test the selected voice"
+                      />
+                      <small class="field-hint">Leave blank to use the default Stream Sync Pro test phrase.</small>
+                    </label>
+
                     <div class="actions tts-actions">
                       <button type="button" id="tts-test-button" class="ghost">Test voice</button>
                       <button type="button" id="tts-manage-user-voices-button" class="ghost">Manage user voices</button>
@@ -744,6 +934,139 @@
                         </article>
                       </div>
                       <p id="tts-elevenlabs-usage-status" class="status info">Enter your ElevenLabs API key to load usage details.</p>
+                    </section>
+
+                    <section class="tts-moderation-panel" aria-labelledby="tts-moderation-title">
+                      <div class="tts-moderation-head">
+                        <div>
+                          <p class="eyebrow">Moderation</p>
+                          <h4 id="tts-moderation-title">TTS commands and filters</h4>
+                        </div>
+                        <div class="tts-moderation-actions">
+                          <button type="button" id="tts-lock-button" class="ghost compact-button">Lock TTS</button>
+                          <button type="button" id="tts-unlock-button" class="ghost compact-button">Unlock</button>
+                          <button type="button" id="tts-skip-button" class="ghost compact-button">Skip</button>
+                          <button type="button" id="tts-clear-button" class="ghost compact-button">Clear</button>
+                        </div>
+                      </div>
+
+                      <div class="tts-command-chip-list" aria-label="Moderator TTS chat commands">
+                        <span class="tts-command-chip">!tts on/off</span>
+                        <span class="tts-command-chip">!pause tts</span>
+                        <span class="tts-command-chip">!resume tts</span>
+                        <span class="tts-command-chip">!clear tts</span>
+                        <span class="tts-command-chip">!skip tts</span>
+                        <span class="tts-command-chip">!lock tts</span>
+                        <span class="tts-command-chip">!unlock tts</span>
+                        <span class="tts-command-chip">!mute @user</span>
+                        <span class="tts-command-chip">!shadowmute @user</span>
+                        <span class="tts-command-chip">!timeout @user 10m</span>
+                        <span class="tts-command-chip">!banword word</span>
+                        <span class="tts-command-chip">!slowmode 10</span>
+                        <span class="tts-command-chip">!cooldown 30</span>
+                      </div>
+
+                      <div class="tts-moderation-inline-grid">
+                        <label class="toggle-switch tts-mini-toggle">
+                          <input id="tts-queue-paused" type="checkbox" />
+                          <span class="switch-ui"></span>
+                          <span class="switch-copy">
+                            <strong>Pause queue</strong>
+                            <small>Equivalent to <code>!pause tts</code>.</small>
+                          </span>
+                        </label>
+
+                        <label class="field">
+                          <span>Slow mode seconds</span>
+                          <input id="tts-slowmode-seconds" type="number" min="0" max="3600" step="1" value="0" />
+                        </label>
+
+                        <label class="field">
+                          <span>User cooldown seconds</span>
+                          <input id="tts-cooldown-seconds" type="number" min="0" max="3600" step="1" value="0" />
+                        </label>
+                      </div>
+
+                      <div class="tts-moderation-list-grid">
+                        <label class="field">
+                          <span>Muted users</span>
+                          <textarea id="tts-muted-users" rows="3" placeholder="@viewer1&#10;@viewer2"></textarea>
+                        </label>
+                        <label class="field">
+                          <span>Shadow muted users</span>
+                          <textarea id="tts-shadow-muted-users" rows="3" placeholder="@viewer1"></textarea>
+                        </label>
+                        <label class="field">
+                          <span>Blocked words</span>
+                          <textarea id="tts-blocked-words" rows="3" placeholder="word or phrase"></textarea>
+                        </label>
+                        <label class="field">
+                          <span>Active timeouts</span>
+                          <textarea id="tts-active-timeouts" rows="3" readonly placeholder="No active timeouts"></textarea>
+                        </label>
+                      </div>
+
+                      <div class="tts-moderation-timeout-actions">
+                        <button type="button" id="tts-clear-timeouts-button" class="ghost compact-button">Clear timeouts</button>
+                        <small class="field-hint">Muted users, shadow mutes, blocked words, slow mode, and cooldowns are saved with the current profile.</small>
+                      </div>
+
+                      <div class="tts-filter-grid" aria-label="TTS auto moderation filters">
+                        <label class="filter-tile compact-filter" title="Blocks any words or phrases you add to the Blocked words list from being read by TTS.">
+                          <input id="tts-filter-blocked-words" type="checkbox" checked aria-label="Blocked words filter. Blocks words or phrases from the blocked words list." />
+                          <span>Blocked words</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks website links, invite links, and common URL patterns so TTS does not read spam or unsafe links.">
+                          <input id="tts-filter-urls" type="checkbox" checked aria-label="URL filter. Blocks links and common URL patterns." />
+                          <span>URLs</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks IP addresses and messages asking TTS to read private details such as addresses or phone numbers.">
+                          <input id="tts-filter-private-info" type="checkbox" checked aria-label="Private information filter. Blocks IP addresses and private detail requests." />
+                          <span>Private info</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks messages that try to sound like fake donations, gifted items, or payment alerts.">
+                          <input id="tts-filter-fake-donation" type="checkbox" checked aria-label="Fake donation filter. Blocks fake donation or gift alert messages." />
+                          <span>Fake donations</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks prompts that try to make TTS say unsafe, impersonation, or harmful instruction-style messages.">
+                          <input id="tts-filter-unsafe-instructions" type="checkbox" checked aria-label="Unsafe prompts filter. Blocks unsafe or harmful instruction prompts." />
+                          <span>Unsafe prompts</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks hidden Unicode control characters that can be used to disguise or manipulate text.">
+                          <input id="tts-filter-unicode-abuse" type="checkbox" checked aria-label="Unicode abuse filter. Blocks hidden Unicode control characters." />
+                          <span>Unicode abuse</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks extreme repeated characters such as long strings of AAAAAAAA that can make TTS annoying or unstable.">
+                          <input id="tts-filter-repeated-characters" type="checkbox" checked aria-label="Repeated letters filter. Blocks excessive repeated characters." />
+                          <span>Repeated letters</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks repeated word spam where the same word is sent many times in one message.">
+                          <input id="tts-filter-repeated-words" type="checkbox" checked aria-label="Repeated words filter. Blocks repeated word spam." />
+                          <span>Repeated words</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks messages that are mostly capital letters so TTS does not read shouty spam.">
+                          <input id="tts-filter-excessive-caps" type="checkbox" checked aria-label="Excessive caps filter. Blocks mostly uppercase messages." />
+                          <span>Excessive caps</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks messages with too many emojis to reduce noisy or spammy TTS output.">
+                          <input id="tts-filter-excessive-emojis" type="checkbox" checked aria-label="Emoji spam filter. Blocks messages with too many emojis." />
+                          <span>Emoji spam</span>
+                        </label>
+                        <label class="filter-tile compact-filter" title="Blocks disguised profanity, slurs, sexual terms, and phonetic bypass attempts such as symbol or number substitutions.">
+                          <input id="tts-filter-obfuscated-bypass" type="checkbox" checked aria-label="Bypass attempts filter. Blocks disguised profanity, slurs, and phonetic bypasses." />
+                          <span>Bypass attempts</span>
+                        </label>
+                      </div>
+
+                      <div class="tts-mod-log-panel" aria-live="polite">
+                        <div class="tts-mod-log-head">
+                          <strong>Moderator command log</strong>
+                          <button type="button" id="tts-mod-log-clear" class="ghost compact-button">Clear log</button>
+                        </div>
+                        <div id="tts-mod-log-list" class="tts-mod-log-list">
+                          <p class="helper-text">Moderator TTS commands will appear here.</p>
+                        </div>
+                      </div>
                     </section>
                 </div>
               </div>
@@ -1032,26 +1355,511 @@
                 </div>
 
                 <div class="card-body">
-                  <p class="section-copy">Build reusable overlay templates here. This card uses a local editor preview, while the hosted overlay URLs above stay public website URLs when a template is assigned to them.</p>
+                  <p class="section-copy">Build reusable overlay templates here. When the active template is assigned to an overlay, this card shows the public hosted website URL for TikTok, OBS, or Streamlabs.</p>
                   <div class="field-grid">
                     <label class="field">
                       <span>Active template</span>
                       <select id="overlay-designer-template-select"></select>
                     </label>
                     <label class="field">
-                      <span>Local editor preview URL</span>
+                      <span>Overlay URL</span>
                       <div class="overlay-inline-url-row">
                         <input id="overlay-designer-url" type="text" readonly value="Loading..." />
                         <div class="overlay-inline-icon-actions" role="group" aria-label="Overlay designer actions">
                           <button type="button" id="overlay-designer-open-button" class="ghost icon-button compact-icon-button" title="Open Designer" aria-label="Open Designer">&#9998;</button>
-                          <button type="button" id="overlay-designer-copy-button" class="ghost icon-button compact-icon-button" title="Copy Local Preview" aria-label="Copy Local Preview">&#10697;</button>
-                          <button type="button" id="overlay-designer-preview-button" class="ghost icon-button compact-icon-button" title="Open Local Preview" aria-label="Open Local Preview">&#8599;</button>
-                          <button type="button" id="overlay-designer-test-button" class="ghost icon-button compact-icon-button" title="Test Local Preview" aria-label="Test Local Preview">&#9654;</button>
+                          <button type="button" id="overlay-designer-copy-button" class="ghost icon-button compact-icon-button" title="Copy Overlay URL" aria-label="Copy Overlay URL">&#10697;</button>
+                          <button type="button" id="overlay-designer-preview-button" class="ghost icon-button compact-icon-button" title="Open Overlay URL" aria-label="Open Overlay URL">&#8599;</button>
+                          <button type="button" id="overlay-designer-test-button" class="ghost icon-button compact-icon-button" title="Test Overlay" aria-label="Test Overlay">&#9654;</button>
                         </div>
                       </div>
                     </label>
                   </div>
                   <p id="overlay-designer-status" class="status info">Preparing overlay designer...</p>
+                </div>
+              </section>
+            </div>
+
+            <div id="games-tab-panel" class="sidebar-tab-panel">
+              <section class="sidebar-card card like-race-card" data-main-screen-card="games-like-race">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Games</p>
+                    <h3 class="section-title">TikTok LIVE Like Race</h3>
+                  </div>
+                  <span id="like-race-status-pill" class="count-pill">Idle</span>
+                </div>
+
+                <div class="card-body">
+                  <div class="settings-grid">
+                    <label class="toggle-switch">
+                      <input id="like-race-enabled" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Enable Like Race commands</strong>
+                        <small>Viewers join with <code>!joinrace</code>; likes and gifts move racers around the edge-track overlay.</small>
+                      </span>
+                    </label>
+
+                    <div class="actions like-race-actions">
+                      <button type="button" id="like-race-start-button" class="ghost compact-button">Start race</button>
+                      <button type="button" id="like-race-end-button" class="ghost compact-button">End race</button>
+                      <button type="button" id="like-race-reset-button" class="ghost compact-button">Reset race</button>
+                      <button type="button" id="like-race-test-overlay-button" class="ghost compact-button">Test overlay</button>
+                      <button type="button" id="like-race-test-tts-button" class="ghost compact-button">Test TTS commentary</button>
+                    </div>
+
+                    <div class="field-grid like-race-settings-grid">
+                      <label class="field">
+                        <span>Default countdown seconds</span>
+                        <input id="like-race-countdown" type="number" min="0" max="120" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Race distance spaces</span>
+                        <input id="like-race-distance" type="number" min="10" max="100000" step="10" />
+                      </label>
+                      <label class="field">
+                        <span>Like multiplier</span>
+                        <input id="like-race-like-multiplier" type="number" min="0" max="100" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Gift multiplier</span>
+                        <input id="like-race-gift-multiplier" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Max racers</span>
+                        <input id="like-race-max-racers" type="number" min="1" max="100" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Inactive timeout seconds</span>
+                        <input id="like-race-inactive-timeout" type="number" min="5" max="600" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Centre message seconds</span>
+                        <input id="like-race-centre-message-seconds" type="number" min="1" max="30" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Auto-hide middle seconds</span>
+                        <input id="like-race-overlay-auto-hide-seconds" type="number" min="1" max="60" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Who can start/end races</span>
+                        <select id="like-race-start-role">
+                          <option value="moderators">Moderators only</option>
+                          <option value="subscribers">Subscribers and moderators</option>
+                          <option value="everyone">Everyone</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Commentary preset</span>
+                        <select id="like-race-commentary-style">
+                          <option value="sports">Sports Announcer</option>
+                          <option value="chaotic">Chaotic TikTok Energy</option>
+                          <option value="british">British Horse Racing</option>
+                          <option value="medieval">Medieval Horse Race</option>
+                          <option value="kart">Mario Kart Style</option>
+                          <option value="wwe">WWE / Boxing Announcer</option>
+                          <option value="roast">Comedy Roast Mode</option>
+                          <option value="family">Family Friendly</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Countdown sound</span>
+                        <input id="like-race-countdown-sound" type="hidden" />
+                        <div class="inline-sound-picker searchable-sound-picker">
+                          <input
+                            id="like-race-countdown-sound-search"
+                            type="search"
+                            list="like-race-countdown-sound-options"
+                            placeholder="Search or choose countdown sound"
+                            autocomplete="off"
+                          />
+                          <datalist id="like-race-countdown-sound-options"></datalist>
+                          <button type="button" id="like-race-countdown-sound-preview" class="ghost icon-button inline-preview-button" title="Preview countdown sound" aria-label="Preview countdown sound">&#9654;</button>
+                        </div>
+                      </label>
+                      <label class="field">
+                        <span>Finish sound</span>
+                        <input id="like-race-finish-sound" type="hidden" />
+                        <div class="inline-sound-picker searchable-sound-picker">
+                          <input
+                            id="like-race-finish-sound-search"
+                            type="search"
+                            list="like-race-finish-sound-options"
+                            placeholder="Search or choose finish sound"
+                            autocomplete="off"
+                          />
+                          <datalist id="like-race-finish-sound-options"></datalist>
+                          <button type="button" id="like-race-finish-sound-preview" class="ghost icon-button inline-preview-button" title="Preview finish sound" aria-label="Preview finish sound">&#9654;</button>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div class="filter-grid">
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-allow-late-joins" type="checkbox" />
+                        <span>Allow late joins</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-auto-remove-inactive" type="checkbox" />
+                        <span>Auto remove inactive racers</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-animations" type="checkbox" />
+                        <span>Enable animations</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-tts-enabled" type="checkbox" />
+                        <span>TTS commentary using selected TTS voice</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-silly-commentary" type="checkbox" />
+                        <span>Silly commentary</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-hype-commentary" type="checkbox" />
+                        <span>Hype commentary</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-roast-commentary" type="checkbox" />
+                        <span>Roast-style commentary</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-family-filter" type="checkbox" />
+                        <span>Family-friendly filter</span>
+                      </label>
+                      <label class="tts-mini-toggle">
+                        <input id="like-race-disqualify-early-tappers" type="checkbox" />
+                        <span>Disqualify early tappers</span>
+                      </label>
+                    </div>
+
+                    <div class="field-grid like-race-settings-grid">
+                      <label class="field">
+                        <span>Track colour</span>
+                        <input id="like-race-track-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Accent colour</span>
+                        <input id="like-race-accent-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Avatar size</span>
+                        <input id="like-race-avatar-size" type="number" min="32" max="120" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Username size</span>
+                        <input id="like-race-username-size" type="number" min="8" max="48" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Overlay opacity</span>
+                        <input id="like-race-overlay-opacity" type="range" min="0" max="1" step="0.05" />
+                      </label>
+                      <label class="field">
+                        <span>Background colour</span>
+                        <input id="like-race-background-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Background image URL</span>
+                        <input id="like-race-background-image" type="url" placeholder="https://example.com/background.png" />
+                      </label>
+                    </div>
+
+                    <div class="field-grid like-race-settings-grid">
+                      <label class="field">
+                        <span>Title colour</span>
+                        <input id="like-race-title-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Title size</span>
+                        <input id="like-race-title-size" type="number" min="18" max="120" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Label colour</span>
+                        <input id="like-race-label-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Label size</span>
+                        <input id="like-race-label-size" type="number" min="8" max="36" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Muted text colour</span>
+                        <input id="like-race-muted-color" type="color" />
+                      </label>
+                      <label class="field">
+                        <span>Commentary size</span>
+                        <input id="like-race-commentary-size" type="number" min="8" max="42" step="1" />
+                      </label>
+                    </div>
+
+                    <label class="field">
+                      <span>OBS browser source URL</span>
+                      <div class="overlay-inline-url-row">
+                        <input id="like-race-overlay-url" type="text" readonly value="Loading..." />
+                        <div class="overlay-inline-icon-actions" role="group" aria-label="Like Race overlay actions">
+                          <button type="button" id="like-race-overlay-copy" class="ghost icon-button compact-icon-button" title="Copy URL" aria-label="Copy URL">&#10697;</button>
+                          <button type="button" id="like-race-overlay-open" class="ghost icon-button compact-icon-button" title="Open overlay" aria-label="Open overlay">&#8599;</button>
+                          <button type="button" id="like-race-overlay-test" class="ghost icon-button compact-icon-button" title="Test overlay" aria-label="Test overlay">&#9654;</button>
+                        </div>
+                      </div>
+                    </label>
+
+                    <details class="like-race-commentary-editor">
+                      <summary>Commentary phrase editor</summary>
+                      <p class="field-hint">One phrase per line. Tokens: <code>{user}</code>, <code>{user1}</code>, <code>{user2}</code>, <code>{giftName}</code>, <code>{giftCoins}</code>, <code>{position}</code>, <code>{distance}</code>, <code>{progress}</code>.</p>
+                      <div id="like-race-commentary-list" class="like-race-commentary-list"></div>
+                      <div class="actions">
+                        <button type="button" id="like-race-reset-commentary" class="ghost compact-button">Reset phrases</button>
+                      </div>
+                    </details>
+
+                    <div id="like-race-live-summary" class="like-race-live-summary"></div>
+                    <p id="like-race-status" class="status info">Like Race is idle.</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="sidebar-card card spin-wheel-card" data-main-screen-card="games-spin-wheel">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Games</p>
+                    <h3 class="section-title">Spin Wheel Actions</h3>
+                  </div>
+                  <button type="button" id="spin-wheel-test-button" class="ghost compact-button">Test spin</button>
+                </div>
+
+                <div class="card-body">
+                  <div class="settings-grid">
+                    <label class="toggle-switch">
+                      <input id="spin-wheel-enabled" type="checkbox" />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Enable Spin Wheel overlay</strong>
+                        <small>Show a transparent prize-wheel style overlay and trigger the winning segment action.</small>
+                      </span>
+                    </label>
+
+                    <div class="filter-grid">
+                      <label class="tts-mini-toggle">
+                        <input id="spin-wheel-command-enabled" type="checkbox" />
+                        <span>Allow <code>!spin</code> command</span>
+                      </label>
+                    </div>
+
+                    <div class="field-grid like-race-settings-grid">
+                      <label class="field">
+                        <span>Spin duration seconds</span>
+                        <input id="spin-wheel-duration" type="number" min="1" max="30" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Winner display seconds</span>
+                        <input id="spin-wheel-result-duration" type="number" min="1" max="30" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Arrow position</span>
+                        <select id="spin-wheel-arrow-position">
+                          <option value="right">Right</option>
+                          <option value="top">Top</option>
+                          <option value="bottom">Bottom</option>
+                          <option value="left">Left</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Start wheel from event action</span>
+                        <select id="spin-wheel-event-rule"></select>
+                      </label>
+                      <label class="field">
+                        <span>Start wheel from selected gift</span>
+                        <input id="spin-wheel-gift-name" type="hidden" />
+                        <details id="spin-wheel-gift-dropdown" class="gift-trigger-dropdown spin-wheel-gift-dropdown">
+                          <summary id="spin-wheel-gift-selected">No gift trigger selected</summary>
+                          <div class="gift-trigger-panel">
+                            <input id="spin-wheel-gift-search" type="search" placeholder="Search gifts" autocomplete="off" />
+                            <div id="spin-wheel-gift-options" class="gift-trigger-options-list"></div>
+                          </div>
+                        </details>
+                      </label>
+                    </div>
+
+                    <label class="field">
+                      <span>OBS / TikTok browser source URL</span>
+                      <div class="overlay-inline-url-row">
+                        <input id="spin-wheel-overlay-url" type="text" readonly value="Loading..." />
+                        <div class="overlay-inline-icon-actions" role="group" aria-label="Spin Wheel overlay actions">
+                          <button type="button" id="spin-wheel-overlay-copy" class="ghost icon-button compact-icon-button" title="Copy URL" aria-label="Copy URL">&#10697;</button>
+                          <button type="button" id="spin-wheel-overlay-open" class="ghost icon-button compact-icon-button" title="Open overlay" aria-label="Open overlay">&#8599;</button>
+                        </div>
+                      </div>
+                    </label>
+
+                    <div class="spin-wheel-segments-panel">
+                      <div class="spin-wheel-segments-head">
+                        <div>
+                          <strong>Wheel segments</strong>
+                          <small>Each segment can trigger one existing Event Action when selected.</small>
+                        </div>
+                        <button type="button" id="spin-wheel-add-segment" class="ghost compact-button">Add segment</button>
+                      </div>
+                      <div id="spin-wheel-segments-list" class="spin-wheel-segments-list"></div>
+                    </div>
+
+                    <p id="spin-wheel-status" class="status info">Spin Wheel is idle.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div id="users-tab-panel" class="sidebar-tab-panel">
+              <section class="sidebar-card card users-points-card" data-main-screen-card="users-points">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Users</p>
+                    <h3 class="section-title">Users and Points</h3>
+                  </div>
+                  <button type="button" id="viewer-points-reset" class="ghost compact-button danger">Clear all viewer data</button>
+                </div>
+
+                <div class="card-body">
+                  <section class="viewer-points-panel" aria-labelledby="viewer-points-title">
+                    <div class="viewer-points-head">
+                      <div>
+                        <p class="eyebrow">Points</p>
+                        <h4 id="viewer-points-title">Points rules</h4>
+                      </div>
+                      <label class="toggle-row compact-toggle">
+                        <input id="viewer-points-enabled" type="checkbox" />
+                        <span>Enabled</span>
+                      </label>
+                    </div>
+                    <p class="field-hint">Award points when viewers trigger live events. Subscriber multiplier is applied automatically when TikTok marks the viewer as a subscriber.</p>
+                    <div class="field-grid viewer-points-settings-grid">
+                      <label class="field">
+                        <span>Per like</span>
+                        <input id="viewer-points-like" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per comment</span>
+                        <input id="viewer-points-comment" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per share</span>
+                        <input id="viewer-points-share" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per follow</span>
+                        <input id="viewer-points-follow" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per gift</span>
+                        <input id="viewer-points-gift" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per gift coin</span>
+                        <input id="viewer-points-coin" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per sub emote</span>
+                        <input id="viewer-points-sub-emote" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Per fan emote</span>
+                        <input id="viewer-points-fan-emote" type="number" min="0" max="1000" step="0.1" />
+                      </label>
+                      <label class="field">
+                        <span>Subscriber multiplier</span>
+                        <input id="viewer-points-subscriber-multiplier" type="number" min="1" max="100" step="0.1" />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section class="viewer-points-table-panel" aria-labelledby="viewer-points-table-title">
+                    <div class="viewer-points-leaderboard-head">
+                      <div>
+                        <strong id="viewer-points-table-title">All users</strong>
+                        <p class="field-hint">Overtype points directly, or use add/remove for quick adjustments. First and last activity are retained with the user record.</p>
+                      </div>
+                    </div>
+                    <div class="field-grid viewer-points-filter-grid" role="group" aria-label="Filter users and points">
+                      <label class="field">
+                        <span>Search users</span>
+                        <input id="viewer-points-search" type="search" placeholder="Search username or display name" autocomplete="off" />
+                      </label>
+                      <label class="field">
+                        <span>Role filter</span>
+                        <select id="viewer-points-role-filter">
+                          <option value="all">All roles</option>
+                          <option value="subscriber">Subscribers</option>
+                          <option value="moderator">Moderators</option>
+                          <option value="viewer">Viewers only</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Points filter</span>
+                        <select id="viewer-points-balance-filter">
+                          <option value="all">All balances</option>
+                          <option value="positive">Has points</option>
+                          <option value="zero">Zero points</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Birthday filter</span>
+                        <select id="viewer-points-birthday-filter">
+                          <option value="all">All birthdays</option>
+                          <option value="hasBirthday">Has birthday</option>
+                          <option value="today">Birthday today</option>
+                          <option value="ascending">Birthday ascending</option>
+                        </select>
+                      </label>
+                      <button type="button" id="viewer-points-clear-filter" class="ghost compact-button">Clear filter</button>
+                    </div>
+                    <div class="viewer-points-leaderboard-head">
+                      <div class="field-grid viewer-points-admin-grid">
+                        <label class="field">
+                          <span>Viewer username</span>
+                          <input id="viewer-points-adjust-username" type="text" placeholder="@viewername" autocomplete="off" />
+                        </label>
+                        <label class="field">
+                          <span>Points amount</span>
+                          <input id="viewer-points-adjust-amount" type="number" min="0" step="1" placeholder="100" />
+                        </label>
+                        <div class="viewer-points-admin-actions">
+                          <button type="button" id="viewer-points-add" class="ghost compact-button">Add points</button>
+                          <button type="button" id="viewer-points-remove" class="ghost compact-button danger">Remove points</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="viewer-points-table-wrap">
+                      <table class="viewer-points-table">
+                        <thead>
+                          <tr>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="rank">Rank <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="user">User <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="points">Points <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="gifts">Gifts <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="coins">Coins <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="value">Value <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="likes">Likes <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="comments">Comments <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="shares">Shares <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="firstActivity">First activity <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="lastActivity">Last activity <span aria-hidden="true"></span></button></th>
+                            <th><button type="button" class="viewer-points-sort-button" data-viewer-points-sort="roles">Roles <span aria-hidden="true"></span></button></th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="viewer-points-users-table-body">
+                          <tr>
+                            <td colspan="13">No users have been recorded yet.</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="viewer-points-pagination" aria-label="User table pagination">
+                      <button type="button" id="viewer-points-prev-page" class="ghost compact-button">Previous 10</button>
+                      <span id="viewer-points-page-status" class="field-hint">Showing 0 users</span>
+                      <button type="button" id="viewer-points-next-page" class="ghost compact-button">Next 10</button>
+                    </div>
+                  </section>
                 </div>
               </section>
             </div>
@@ -1094,6 +1902,7 @@
                         <option value="moderator">Moderator</option>
                         <option value="topGifter">Top gifter</option>
                         <option value="specificUser">Specific user</option>
+                        <option value="birthday">Birthday today</option>
                       </select>
                     </label>
 

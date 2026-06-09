@@ -92,6 +92,11 @@ function routeRequest(PDO $pdo, array $config): void
         return;
     }
 
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/like-race-state') {
+        handleGetLikeRaceOverlayState($pdo, $_GET);
+        return;
+    }
+
     if ($requestMethod !== 'POST') {
         jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
     }
@@ -194,6 +199,9 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/overlay/update-vote-state':
             handleUpdateVoteOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-like-race-state':
+            handleUpdateLikeRaceOverlayState($pdo, $input);
             return;
         default:
             jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
@@ -310,6 +318,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
             likes_overlay_json LONGTEXT NULL,
             viewer_stats_overlay_json LONGTEXT NULL,
             vote_overlay_json LONGTEXT NULL,
+            like_race_overlay_json LONGTEXT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT fk_overlay_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
             UNIQUE KEY uniq_overlay_public_id (overlay_public_id),
@@ -370,6 +379,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_user_overlay_state', 'likes_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN likes_overlay_json LONGTEXT NULL AFTER gift_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'viewer_stats_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN viewer_stats_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'vote_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN vote_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'like_race_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN like_race_overlay_json LONGTEXT NULL AFTER vote_overlay_json');
     ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
@@ -1039,7 +1049,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             gift_overlay_json,
             likes_overlay_json,
             viewer_stats_overlay_json,
-            vote_overlay_json
+            vote_overlay_json,
+            like_race_overlay_json
         ) VALUES (
             :user_id,
             :overlay_public_id,
@@ -1051,7 +1062,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             :gift_overlay_json,
             :likes_overlay_json,
             :viewer_stats_overlay_json,
-            :vote_overlay_json
+            :vote_overlay_json,
+            :like_race_overlay_json
         )
         ON DUPLICATE KEY UPDATE
             overlay_public_id = COALESCE(auth_user_overlay_state.overlay_public_id, VALUES(overlay_public_id)),
@@ -1063,7 +1075,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             gift_overlay_json = COALESCE(auth_user_overlay_state.gift_overlay_json, VALUES(gift_overlay_json)),
             likes_overlay_json = COALESCE(auth_user_overlay_state.likes_overlay_json, VALUES(likes_overlay_json)),
             viewer_stats_overlay_json = COALESCE(auth_user_overlay_state.viewer_stats_overlay_json, VALUES(viewer_stats_overlay_json)),
-            vote_overlay_json = COALESCE(auth_user_overlay_state.vote_overlay_json, VALUES(vote_overlay_json))'
+            vote_overlay_json = COALESCE(auth_user_overlay_state.vote_overlay_json, VALUES(vote_overlay_json)),
+            like_race_overlay_json = COALESCE(auth_user_overlay_state.like_race_overlay_json, VALUES(like_race_overlay_json))'
     );
     $statement->execute([
         ':user_id' => (int) $user['id'],
@@ -1077,6 +1090,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         ':likes_overlay_json' => json_encode(defaultLikesOverlayState(), JSON_UNESCAPED_SLASHES),
         ':viewer_stats_overlay_json' => json_encode(defaultViewerStatsOverlayState(), JSON_UNESCAPED_SLASHES),
         ':vote_overlay_json' => json_encode(defaultVoteOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':like_race_overlay_json' => json_encode(defaultLikeRaceOverlayState(), JSON_UNESCAPED_SLASHES),
     ]);
 
     $publicIdParam = rawurlencode($overlayPublicId);
@@ -1090,6 +1104,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'likesUrl' => $siteBaseUrl . '/overlay/likes.php?id=' . $publicIdParam,
         'viewerStatsUrl' => $siteBaseUrl . '/overlay/viewer-stats.php?id=' . $publicIdParam,
         'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
+        'likeRaceUrl' => $siteBaseUrl . '/overlay/like-race.php?id=' . $publicIdParam . '&v=20260522-usernamesize',
         'publicId' => $overlayPublicId,
         'expiresAt' => $expiresAt,
     ];
@@ -1375,6 +1390,34 @@ function handleUpdateVoteOverlayState(PDO $pdo, array $input): void
     ]);
 }
 
+function handleUpdateLikeRaceOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeLikeRaceOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            like_race_overlay_json
+        ) VALUES (
+            :user_id,
+            :like_race_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            like_race_overlay_json = VALUES(like_race_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':like_race_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
 function handleGetQueueOverlayState(PDO $pdo, array $query): void
 {
     [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
@@ -1484,6 +1527,23 @@ function handleGetVoteOverlayState(PDO $pdo, array $query): void
     $decodedState = json_decode((string) ($overlayState['vote_overlay_json'] ?? ''), true);
     if (is_array($decodedState)) {
         $state = sanitizeVoteOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetLikeRaceOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultLikeRaceOverlayState();
+    $decodedState = json_decode((string) ($overlayState['like_race_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeLikeRaceOverlayStatePayload($decodedState);
     }
 
     jsonResponse(200, [
@@ -2620,6 +2680,33 @@ function defaultVoteOverlayState(): array
     ];
 }
 
+function defaultLikeRaceOverlayState(): array
+{
+    return [
+        'raceEnabled' => false,
+        'raceStatus' => 'idle',
+        'countdownSeconds' => 10,
+        'countdownEndsAt' => '',
+        'totalSpaces' => 1000,
+        'likeMultiplier' => 1,
+        'giftMultiplier' => 5,
+        'racers' => [],
+        'leaderboard' => [],
+        'currentLeader' => null,
+        'previousLeader' => null,
+        'winner' => null,
+        'lastRaceWinner' => null,
+        'commentaryQueue' => [],
+        'centreMessage' => null,
+        'middleContentVisibleUntil' => '',
+        'overlayVisibleUntil' => '',
+        'ttsSettings' => [],
+        'overlaySettings' => [],
+        'stats' => [],
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
 function sanitizeOverlayDesignerTemplatePayload($payload): ?array
 {
     if (!is_array($payload)) {
@@ -2893,6 +2980,21 @@ function sanitizeViewerStatsOverlayStatePayload(array $payload): array
             $coins = max(0, (int) ($item['coins'] ?? 0));
             $gifts = max(0, (int) ($item['gifts'] ?? 0));
             $totalScore = max(0, (int) ($item['totalScore'] ?? ($likes + $comments + $shares + $follows + $gifts + $coins)));
+            $rankScore = max(0, (float) ($item['rankScore'] ?? (($likes * 0.01) + $gifts + $comments + $shares + $coins)));
+            $allTimeLikes = max(0, (int) ($item['allTimeLikes'] ?? 0));
+            $allTimeComments = max(0, (int) ($item['allTimeComments'] ?? 0));
+            $allTimeShares = max(0, (int) ($item['allTimeShares'] ?? 0));
+            $allTimeFollows = max(0, (int) ($item['allTimeFollows'] ?? 0));
+            $allTimeCoins = max(0, (int) ($item['allTimeCoins'] ?? 0));
+            $allTimeGifts = max(0, (int) ($item['allTimeGifts'] ?? 0));
+            $allTimeTotalScore = max(
+                0,
+                (int) ($item['allTimeTotalScore'] ?? ($allTimeLikes + $allTimeComments + $allTimeShares + $allTimeFollows + $allTimeGifts + $allTimeCoins))
+            );
+            $allTimeRankScore = max(
+                0,
+                (float) ($item['allTimeRankScore'] ?? (($allTimeLikes * 0.01) + $allTimeGifts + $allTimeComments + $allTimeShares + $allTimeCoins))
+            );
 
             $items[] = [
                 'rank' => $index + 1,
@@ -2907,6 +3009,15 @@ function sanitizeViewerStatsOverlayStatePayload(array $payload): array
                 'coins' => $coins,
                 'gifts' => $gifts,
                 'totalScore' => $totalScore,
+                'rankScore' => $rankScore,
+                'allTimeLikes' => $allTimeLikes,
+                'allTimeComments' => $allTimeComments,
+                'allTimeShares' => $allTimeShares,
+                'allTimeFollows' => $allTimeFollows,
+                'allTimeCoins' => $allTimeCoins,
+                'allTimeGifts' => $allTimeGifts,
+                'allTimeTotalScore' => $allTimeTotalScore,
+                'allTimeRankScore' => $allTimeRankScore,
             ];
         }
     }
@@ -2970,6 +3081,127 @@ function sanitizeVoteOverlayStatePayload(array $payload): array
         'resultVisibleUntil' => trim((string) ($payload['resultVisibleUntil'] ?? '')),
         'updatedAt' => gmdate('Y-m-d H:i:s'),
         'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+    ];
+}
+
+function sanitizeLikeRaceRacerPayload($payload, int $fallbackRank = 1): ?array
+{
+    if (!is_array($payload)) {
+        return null;
+    }
+
+    $username = trim((string) ($payload['username'] ?? ''));
+    $userId = trim((string) ($payload['userId'] ?? $username));
+    if ($userId === '' && $username === '') {
+        return null;
+    }
+
+    $displayName = trim((string) ($payload['displayName'] ?? $username));
+    $spacesMoved = max(0, (float) ($payload['spacesMoved'] ?? 0));
+    $progressPercent = max(0, min(100, (float) ($payload['progressPercent'] ?? 0)));
+
+    return [
+        'userId' => $userId !== '' ? mb_substr($userId, 0, 120) : mb_substr($username, 0, 120),
+        'username' => mb_substr($username !== '' ? $username : $userId, 0, 120),
+        'displayName' => mb_substr($displayName !== '' ? $displayName : ($username !== '' ? $username : $userId), 0, 160),
+        'profilePictureUrl' => mb_substr(trim((string) ($payload['profilePictureUrl'] ?? '')), 0, 1024),
+        'spacesMoved' => $spacesMoved,
+        'progressPercent' => $progressPercent,
+        'trackPosition' => max(0, min(1, (float) ($payload['trackPosition'] ?? ($progressPercent / 100)))),
+        'likesReceived' => max(0, (int) ($payload['likesReceived'] ?? 0)),
+        'giftsReceived' => max(0, (int) ($payload['giftsReceived'] ?? 0)),
+        'giftCoinsReceived' => max(0, (int) ($payload['giftCoinsReceived'] ?? 0)),
+        'lastActionTime' => max(0, (int) ($payload['lastActionTime'] ?? 0)),
+        'isInactive' => !empty($payload['isInactive']),
+        'hasTriggeredInactiveCommentary' => !empty($payload['hasTriggeredInactiveCommentary']),
+        'currentRank' => max(1, (int) ($payload['currentRank'] ?? $fallbackRank)),
+        'previousRank' => max(1, (int) ($payload['previousRank'] ?? $fallbackRank)),
+        'speechBubble' => mb_substr(trim((string) ($payload['speechBubble'] ?? '')), 0, 180),
+    ];
+}
+
+function sanitizeLikeRaceNullableRacerPayload($payload): ?array
+{
+    return is_array($payload) ? sanitizeLikeRaceRacerPayload($payload) : null;
+}
+
+function sanitizeLikeRaceOverlayStatePayload(array $payload): array
+{
+    $racers = [];
+    if (isset($payload['racers']) && is_array($payload['racers'])) {
+        foreach (array_slice($payload['racers'], 0, 100) as $index => $racer) {
+            $sanitized = sanitizeLikeRaceRacerPayload($racer, $index + 1);
+            if ($sanitized !== null) {
+                $racers[] = $sanitized;
+            }
+        }
+    }
+
+    $leaderboard = [];
+    if (isset($payload['leaderboard']) && is_array($payload['leaderboard'])) {
+        foreach (array_slice($payload['leaderboard'], 0, 100) as $index => $racer) {
+            $sanitized = sanitizeLikeRaceRacerPayload($racer, $index + 1);
+            if ($sanitized !== null) {
+                $leaderboard[] = $sanitized;
+            }
+        }
+    }
+
+    if (!$leaderboard) {
+        $leaderboard = $racers;
+    }
+
+    $commentaryQueue = [];
+    if (isset($payload['commentaryQueue']) && is_array($payload['commentaryQueue'])) {
+        foreach (array_slice($payload['commentaryQueue'], -12) as $index => $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $commentaryQueue[] = [
+                'id' => mb_substr(trim((string) ($item['id'] ?? ('commentary-' . $index))), 0, 120),
+                'eventType' => mb_substr(trim((string) ($item['eventType'] ?? 'commentary')), 0, 80),
+                'text' => mb_substr(trim((string) ($item['text'] ?? '')), 0, 240),
+                'priority' => max(0, (int) ($item['priority'] ?? 0)),
+                'createdAt' => max(0, (int) ($item['createdAt'] ?? 0)),
+            ];
+        }
+    }
+
+    $status = (string) ($payload['raceStatus'] ?? 'idle');
+    if (!in_array($status, ['idle', 'lobby', 'countdown', 'running', 'finished'], true)) {
+        $status = 'idle';
+    }
+
+    $centreMessage = null;
+    if (isset($payload['centreMessage']) && is_array($payload['centreMessage'])) {
+        $centreMessage = [
+            'text' => mb_substr(trim((string) ($payload['centreMessage']['text'] ?? '')), 0, 220),
+            'visibleUntil' => trim((string) ($payload['centreMessage']['visibleUntil'] ?? '')),
+        ];
+    }
+
+    return [
+        'raceEnabled' => !empty($payload['raceEnabled']),
+        'raceStatus' => $status,
+        'countdownSeconds' => max(0, min(600, (int) ($payload['countdownSeconds'] ?? 10))),
+        'countdownEndsAt' => trim((string) ($payload['countdownEndsAt'] ?? '')),
+        'totalSpaces' => max(1, min(1000000, (int) ($payload['totalSpaces'] ?? 1000))),
+        'likeMultiplier' => max(0, min(1000, (float) ($payload['likeMultiplier'] ?? 1))),
+        'giftMultiplier' => max(0, min(1000, (float) ($payload['giftMultiplier'] ?? 5))),
+        'racers' => $racers,
+        'leaderboard' => $leaderboard,
+        'currentLeader' => sanitizeLikeRaceNullableRacerPayload($payload['currentLeader'] ?? null),
+        'previousLeader' => sanitizeLikeRaceNullableRacerPayload($payload['previousLeader'] ?? null),
+        'winner' => sanitizeLikeRaceNullableRacerPayload($payload['winner'] ?? null),
+        'lastRaceWinner' => sanitizeLikeRaceNullableRacerPayload($payload['lastRaceWinner'] ?? null),
+        'commentaryQueue' => $commentaryQueue,
+        'centreMessage' => $centreMessage,
+        'middleContentVisibleUntil' => trim((string) ($payload['middleContentVisibleUntil'] ?? '')),
+        'overlayVisibleUntil' => trim((string) ($payload['overlayVisibleUntil'] ?? '')),
+        'ttsSettings' => is_array($payload['ttsSettings'] ?? null) ? array_slice($payload['ttsSettings'], 0, 80, true) : [],
+        'overlaySettings' => is_array($payload['overlaySettings'] ?? null) ? array_slice($payload['overlaySettings'], 0, 40, true) : [],
+        'stats' => is_array($payload['stats'] ?? null) ? array_slice($payload['stats'], 0, 100, true) : [],
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
     ];
 }
 

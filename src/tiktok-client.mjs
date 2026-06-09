@@ -6,6 +6,7 @@ import {
 } from "tiktok-live-connector";
 
 const CONNECT_RETRY_DELAYS_MS = [0, 1200, 2500];
+const LIVE_REQUEST_POLLING_INTERVAL_MS = 100;
 
 let currentConnection = null;
 let connectionState = {
@@ -77,6 +78,69 @@ function getGiftCoinValue(data) {
   );
 
   return Number.isFinite(unitValue) && unitValue > 0 ? unitValue : 0;
+}
+
+function getUserProfilePictureUrl(data) {
+  const user = data?.user ?? data?.userInfo ?? {};
+  const extractUrl = (candidate) => {
+    if (!candidate) {
+      return "";
+    }
+    if (typeof candidate === "string") {
+      return candidate;
+    }
+    if (Array.isArray(candidate)) {
+      return candidate.map(extractUrl).find(Boolean) || "";
+    }
+    if (typeof candidate === "object") {
+      const directCandidates = [
+        candidate.url,
+        candidate.uri,
+        candidate.urlList,
+        candidate.url_list,
+        candidate.urls,
+        candidate.url_list?.[0],
+        candidate.urlList?.[0],
+        candidate.urls?.[0],
+        candidate.thumb,
+        candidate.medium,
+        candidate.large
+      ];
+      return directCandidates.map(extractUrl).find(Boolean) || "";
+    }
+    return "";
+  };
+
+  const candidates = [
+    user?.profilePictureUrl,
+    user?.avatarThumb,
+    user?.avatarMedium,
+    user?.avatarLarger,
+    user?.avatar?.thumb,
+    user?.avatar?.medium,
+    user?.avatar?.large,
+    user?.avatar_thumb?.url_list?.[0],
+    user?.avatar_medium?.url_list?.[0],
+    user?.avatar_larger?.url_list?.[0],
+    user?.avatar_thumb,
+    user?.avatar_medium,
+    user?.avatar_larger,
+    user?.avatarThumbUrl,
+    user?.avatarMediumUrl,
+    user?.avatarLargerUrl,
+    user?.profilePicture,
+    data?.profilePictureUrl,
+    data?.avatar
+  ];
+
+  for (const candidate of candidates) {
+    const url = extractUrl(candidate);
+    if (url) {
+      return url;
+    }
+  }
+
+  return "";
 }
 
 function getGiftImageUrl(data) {
@@ -329,6 +393,19 @@ function normalizeGiftCatalogEntry(entry) {
   };
 }
 
+function getLookupErrorMessage(error) {
+  return String(error?.message ?? error ?? "").trim();
+}
+
+function getLookupErrorStatus(error) {
+  const status = error?.response?.status ?? error?.status ?? error?.statusCode;
+  return Number.isFinite(Number(status)) ? Number(status) : null;
+}
+
+function isForbiddenLookupError(error) {
+  return getLookupErrorStatus(error) === 403 || /status code 403|forbidden/i.test(getLookupErrorMessage(error));
+}
+
 function getRoleFlags(data) {
   const userIdentity = data.userIdentity ?? {};
 
@@ -372,6 +449,50 @@ export async function fetchAvailableGiftsForUsername(username) {
     };
   }
 
+  const lookupErrors = [];
+  const fetchGiftsFromConnection = async (connection) => {
+    if (!connection?.clientParams) {
+      throw new Error("TikTok gift lookup is not available for this connection.");
+    }
+
+    if (!connection?.clientParams?.room_id) {
+      const roomId = connection?.roomId || connectionState.roomId || await connection.fetchRoomId();
+      if (!roomId) {
+        throw new Error(`TikTok did not return a room ID for @${normalizedUsername}.`);
+      }
+      connection.clientParams.room_id = roomId;
+    }
+
+    const gifts = await connection.fetchAvailableGifts();
+    if (!Array.isArray(gifts)) {
+      return [];
+    }
+
+    return gifts
+      .map(normalizeGiftCatalogEntry)
+      .filter(Boolean);
+  };
+
+  if (
+    currentConnection &&
+    connectionState.connected &&
+    normalizeUsername(connectionState.username).toLowerCase() === normalizedUsername.toLowerCase()
+  ) {
+    try {
+      const gifts = await fetchGiftsFromConnection(currentConnection);
+      if (gifts.length) {
+        return {
+          gifts,
+          liveActive: true,
+          error: ""
+        };
+      }
+    } catch (error) {
+      lookupErrors.push(error);
+      // Fall back to a temporary lookup below.
+    }
+  }
+
   const tempConnection = new TikTokLiveConnection(normalizedUsername, {
     processInitialData: false,
     fetchRoomInfoOnConnect: false,
@@ -380,37 +501,28 @@ export async function fetchAvailableGiftsForUsername(username) {
   });
 
   try {
-    const isLive = await tempConnection.fetchIsLive();
-    if (!isLive) {
-      return {
-        gifts: [],
-        liveActive: false,
-        error: `TikTok LIVE is not active for @${normalizedUsername} right now.`
-      };
-    }
-
-    await tempConnection.fetchRoomInfo();
-    const gifts = await tempConnection.fetchAvailableGifts();
-    if (!Array.isArray(gifts)) {
-      return {
-        gifts: [],
-        liveActive: true,
-        error: "TikTok did not return a gift catalog for this LIVE."
-      };
-    }
-
+    const gifts = await fetchGiftsFromConnection(tempConnection);
     return {
-      gifts: gifts
-        .map(normalizeGiftCatalogEntry)
-        .filter(Boolean),
+      gifts,
       liveActive: true,
-      error: ""
+      error: gifts.length ? "" : "TikTok did not return a gift catalog for this LIVE."
     };
-  } catch {
+  } catch (error) {
+    lookupErrors.push(error);
+    const message = lookupErrors
+      .map(getLookupErrorMessage)
+      .filter(Boolean)
+      .at(-1);
+    const isForbidden = lookupErrors.some(isForbiddenLookupError);
     return {
       gifts: [],
       liveActive: false,
-      error: `Unable to fetch TikTok gift catalog for @${normalizedUsername}.`
+      restricted: isForbidden,
+      error: message
+        ? isForbidden
+          ? `TikTok blocked live gift catalog refresh for @${normalizedUsername} (403). The app will continue using the built-in and previously learned gift catalog.`
+          : `Unable to fetch TikTok gift catalog for @${normalizedUsername}: ${message}`
+        : `Unable to fetch TikTok gift catalog for @${normalizedUsername}.`
     };
   } finally {
     try {
@@ -576,6 +688,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       type: "chat",
       user: data.user?.uniqueId ?? "unknown",
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message: data.comment ?? "",
       emotes,
@@ -593,6 +706,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       type: "subEmote",
       user: data.user?.uniqueId ?? "unknown",
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message: "sent a subscriber emote",
       emotes,
@@ -626,6 +740,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
       type: "gift",
       user: data.user?.uniqueId ?? "unknown",
       nickname: data.user?.nickname ?? data.user?.uniqueId ?? "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message: `sent ${giftName}${countSuffix}`,
       giftName,
@@ -656,6 +771,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
           data.user?.uniqueId ??
           data.uniqueId ??
           "unknown",
+        profilePictureUrl: getUserProfilePictureUrl(data),
         ...roleFlags,
         message: "joined the stream",
         timestamp: new Date().toISOString()
@@ -675,6 +791,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message: "followed the stream",
       timestamp: new Date().toISOString()
@@ -693,6 +810,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message: "shared the stream",
       timestamp: new Date().toISOString()
@@ -714,6 +832,7 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
         data.user?.uniqueId ??
         data.uniqueId ??
         "unknown",
+      profilePictureUrl: getUserProfilePictureUrl(data),
       ...roleFlags,
       message:
         likeCount > 0
@@ -826,7 +945,8 @@ export async function connectToLive(username, listeners) {
     }
 
     const connection = new TikTokLiveConnection(normalizedUsername, {
-      processInitialData: false
+      processInitialData: false,
+      requestPollingIntervalMs: LIVE_REQUEST_POLLING_INTERVAL_MS
     });
 
     bindConnectionEvents(connection, normalizedUsername, listeners);

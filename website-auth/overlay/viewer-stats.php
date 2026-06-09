@@ -227,13 +227,20 @@ $overlayAccessQuery = $overlayId !== ''
 
       .stat-col {
         display: grid;
-        gap: 5px;
+        gap: 4px;
         text-align: center;
       }
 
       .stat-col strong {
         font-size: 16px;
         line-height: 1;
+      }
+
+      .stat-col small {
+        color: var(--accent);
+        font-size: 11px;
+        line-height: 1;
+        font-weight: 800;
       }
 
       .stat-col span {
@@ -245,6 +252,8 @@ $overlayAccessQuery = $overlayId !== ''
 
       .score-pill {
         display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
         align-items: center;
         justify-content: center;
         min-width: 78px;
@@ -258,6 +267,11 @@ $overlayAccessQuery = $overlayId !== ''
         letter-spacing: 0.08em;
         text-transform: uppercase;
         font-weight: 700;
+      }
+
+      .score-pill small {
+        color: var(--muted);
+        font-size: 10px;
       }
 
       .empty-state {
@@ -336,6 +350,21 @@ $overlayAccessQuery = $overlayId !== ''
         return "Everyone";
       }
 
+      function renderStatCell(label, streamValue, allTimeValue) {
+        return `
+          <div class="stat-col">
+            <strong>${Number(streamValue || 0)}</strong>
+            <small>${Number(allTimeValue || 0)} all</small>
+            <span>${escapeHtml(label)}</span>
+          </div>
+        `;
+      }
+
+      function formatRankScore(value) {
+        const score = Number(value || 0);
+        return Number.isInteger(score) ? String(score) : score.toFixed(2).replace(/\.?0+$/, "");
+      }
+
       function renderState(state) {
         if (state?.designerTemplate && window.StreamSyncOverlayDesignerRuntime) {
           defaultOverlayShell.hidden = true;
@@ -349,11 +378,17 @@ $overlayAccessQuery = $overlayId !== ''
               gifts: topItem ? Number(topItem.gifts || 0) : 0,
               follows: topItem ? Number(topItem.follows || 0) : 0,
               coins: topItem ? Number(topItem.coins || 0) : 0,
-              shares: topItem ? Number(topItem.shares || 0) : 0
+              shares: topItem ? Number(topItem.shares || 0) : 0,
+              allTimeLikes: topItem ? Number(topItem.allTimeLikes || 0) : 0,
+              allTimeComments: topItem ? Number(topItem.allTimeComments || 0) : 0,
+              allTimeGifts: topItem ? Number(topItem.allTimeGifts || 0) : 0,
+              allTimeFollows: topItem ? Number(topItem.allTimeFollows || 0) : 0,
+              allTimeCoins: topItem ? Number(topItem.allTimeCoins || 0) : 0,
+              allTimeShares: topItem ? Number(topItem.allTimeShares || 0) : 0
             },
             chatMessage: topItem ? {
               username: topItem.username || state?.username || "",
-              message: `${topItem.displayName || topItem.username || "Viewer"} · ${topItem.totalScore || 0} total`
+              message: `${topItem.displayName || topItem.username || "Viewer"} - ${formatRankScore(topItem.rankScore)} stream pts / ${formatRankScore(topItem.allTimeRankScore)} all-time pts`
             } : null
           });
           return;
@@ -383,13 +418,16 @@ $overlayAccessQuery = $overlayId !== ''
                 ${item.isModerator ? '<span class="badge mod">Mod</span>' : ''}
               </div>
             </div>
-            <div class="stat-col"><strong>${Number(item.likes || 0)}</strong><span>Likes</span></div>
-            <div class="stat-col"><strong>${Number(item.gifts || 0)}</strong><span>Gifts</span></div>
-            <div class="stat-col"><strong>${Number(item.comments || 0)}</strong><span>Comments</span></div>
-            <div class="stat-col"><strong>${Number(item.shares || 0)}</strong><span>Shares</span></div>
-            <div class="stat-col"><strong>${Number(item.follows || 0)}</strong><span>Follows</span></div>
-            <div class="stat-col"><strong>${Number(item.coins || 0)}</strong><span>Coins</span></div>
-            <div class="score-pill">${Number(item.totalScore || 0)} total</div>
+            ${renderStatCell("Likes", item.likes, item.allTimeLikes)}
+            ${renderStatCell("Gifts", item.gifts, item.allTimeGifts)}
+            ${renderStatCell("Comments", item.comments, item.allTimeComments)}
+            ${renderStatCell("Shares", item.shares, item.allTimeShares)}
+            ${renderStatCell("Follows", item.follows, item.allTimeFollows)}
+            ${renderStatCell("Coins", item.coins, item.allTimeCoins)}
+            <div class="score-pill">
+              <span>${formatRankScore(item.rankScore)} pts</span>
+              <small>${formatRankScore(item.allTimeRankScore)} all-time</small>
+            </div>
           </article>
         `).join("");
 
