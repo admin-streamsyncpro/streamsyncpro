@@ -6,3 +6,4 @@ release/
 out/
 archive/
 *.log
+__pycache__/
