@@ -1119,7 +1119,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'viewerStatsUrl' => $siteBaseUrl . '/overlay/viewer-stats.php?id=' . $publicIdParam,
         'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
         'likeRaceUrl' => $siteBaseUrl . '/overlay/like-race.php?id=' . $publicIdParam . '&v=20260522-usernamesize',
-        'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260610-public',
+        'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260610-nobom',
         'publicId' => $overlayPublicId,
         'expiresAt' => $expiresAt,
     ];
