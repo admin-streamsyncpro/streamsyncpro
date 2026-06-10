@@ -41,6 +41,22 @@
       "src/**/*",
       "package.json"
     ],
+    "extraResources": [
+      {
+        "from": "tools",
+        "to": "tools",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": ".venv-xtts",
+        "to": ".venv-xtts",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },
