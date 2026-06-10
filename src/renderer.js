@@ -1837,6 +1837,7 @@ function createDefaultSettings() {
     viewerPointsLeaderboard: createDefaultViewerPointsLeaderboard(),
     ttsUserVoiceAssignments: {
       builtin: {},
+      tiktok: {},
       elevenlabs: {},
       xtts: {}
     },
@@ -5964,6 +5965,7 @@ function normalizeMainScreenPinnedCards(source = {}) {
 function normalizeTtsUserVoiceAssignments(source = {}) {
   const normalized = {
     builtin: {},
+    tiktok: {},
     elevenlabs: {},
     xtts: {}
   };
@@ -5972,7 +5974,7 @@ function normalizeTtsUserVoiceAssignments(source = {}) {
     return normalized;
   }
 
-  for (const providerKey of ["builtin", "elevenlabs", "xtts"]) {
+  for (const providerKey of ["builtin", "tiktok", "elevenlabs", "xtts"]) {
     const providerAssignments = source?.[providerKey];
     if (!providerAssignments || typeof providerAssignments !== "object") {
       continue;
@@ -6133,7 +6135,7 @@ function mergeTtsUserVoiceAssignments(...assignmentSources) {
 
   for (const source of assignmentSources) {
     const normalized = normalizeTtsUserVoiceAssignments(source);
-    for (const providerKey of ["builtin", "elevenlabs", "xtts"]) {
+    for (const providerKey of ["builtin", "tiktok", "elevenlabs", "xtts"]) {
       merged[providerKey] = {
         ...merged[providerKey],
         ...normalized[providerKey]
@@ -6335,6 +6337,7 @@ function getDefaultProfileSettingsSource() {
     viewerPointsLeaderboard: createDefaultViewerPointsLeaderboard(),
     ttsUserVoiceAssignments: {
       builtin: {},
+      tiktok: {},
       elevenlabs: {},
       xtts: {}
     },
@@ -6480,7 +6483,9 @@ function normalizeProfileSettingsSnapshot(source = {}) {
     translationProviderUrl: String(source?.translationProviderUrl ?? defaults.translationProviderUrl),
     translationApiKey: String(source?.translationApiKey ?? defaults.translationApiKey),
     ttsEnabled: Boolean(source?.ttsEnabled ?? defaults.ttsEnabled),
-    ttsProvider: String(source?.ttsProvider ?? "").trim() === "elevenlabs" ? "elevenlabs" : "builtin",
+    ttsProvider: ["builtin", "elevenlabs", "tiktok"].includes(String(source?.ttsProvider ?? "").trim().toLowerCase())
+      ? String(source?.ttsProvider ?? "").trim().toLowerCase()
+      : defaults.ttsProvider,
     ttsVoice: String(source?.ttsVoice ?? defaults.ttsVoice).trim(),
     ttsRandomVoicePerMessage: Boolean(source?.ttsRandomVoicePerMessage ?? defaults.ttsRandomVoicePerMessage),
     ttsStyle: "natural",
@@ -6634,6 +6639,9 @@ function resolveTtsProviderKey(value) {
   if (normalizedValue === "elevenlabs") {
     return "elevenlabs";
   }
+  if (normalizedValue === "tiktok") {
+    return "tiktok";
+  }
   if (normalizedValue === "xtts") {
     return "xtts";
   }
@@ -6648,6 +6656,8 @@ function getCurrentTtsProviderLabel() {
   switch (getCurrentTtsProviderKey()) {
     case "elevenlabs":
       return "ElevenLabs";
+    case "tiktok":
+      return "TikTok TTS";
     default:
       return "Built-in / XTTS";
   }
@@ -6659,11 +6669,15 @@ function getAvailableTtsVoiceEntries() {
     const voiceKind = String(voice?.ttsKind ?? "").trim();
     const value = providerKey === "elevenlabs"
       ? voice.id
+      : providerKey === "tiktok"
+        ? voice.id
       : voiceKind === "xtts"
         ? `xtts:${voice.id}`
         : voice.name;
     const baseLabel = providerKey === "elevenlabs"
       ? `${voice.name}${voice.category ? ` (${voice.category})` : ""}`
+      : providerKey === "tiktok"
+        ? `${voice.name}${voice.category ? ` (${voice.category})` : ""}`
       : voiceKind === "xtts"
         ? `${voice.name} (${voice.samplePaths?.length || 0} file sample${voice.samplePaths?.length === 1 ? "" : "s"}${voice.youtubeUrl ? " + YouTube" : ""})`
         : `${voice.name}${voice.culture ? ` (${voice.culture})` : ""}`;
@@ -6673,7 +6687,7 @@ function getAvailableTtsVoiceEntries() {
       value,
       label: `${index + 1}. ${baseLabel}`,
       baseLabel,
-      providerKey: voiceKind === "xtts" ? "xtts" : providerKey,
+      providerKey: voiceKind === "xtts" ? "xtts" : voiceKind === "tiktok" ? "tiktok" : providerKey,
       voice
     };
   });
@@ -6872,7 +6886,7 @@ function reassignUsersFromLockedTtsVoice(assignments, lockedUserKey, lockedVoice
   const normalizedLockedUser = normalizeUserKey(lockedUserKey);
   const movedUsers = [];
 
-  for (const providerKey of ["builtin", "elevenlabs", "xtts"]) {
+  for (const providerKey of ["builtin", "tiktok", "elevenlabs", "xtts"]) {
     for (const [assignedUserKey, assignedVoiceValue] of Object.entries(assignments?.[providerKey] ?? {})) {
       const normalizedAssignedUser = normalizeUserKey(assignedUserKey);
       if (!normalizedAssignedUser || normalizedAssignedUser === normalizedLockedUser) {
@@ -13601,6 +13615,8 @@ async function testSelectedTtsVoiceFromUi() {
   const customTestPhrase = String(ttsTestTextInput?.value ?? "").trim();
   const defaultTestPhrase = ttsProviderSelect.value === "elevenlabs"
     ? "Stream Sync Pro LIVE model comparison. This voice should sound consistent, clear, and expressive across a longer test phrase."
+    : ttsProviderSelect.value === "tiktok"
+      ? "Stream Sync Pro LIVE TikTok text to speech test."
     : isXttsVoice
       ? "Stream Sync Pro LIVE XTTS voice test. This should use the selected custom voice."
       : "Stream Sync Pro LIVE voice test.";
@@ -14060,7 +14076,8 @@ function getStyleAdjustedVolume() {
 
 function updateTtsProviderVisibility() {
   const isElevenLabs = ttsProviderSelect.value === "elevenlabs";
-  const showXttsTools = !isElevenLabs;
+  const isTikTok = ttsProviderSelect.value === "tiktok";
+  const showXttsTools = !isElevenLabs && !isTikTok;
 
   ttsElevenModeField.classList.toggle("is-hidden", !isElevenLabs);
   ttsElevenApiKeyField.classList.toggle("is-hidden", !isElevenLabs);
@@ -14088,7 +14105,7 @@ function enqueueSpeech(text, options = {}) {
   const apiKey = options.apiKey ?? ttsElevenApiKeyInput.value.trim();
   const modelId = options.modelId ?? ttsElevenModelSelect.value;
   const voiceSelection = options.voiceSelection ?? getResolvedTtsVoiceSelection();
-  const synthesisProvider = voiceSelection?.providerKey === "xtts" ? "xtts" : provider;
+  const synthesisProvider = ["xtts", "tiktok"].includes(voiceSelection?.providerKey) ? voiceSelection.providerKey : provider;
   const xttsVoice = synthesisProvider === "xtts" ? getSelectedXttsVoice(voiceSelection?.value) : null;
   const xttsTuning = xttsVoice ? normalizeXttsVoiceTuning(xttsVoice.tuning) : null;
   const queueId = options.queueId ?? ttsQueueSelect.value;
@@ -14673,7 +14690,7 @@ async function loadVoices() {
   }
 
   const rawSelectedVoice = String(state.settings.ttsVoice ?? "").trim();
-  const selectedVoice = ttsProviderSelect.value !== "elevenlabs"
+  const selectedVoice = ttsProviderSelect.value === "builtin"
     && rawSelectedVoice
     && normalizeXttsVoices(state.settings?.ttsXttsVoices).some((voice) => voice.id === rawSelectedVoice)
       ? `xtts:${rawSelectedVoice}`
@@ -14684,7 +14701,9 @@ async function loadVoices() {
 
   const emptyVoiceLabel = ttsProviderSelect.value === "elevenlabs"
     ? "Select an ElevenLabs voice"
-    : "Default system or XTTS voice";
+    : ttsProviderSelect.value === "tiktok"
+      ? "Select a TikTok voice"
+      : "Default system or XTTS voice";
   ttsVoiceSelect.innerHTML = `<option value="">${emptyVoiceLabel}</option>${options.join("")}`;
   const hasSelectedVoice = getAvailableTtsVoiceEntries().some((entry) => entry.value === selectedVoice);
   if (selectedVoice && hasSelectedVoice) {
@@ -14692,6 +14711,8 @@ async function loadVoices() {
   } else if (selectedVoice) {
     const fallbackLabel = ttsProviderSelect.value === "builtin"
       ? `Saved system voice (${selectedVoice})`
+      : ttsProviderSelect.value === "tiktok"
+        ? `Saved TikTok voice (${selectedVoice})`
       : `Saved voice (${selectedVoice})`;
     ttsVoiceSelect.insertAdjacentHTML("beforeend", `<option value="${escapeHtml(selectedVoice)}">${escapeHtml(fallbackLabel)}</option>`);
     ttsVoiceSelect.value = selectedVoice;

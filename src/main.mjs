@@ -18,6 +18,41 @@ import {
   getConnectionState
 } from "./tiktok-client.mjs";
 
+function ignoreClosedLogPipe(error) {
+  return error?.code === "EPIPE" || error?.errno === "EPIPE";
+}
+
+function installSafeConsolePipeHandlers() {
+  process.stdout?.on?.("error", (error) => {
+    if (!ignoreClosedLogPipe(error)) {
+      throw error;
+    }
+  });
+  process.stderr?.on?.("error", (error) => {
+    if (!ignoreClosedLogPipe(error)) {
+      throw error;
+    }
+  });
+
+  for (const methodName of ["log", "info", "warn", "error"]) {
+    const originalMethod = console[methodName]?.bind(console);
+    if (!originalMethod) {
+      continue;
+    }
+    console[methodName] = (...args) => {
+      try {
+        originalMethod(...args);
+      } catch (error) {
+        if (!ignoreClosedLogPipe(error)) {
+          throw error;
+        }
+      }
+    };
+  }
+}
+
+installSafeConsolePipeHandlers();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const { NsisUpdater } = electronUpdater;
@@ -49,6 +84,32 @@ const ELEVENLABS_FREE_VOICE_OPTIONS = [
   { id: "TxGEqnHWrfWFTfGW9XjX", name: "Josh", category: "default" },
   { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", category: "default" },
   { id: "XB0fDUnXU5powFXDhCwa", name: "Charlotte", category: "default" }
+];
+const TIKTOK_TTS_VOICE_OPTIONS = [
+  { id: "en_us_001", name: "Jessie", category: "US female" },
+  { id: "en_us_006", name: "Joey", category: "US male" },
+  { id: "en_us_007", name: "Professor", category: "character" },
+  { id: "en_us_009", name: "Scientist", category: "character" },
+  { id: "en_us_010", name: "Confidence", category: "character" },
+  { id: "en_uk_001", name: "Narrator", category: "UK male" },
+  { id: "en_uk_003", name: "Story Teller", category: "UK male" },
+  { id: "en_au_001", name: "Metro", category: "AU male" },
+  { id: "en_us_ghostface", name: "Ghost Face", category: "effect" },
+  { id: "en_us_chewbacca", name: "Chewbacca", category: "effect" },
+  { id: "en_us_c3po", name: "C-3PO", category: "effect" },
+  { id: "en_us_stitch", name: "Stitch", category: "effect" },
+  { id: "en_us_stormtrooper", name: "Stormtrooper", category: "effect" },
+  { id: "en_us_rocket", name: "Rocket", category: "effect" },
+  { id: "en_female_f08_salut_damour", name: "Alto", category: "singing" },
+  { id: "en_male_m03_lobby", name: "Lobby", category: "singing" }
+];
+const TIKTOK_TTS_ENDPOINTS = [
+  "https://api16-normal-c-useast1a.tiktokv.com/media/api/text/speech/invoke/",
+  "https://api16-normal-useast5.us.tiktokv.com/media/api/text/speech/invoke/",
+  "https://api16-normal-c-useast2a.tiktokv.com/media/api/text/speech/invoke/"
+];
+const TIKTOK_TTS_FALLBACK_ENDPOINTS = [
+  "https://tiktok-tts.weilnet.workers.dev/api/generation"
 ];
 
 let mainWindow = null;
@@ -305,11 +366,12 @@ let settings = {
       obfuscatedBypass: true
     }
   },
-    ttsUserVoiceAssignments: {
-      builtin: {},
-      elevenlabs: {},
-      xtts: {}
-    },
+  ttsUserVoiceAssignments: {
+    builtin: {},
+    tiktok: {},
+    elevenlabs: {},
+    xtts: {}
+  },
     userNotes: {},
     knownTikTokGifts: [],
     knownTikTokEmotes: [],
@@ -1136,12 +1198,13 @@ async function loadSettings() {
     myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
   };
-  settings.ttsProvider = String(settings.ttsProvider ?? "").trim() === "elevenlabs" ? "elevenlabs" : "builtin";
+  settings.ttsProvider = normalizeTtsProvider(settings.ttsProvider);
   settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
   settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
   settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
   settings.ttsUserVoiceAssignments = {
     builtin: settings.ttsUserVoiceAssignments?.builtin ?? {},
+    tiktok: settings.ttsUserVoiceAssignments?.tiktok ?? {},
     elevenlabs: settings.ttsUserVoiceAssignments?.elevenlabs ?? {},
     xtts: settings.ttsUserVoiceAssignments?.xtts ?? {}
   };
@@ -1169,12 +1232,13 @@ async function saveSettings(partialSettings) {
     myttsvoice: String(settings.commandFeedbackTemplates?.myttsvoice ?? "{user} has selected {voiceLabel} for their personalised TTS voice."),
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
   };
-  settings.ttsProvider = String(settings.ttsProvider ?? "").trim() === "elevenlabs" ? "elevenlabs" : "builtin";
+  settings.ttsProvider = normalizeTtsProvider(settings.ttsProvider);
   settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
   settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
   settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
   settings.ttsUserVoiceAssignments = {
     builtin: settings.ttsUserVoiceAssignments?.builtin ?? {},
+    tiktok: settings.ttsUserVoiceAssignments?.tiktok ?? {},
     elevenlabs: settings.ttsUserVoiceAssignments?.elevenlabs ?? {},
     xtts: settings.ttsUserVoiceAssignments?.xtts ?? {}
   };
@@ -1921,6 +1985,11 @@ function normalizeXttsLanguage(value) {
   return supported.has(language) ? language : "en";
 }
 
+function normalizeTtsProvider(value) {
+  const provider = String(value ?? "builtin").trim().toLowerCase();
+  return ["builtin", "elevenlabs", "tiktok"].includes(provider) ? provider : "builtin";
+}
+
 function stableStringify(value) {
   if (Array.isArray(value)) {
     return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
@@ -1975,7 +2044,7 @@ function shouldUseTtsCache(payload = {}) {
     return false;
   }
 
-  return ["builtin", "elevenlabs", "xtts"].includes(String(payload?.provider ?? "builtin").trim() || "builtin");
+  return ["builtin", "elevenlabs", "xtts", "tiktok"].includes(String(payload?.provider ?? "builtin").trim() || "builtin");
 }
 
 async function findCachedTtsFile(cacheKey) {
@@ -2078,6 +2147,13 @@ function listXttsVoices(payload = {}) {
     tuning: voice.tuning,
     ttsKind: "xtts",
     category: `${voice.samplePaths?.length || 0} samples${voice.youtubeUrl ? " + youtube" : ""}`
+  }));
+}
+
+function listTikTokTtsVoices() {
+  return TIKTOK_TTS_VOICE_OPTIONS.map((voice) => ({
+    ...voice,
+    ttsKind: "tiktok"
   }));
 }
 
@@ -2293,6 +2369,149 @@ async function synthesizeElevenLabsSpeechToFile({ text, voiceId, modelId, style,
   return outputPath;
 }
 
+function normalizeTikTokTtsVoiceId(voiceId = "") {
+  const requestedVoiceId = String(voiceId ?? "").trim();
+  return TIKTOK_TTS_VOICE_OPTIONS.some((voice) => voice.id === requestedVoiceId)
+    ? requestedVoiceId
+    : TIKTOK_TTS_VOICE_OPTIONS[0].id;
+}
+
+function formatTikTokTtsErrorMessage(rawErrorText = "", status = "") {
+  const fallback = status
+    ? `TikTok TTS returned ${status}. Try another TikTok voice or try again shortly.`
+    : "Unable to synthesize speech with TikTok TTS. Try another TikTok voice or try again shortly.";
+  if (!rawErrorText?.trim()) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(rawErrorText);
+    return String(parsed?.message ?? parsed?.status_msg ?? parsed?.error ?? "").trim() || fallback;
+  } catch {
+    return rawErrorText.trim() || fallback;
+  }
+}
+
+function getTikTokAudioBase64(result = {}) {
+  return String(
+    result?.data?.v_str
+      ?? result?.data?.audio
+      ?? result?.data
+      ?? result?.audio
+      ?? result?.v_str
+      ?? ""
+  ).trim();
+}
+
+async function synthesizeTikTokSpeechToFile({ text, voiceId }) {
+  const trimmedText = String(text ?? "").trim();
+  if (!trimmedText) {
+    throw new Error("Enter text before using TikTok TTS.");
+  }
+
+  const requestedVoiceId = normalizeTikTokTtsVoiceId(voiceId);
+  const body = new URLSearchParams({
+    text_speaker: requestedVoiceId,
+    req_text: trimmedText,
+    speaker_map_type: "0"
+  });
+  let lastError = null;
+  let audioBase64 = "";
+
+  for (const endpoint of TIKTOK_TTS_ENDPOINTS) {
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Accept: "application/json, text/plain, */*",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "com.zhiliaoapp.musically/2022600030"
+        },
+        body
+      });
+
+      const responseText = await response.text();
+      if (!response.ok) {
+        throw new Error(formatTikTokTtsErrorMessage(responseText, String(response.status)));
+      }
+
+      let result = null;
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(formatTikTokTtsErrorMessage(responseText));
+      }
+
+      const statusCode = Number(result?.status_code ?? result?.statusCode ?? 0);
+      if (statusCode !== 0) {
+        throw new Error(String(result?.message ?? result?.status_msg ?? "").trim() || `TikTok TTS returned status ${statusCode}.`);
+      }
+
+      audioBase64 = getTikTokAudioBase64(result);
+      if (audioBase64) {
+        break;
+      }
+      throw new Error("TikTok TTS did not return audio for this voice/text.");
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!audioBase64) {
+    for (const endpoint of TIKTOK_TTS_FALLBACK_ENDPOINTS) {
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            Accept: "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "User-Agent": "Stream Sync Pro LIVE"
+          },
+          body: JSON.stringify({
+            text: trimmedText,
+            voice: requestedVoiceId
+          })
+        });
+
+        const responseText = await response.text();
+        if (!response.ok) {
+          throw new Error(formatTikTokTtsErrorMessage(responseText, String(response.status)));
+        }
+
+        let result = null;
+        try {
+          result = JSON.parse(responseText);
+        } catch {
+          throw new Error(formatTikTokTtsErrorMessage(responseText));
+        }
+
+        if (result?.success === false) {
+          throw new Error(String(result?.error ?? result?.message ?? "").trim() || "TikTok TTS fallback could not generate speech.");
+        }
+
+        audioBase64 = getTikTokAudioBase64(result);
+        if (audioBase64) {
+          break;
+        }
+        throw new Error("TikTok TTS fallback did not return audio for this voice/text.");
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  if (!audioBase64) {
+    throw new Error(lastError?.message || "TikTok TTS is unavailable right now. Try another voice or try again shortly.");
+  }
+
+  const outputPath = path.join(
+    os.tmpdir(),
+    `stream-sync-pro-tiktok-${Date.now()}-${Math.random().toString(16).slice(2)}.mp3`
+  );
+  await fs.writeFile(outputPath, Buffer.from(audioBase64, "base64"));
+  return outputPath;
+}
+
 async function synthesizeXttsSpeechToFile({ text, xttsServiceUrl, xttsVoice, xttsTuning, xttsSplitSentences, xttsLanguage, rate, pitch }) {
   const voice = normalizeXttsVoices([xttsVoice])[0] ?? null;
   if (!voice) {
@@ -2426,6 +2645,10 @@ async function synthesizeSpeechToFileDirect(payload = {}) {
     }
 
     return synthesizeElevenLabsSpeechToFile(payload);
+  }
+
+  if (payload?.provider === "tiktok") {
+    return synthesizeTikTokSpeechToFile(payload);
   }
 
   if (payload?.provider === "xtts") {
@@ -2843,6 +3066,9 @@ ipcMain.handle("translation:translate", async (_event, payload) => {
 ipcMain.handle("tts:get-voices", async (_event, payload) => {
     if (payload?.provider === "elevenlabs") {
       return listElevenLabsVoices(payload ?? {});
+    }
+    if (payload?.provider === "tiktok") {
+      return listTikTokTtsVoices();
     }
     if (payload?.provider === "xtts") {
       return listXttsVoices(payload ?? {});
