@@ -97,6 +97,11 @@ function routeRequest(PDO $pdo, array $config): void
         return;
     }
 
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/spin-wheel-state') {
+        handleGetSpinWheelOverlayState($pdo, $_GET);
+        return;
+    }
+
     if ($requestMethod !== 'POST') {
         jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
     }
@@ -202,6 +207,9 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/overlay/update-like-race-state':
             handleUpdateLikeRaceOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-spin-wheel-state':
+            handleUpdateSpinWheelOverlayState($pdo, $input);
             return;
         default:
             jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
@@ -319,6 +327,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
             viewer_stats_overlay_json LONGTEXT NULL,
             vote_overlay_json LONGTEXT NULL,
             like_race_overlay_json LONGTEXT NULL,
+            spin_wheel_overlay_json LONGTEXT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT fk_overlay_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
             UNIQUE KEY uniq_overlay_public_id (overlay_public_id),
@@ -380,6 +389,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_user_overlay_state', 'viewer_stats_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN viewer_stats_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'vote_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN vote_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'like_race_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN like_race_overlay_json LONGTEXT NULL AFTER vote_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'spin_wheel_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN spin_wheel_overlay_json LONGTEXT NULL AFTER like_race_overlay_json');
     ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
@@ -1050,7 +1060,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             likes_overlay_json,
             viewer_stats_overlay_json,
             vote_overlay_json,
-            like_race_overlay_json
+            like_race_overlay_json,
+            spin_wheel_overlay_json
         ) VALUES (
             :user_id,
             :overlay_public_id,
@@ -1063,7 +1074,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             :likes_overlay_json,
             :viewer_stats_overlay_json,
             :vote_overlay_json,
-            :like_race_overlay_json
+            :like_race_overlay_json,
+            :spin_wheel_overlay_json
         )
         ON DUPLICATE KEY UPDATE
             overlay_public_id = COALESCE(auth_user_overlay_state.overlay_public_id, VALUES(overlay_public_id)),
@@ -1076,7 +1088,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             likes_overlay_json = COALESCE(auth_user_overlay_state.likes_overlay_json, VALUES(likes_overlay_json)),
             viewer_stats_overlay_json = COALESCE(auth_user_overlay_state.viewer_stats_overlay_json, VALUES(viewer_stats_overlay_json)),
             vote_overlay_json = COALESCE(auth_user_overlay_state.vote_overlay_json, VALUES(vote_overlay_json)),
-            like_race_overlay_json = COALESCE(auth_user_overlay_state.like_race_overlay_json, VALUES(like_race_overlay_json))'
+            like_race_overlay_json = COALESCE(auth_user_overlay_state.like_race_overlay_json, VALUES(like_race_overlay_json)),
+            spin_wheel_overlay_json = COALESCE(auth_user_overlay_state.spin_wheel_overlay_json, VALUES(spin_wheel_overlay_json))'
     );
     $statement->execute([
         ':user_id' => (int) $user['id'],
@@ -1091,6 +1104,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         ':viewer_stats_overlay_json' => json_encode(defaultViewerStatsOverlayState(), JSON_UNESCAPED_SLASHES),
         ':vote_overlay_json' => json_encode(defaultVoteOverlayState(), JSON_UNESCAPED_SLASHES),
         ':like_race_overlay_json' => json_encode(defaultLikeRaceOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':spin_wheel_overlay_json' => json_encode(defaultSpinWheelOverlayState(), JSON_UNESCAPED_SLASHES),
     ]);
 
     $publicIdParam = rawurlencode($overlayPublicId);
@@ -1105,6 +1119,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'viewerStatsUrl' => $siteBaseUrl . '/overlay/viewer-stats.php?id=' . $publicIdParam,
         'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
         'likeRaceUrl' => $siteBaseUrl . '/overlay/like-race.php?id=' . $publicIdParam . '&v=20260522-usernamesize',
+        'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260610-public',
         'publicId' => $overlayPublicId,
         'expiresAt' => $expiresAt,
     ];
@@ -1418,6 +1433,34 @@ function handleUpdateLikeRaceOverlayState(PDO $pdo, array $input): void
     ]);
 }
 
+function handleUpdateSpinWheelOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeSpinWheelOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            spin_wheel_overlay_json
+        ) VALUES (
+            :user_id,
+            :spin_wheel_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            spin_wheel_overlay_json = VALUES(spin_wheel_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':spin_wheel_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
 function handleGetQueueOverlayState(PDO $pdo, array $query): void
 {
     [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
@@ -1544,6 +1587,23 @@ function handleGetLikeRaceOverlayState(PDO $pdo, array $query): void
     $decodedState = json_decode((string) ($overlayState['like_race_overlay_json'] ?? ''), true);
     if (is_array($decodedState)) {
         $state = sanitizeLikeRaceOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetSpinWheelOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultSpinWheelOverlayState();
+    $decodedState = json_decode((string) ($overlayState['spin_wheel_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeSpinWheelOverlayStatePayload($decodedState);
     }
 
     jsonResponse(200, [
@@ -2707,6 +2767,30 @@ function defaultLikeRaceOverlayState(): array
     ];
 }
 
+function defaultSpinWheelOverlayState(): array
+{
+    return [
+        'visible' => false,
+        'phase' => 'idle',
+        'spinId' => '',
+        'selectedIndex' => 0,
+        'durationMs' => 5200,
+        'resultDurationMs' => 6000,
+        'arrowPosition' => 'right',
+        'triggeredBy' => '',
+        'triggerUser' => null,
+        'segments' => [
+            ['label' => 'Action 1', 'color' => '#11b76a'],
+            ['label' => 'Action 2', 'color' => '#9bd400'],
+            ['label' => 'Action 3', 'color' => '#ffd027'],
+            ['label' => 'Action 4', 'color' => '#1598e8'],
+            ['label' => 'Action 5', 'color' => '#7a35b4'],
+            ['label' => 'Action 6', 'color' => '#d61e11'],
+        ],
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
 function sanitizeOverlayDesignerTemplatePayload($payload): ?array
 {
     if (!is_array($payload)) {
@@ -3201,6 +3285,71 @@ function sanitizeLikeRaceOverlayStatePayload(array $payload): array
         'ttsSettings' => is_array($payload['ttsSettings'] ?? null) ? array_slice($payload['ttsSettings'], 0, 80, true) : [],
         'overlaySettings' => is_array($payload['overlaySettings'] ?? null) ? array_slice($payload['overlaySettings'], 0, 40, true) : [],
         'stats' => is_array($payload['stats'] ?? null) ? array_slice($payload['stats'], 0, 100, true) : [],
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
+function sanitizeSpinWheelOverlayStatePayload(array $payload): array
+{
+    $segments = [];
+    if (isset($payload['segments']) && is_array($payload['segments'])) {
+        foreach (array_slice($payload['segments'], 0, 16) as $index => $segment) {
+            if (!is_array($segment)) {
+                continue;
+            }
+
+            $label = mb_substr(trim((string) ($segment['label'] ?? ('Action ' . ($index + 1)))), 0, 80);
+            if ($label === '') {
+                $label = 'Action ' . ($index + 1);
+            }
+
+            $color = trim((string) ($segment['color'] ?? ''));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
+                $fallbackColors = ['#11b76a', '#9bd400', '#ffd027', '#1598e8', '#7a35b4', '#d61e11'];
+                $color = $fallbackColors[$index % count($fallbackColors)];
+            }
+
+            $segments[] = [
+                'label' => $label,
+                'color' => $color,
+            ];
+        }
+    }
+
+    if (!$segments) {
+        $segments = defaultSpinWheelOverlayState()['segments'];
+    }
+
+    $phase = trim((string) ($payload['phase'] ?? 'idle'));
+    if (!in_array($phase, ['idle', 'spinning', 'result'], true)) {
+        $phase = 'idle';
+    }
+
+    $arrowPosition = trim(strtolower((string) ($payload['arrowPosition'] ?? 'right')));
+    if (!in_array($arrowPosition, ['right', 'left', 'top', 'bottom'], true)) {
+        $arrowPosition = 'right';
+    }
+
+    $triggerUser = null;
+    if (isset($payload['triggerUser']) && is_array($payload['triggerUser'])) {
+        $triggerUser = [
+            'username' => mb_substr(trim((string) ($payload['triggerUser']['username'] ?? '')), 0, 120),
+            'displayName' => mb_substr(trim((string) ($payload['triggerUser']['displayName'] ?? '')), 0, 160),
+            'profilePictureUrl' => mb_substr(trim((string) ($payload['triggerUser']['profilePictureUrl'] ?? '')), 0, 1024),
+        ];
+    }
+
+    return [
+        'visible' => !empty($payload['visible']),
+        'phase' => $phase,
+        'spinId' => mb_substr(trim((string) ($payload['spinId'] ?? '')), 0, 120),
+        'selectedIndex' => max(0, min(count($segments) - 1, (int) ($payload['selectedIndex'] ?? 0))),
+        'durationMs' => max(1000, min(30000, (int) ($payload['durationMs'] ?? 5200))),
+        'resultDurationMs' => max(1000, min(30000, (int) ($payload['resultDurationMs'] ?? 6000))),
+        'arrowPosition' => $arrowPosition,
+        'triggeredBy' => mb_substr(trim((string) ($payload['triggeredBy'] ?? '')), 0, 160),
+        'triggerUser' => $triggerUser,
+        'segments' => $segments,
         'updatedAt' => gmdate('Y-m-d H:i:s'),
     ];
 }

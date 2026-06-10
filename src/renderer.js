@@ -2461,6 +2461,11 @@ async function loadOverlayInfoBundle() {
       likeRaceOverlayUrlInput.value = "Sign in to generate hosted overlay";
     }
     setStatusMessage(likeRaceStatus, "info", "Sign in to generate a hosted Like Race overlay URL for this user.");
+    updateSpinWheelOverlayControls({ url: "" });
+    if (spinWheelOverlayUrlInput) {
+      spinWheelOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    }
+    setStatusMessage(spinWheelStatus, "info", "Sign in to generate a hosted Spin Wheel overlay URL for this user.");
     return;
   }
 
@@ -2477,6 +2482,7 @@ async function loadOverlayInfoBundle() {
     updateViewerStatsOverlayControls({ url: info.viewerStatsUrl });
     updateVoteOverlayControls({ url: info.voteUrl });
     updateLikeRaceOverlayControls({ url: info.likeRaceUrl });
+    updateSpinWheelOverlayControls({ url: info.spinWheelUrl });
   } catch (error) {
     state.queueOverlayBaseUrl = "";
     state.chatOverlayBaseUrl = "";
@@ -2485,6 +2491,7 @@ async function loadOverlayInfoBundle() {
     state.viewerStatsOverlayBaseUrl = "";
     state.voteOverlayBaseUrl = "";
     state.likeRaceOverlayBaseUrl = "";
+    state.spinWheelOverlayBaseUrl = "";
     state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Overlay unavailable";
     queueOverlayCopyButton.disabled = true;
@@ -2519,6 +2526,11 @@ async function loadOverlayInfoBundle() {
       likeRaceOverlayUrlInput.value = "Overlay unavailable";
     }
     setStatusMessage(likeRaceStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    updateSpinWheelOverlayControls({ url: "" });
+    if (spinWheelOverlayUrlInput) {
+      spinWheelOverlayUrlInput.value = "Overlay unavailable";
+    }
+    setStatusMessage(spinWheelStatus, "error", error.message || "Unable to load hosted overlay URLs.");
   }
 }
 
@@ -5124,8 +5136,19 @@ function buildSpinWheelOverlayState() {
 }
 
 function syncSpinWheelOverlayState() {
+  const overlayState = buildSpinWheelOverlayState();
+  if (state.authenticatedUser?.id && state.authenticatedUser?.sessionToken) {
+    void authRequest("/api/overlay/update-spin-wheel-state", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken,
+      ...overlayState
+    }).catch(() => {
+      // Hosted overlay sync should not interrupt local wheel controls.
+    });
+  }
+
   if (app.updateSpinWheelOverlayState) {
-    void app.updateSpinWheelOverlayState(buildSpinWheelOverlayState()).catch(() => {
+    void app.updateSpinWheelOverlayState(overlayState).catch(() => {
       // Keep controls responsive even if the local overlay server is restarting.
     });
   }
@@ -5133,7 +5156,12 @@ function syncSpinWheelOverlayState() {
 
 function updateSpinWheelOverlayControls(info = {}) {
   if (Object.prototype.hasOwnProperty.call(info, "url")) {
-    state.spinWheelOverlayBaseUrl = String(info.url ?? "").trim();
+    const nextUrl = String(info.url ?? "").trim();
+    const hasHostedUrl = /^https:\/\/streamsyncpro\.co\.uk\//i.test(String(state.spinWheelOverlayBaseUrl ?? ""));
+    const nextIsLocalUrl = /^http:\/\/(?:localhost|127\.0\.0\.1):/i.test(nextUrl);
+    if (!(state.authenticatedUser?.id && hasHostedUrl && nextIsLocalUrl)) {
+      state.spinWheelOverlayBaseUrl = nextUrl;
+    }
   }
   const overlayUrl = getSpinWheelOverlayUrl();
   if (spinWheelOverlayUrlInput) {
