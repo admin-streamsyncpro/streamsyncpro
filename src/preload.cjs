@@ -22,6 +22,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
   signOutTikTok() {
     return ipcRenderer.invoke("tiktok:sign-out");
   },
+  beginSpotifySignIn(payload) {
+    return ipcRenderer.invoke("spotify:sign-in", payload);
+  },
+  spotifyPlayTrack(payload) {
+    return ipcRenderer.invoke("spotify:play-track", payload);
+  },
+  spotifySkipTrack(payload) {
+    return ipcRenderer.invoke("spotify:skip-track", payload);
+  },
+  spotifyGetMe(payload) {
+    return ipcRenderer.invoke("spotify:get-me", payload);
+  },
   getAppVersion() {
     return ipcRenderer.invoke("app:get-version");
   },
@@ -48,6 +60,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   updateSpinWheelOverlayState(payload) {
     return ipcRenderer.invoke("overlay:update-spin-wheel-state", payload);
+  },
+  getProgressBarOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-progress-bar-info");
+  },
+  updateProgressBarOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-progress-bar-state", payload);
   },
   getOverlayDesignerInfo() {
     return ipcRenderer.invoke("overlay:get-designer-info");

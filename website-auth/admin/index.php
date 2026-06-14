@@ -14,7 +14,7 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
-define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.13'));
+define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.15'));
 $message = '';
 $messageType = 'info';
 

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, session, shell } from "electron";
 import { execFile, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import log from "electron-log";
 import fsSync from "node:fs";
@@ -69,6 +69,15 @@ const DEFAULT_GITHUB_REPO = "streamsyncpro";
 const QUEUE_OVERLAY_PREFERRED_PORT = 46321;
 const TIKTOK_AUTH_PARTITION = "persist:ssp-tiktok-auth";
 const TIKTOK_LOGIN_URL = "https://www.tiktok.com/login";
+const SPOTIFY_REDIRECT_PORT = 46329;
+const SPOTIFY_REDIRECT_PATH = "/spotify/callback";
+const SPOTIFY_REDIRECT_URI = `http://127.0.0.1:${SPOTIFY_REDIRECT_PORT}${SPOTIFY_REDIRECT_PATH}`;
+const SPOTIFY_AUTH_SCOPES = [
+  "user-read-private",
+  "user-read-playback-state",
+  "user-modify-playback-state",
+  "user-read-currently-playing"
+].join(" ");
 const MYINSTANTS_CATEGORY_URL = "https://www.myinstants.com/en/categories/sound%20effects/us/";
 const MYINSTANTS_SEARCH_URL = "https://www.myinstants.com/en/search/";
 const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
@@ -169,6 +178,12 @@ let spinWheelOverlayState = {
   triggeredBy: "",
   triggerUser: null,
   segments: [],
+  updatedAt: null
+};
+let progressBarOverlayState = {
+  connected: false,
+  username: "",
+  bars: [],
   updatedAt: null
 };
 let overlayDesignerState = {
@@ -335,6 +350,7 @@ let settings = {
   ttsElevenMode: "free",
   ttsElevenApiKey: "",
   ttsElevenModel: "eleven_flash_v2_5",
+  ttsElevenFallbackTiktok: false,
   ttsXttsServiceUrl: "http://127.0.0.1:8020",
   ttsXttsLanguage: "en",
   ttsXttsSplitSentences: false,
@@ -398,7 +414,8 @@ let settings = {
     resultDurationMs: 5000,
     arrowPosition: "right",
     segments: []
-  }
+  },
+  musicSettings: {}
 };
 
 log.initialize();
@@ -447,6 +464,11 @@ function getLikeRaceOverlayUrl() {
 
 function getSpinWheelOverlayUrl() {
   const overlayUrls = getOverlayUrlBundle("/spin-wheel-overlay");
+  return overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url;
+}
+
+function getProgressBarOverlayUrl() {
+  const overlayUrls = getOverlayUrlBundle("/progress-bar-overlay");
   return overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url;
 }
 
@@ -639,6 +661,80 @@ function sanitizeSpinWheelOverlayState(payload = {}) {
   };
 }
 
+function sanitizeProgressBarOverlayState(payload = {}) {
+  const allowedProgressBarFonts = [
+    "Segoe UI",
+    "Arial",
+    "Verdana",
+    "Tahoma",
+    "Trebuchet MS",
+    "Georgia",
+    "Impact",
+    "Courier New",
+    "Poppins",
+    "Montserrat",
+    "Oswald",
+    "Bebas Neue"
+  ];
+  const bars = Array.isArray(payload.bars)
+    ? payload.bars
+        .map((bar, index) => {
+          const goal = Math.max(1, Number(bar?.goal) || 1);
+          const value = Math.max(0, Number(bar?.value) || 0);
+          const fontFamily = String(bar?.fontFamily ?? "").trim();
+          return {
+            id: String(bar?.id ?? `progress-bar-${index}`).trim() || `progress-bar-${index}`,
+            title: String(bar?.title ?? `Progress Goal ${index + 1}`).trim() || `Progress Goal ${index + 1}`,
+            eyebrowText: String(bar?.eyebrowText ?? "Live Goal").trim() || "Live Goal",
+            metric: ["likes", "shares", "follows", "coins"].includes(String(bar?.metric ?? "").trim())
+              ? String(bar.metric).trim()
+              : "likes",
+            value,
+            goal,
+            percent: Math.max(0, Math.min(100, Number(bar?.percent) || ((value / goal) * 100))),
+            visible: bar?.visible !== false,
+            hideBackground: Boolean(bar?.hideBackground),
+            hideText: Boolean(bar?.hideText),
+            textPosition: ["above", "below", "inside"].includes(String(bar?.textPosition ?? "").trim())
+              ? String(bar.textPosition).trim()
+              : "above",
+            goalIncreasePercent: Math.max(1, Math.min(1000, Number(bar?.goalIncreasePercent) || 25)),
+            titleColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.titleColor ?? "")) ? String(bar.titleColor).trim() : "#f2fbff",
+            textColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.textColor ?? "")) ? String(bar.textColor).trim() : "#f2fbff",
+            mutedColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.mutedColor ?? "")) ? String(bar.mutedColor).trim() : "#a7bfdd",
+            barStartColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.barStartColor ?? "")) ? String(bar.barStartColor).trim() : "#53dcff",
+            barEndColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.barEndColor ?? "")) ? String(bar.barEndColor).trim() : "#b266ff",
+            backgroundColor: /^#[0-9a-fA-F]{6}$/.test(String(bar?.backgroundColor ?? "")) ? String(bar.backgroundColor).trim() : "#091226",
+            fontFamily: allowedProgressBarFonts.includes(fontFamily) ? fontFamily : "Segoe UI",
+            eyebrowFontSize: Math.max(8, Math.min(72, Number(bar?.eyebrowFontSize) || 12)),
+            titleFontSize: Math.max(12, Math.min(140, Number(bar?.titleFontSize) || 44)),
+            metricFontSize: Math.max(8, Math.min(72, Number(bar?.metricFontSize) || 12)),
+            labelFontSize: Math.max(8, Math.min(96, Number(bar?.labelFontSize) || 15)),
+            footerFontSize: Math.max(8, Math.min(72, Number(bar?.footerFontSize) || 13)),
+            goalReachedBehavior: ["double", "increase", "hide"].includes(String(bar?.goalReachedBehavior ?? "").trim())
+              ? String(bar.goalReachedBehavior).trim()
+              : "increase",
+            goalAnimation: ["none", "pulse", "flash", "bounce", "sparkle", "confetti"].includes(String(bar?.goalAnimation ?? "").trim())
+              ? String(bar.goalAnimation).trim()
+              : "pulse",
+            goalAnimationNonce: String(bar?.goalAnimationNonce ?? "").trim(),
+            goalAnimationAt: String(bar?.goalAnimationAt ?? "").trim(),
+            actionRuleId: String(bar?.actionRuleId ?? "").trim(),
+            reachedCount: Math.max(0, Number(bar?.reachedCount) || 0),
+            updatedAt: String(bar?.updatedAt ?? "").trim()
+          };
+        })
+        .slice(0, 25)
+    : [];
+
+  return {
+    connected: Boolean(payload?.connected),
+    username: String(payload?.username ?? "").trim(),
+    bars,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function broadcastOverlayDesignerState() {
   const eventPayload = `data: ${JSON.stringify({ ok: true, state: overlayDesignerState })}\n\n`;
   for (const client of overlayDesignerClients) {
@@ -725,6 +821,21 @@ async function serveSpinWheelOverlayHtml(response) {
   }
 }
 
+async function serveProgressBarOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "progress-bar-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve Progress Bar overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Progress Bar overlay unavailable.");
+  }
+}
+
 function buildQueueOverlayServer() {
   return createServer(async (request, response) => {
     const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -751,6 +862,11 @@ function buildQueueOverlayServer() {
 
     if (requestUrl.pathname === "/spin-wheel-overlay") {
       await serveSpinWheelOverlayHtml(response);
+      return;
+    }
+
+    if (requestUrl.pathname === "/progress-bar-overlay") {
+      await serveProgressBarOverlayHtml(response);
       return;
     }
 
@@ -818,6 +934,20 @@ function buildQueueOverlayServer() {
         ok: true,
         overlayUrl: getSpinWheelOverlayUrl(),
         state: spinWheelOverlayState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/progress-bar-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getProgressBarOverlayUrl(),
+        state: progressBarOverlayState
       }));
       return;
     }
@@ -1131,6 +1261,250 @@ async function openTikTokSignInWindow() {
   });
 }
 
+function base64UrlEncode(buffer) {
+  return Buffer.from(buffer)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function createSpotifyCodeVerifier() {
+  return base64UrlEncode(randomBytes(64)).slice(0, 128);
+}
+
+function createSpotifyCodeChallenge(verifier) {
+  return base64UrlEncode(createHash("sha256").update(verifier).digest());
+}
+
+function normalizeSpotifyAuth(auth = {}) {
+  return {
+    accessToken: String(auth?.accessToken ?? "").trim(),
+    refreshToken: String(auth?.refreshToken ?? "").trim(),
+    expiresAt: Math.max(0, Number(auth?.expiresAt) || 0),
+    tokenType: String(auth?.tokenType ?? "Bearer").trim() || "Bearer",
+    displayName: String(auth?.displayName ?? "").trim(),
+    userId: String(auth?.userId ?? "").trim()
+  };
+}
+
+async function exchangeSpotifyToken(params) {
+  const response = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: new URLSearchParams(params)
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(String(result?.error_description ?? result?.error ?? `Spotify token request failed with ${response.status}.`));
+  }
+  return result;
+}
+
+async function refreshSpotifyAuthIfNeeded({ clientId, auth }) {
+  const normalizedClientId = String(clientId ?? "").trim();
+  let normalizedAuth = normalizeSpotifyAuth(auth);
+  if (!normalizedClientId) {
+    throw new Error("Enter your Spotify Client ID before using Spotify controls.");
+  }
+  if (!normalizedAuth.refreshToken) {
+    throw new Error("Sign in to Spotify first.");
+  }
+  if (normalizedAuth.accessToken && normalizedAuth.expiresAt > Date.now() + 60000) {
+    return normalizedAuth;
+  }
+  const token = await exchangeSpotifyToken({
+    client_id: normalizedClientId,
+    grant_type: "refresh_token",
+    refresh_token: normalizedAuth.refreshToken
+  });
+  return normalizeSpotifyAuth({
+    ...normalizedAuth,
+    accessToken: token.access_token || normalizedAuth.accessToken,
+    refreshToken: token.refresh_token || normalizedAuth.refreshToken,
+    expiresAt: Date.now() + Math.max(30, Number(token.expires_in) || 3600) * 1000,
+    tokenType: token.token_type || normalizedAuth.tokenType
+  });
+}
+
+async function spotifyApiRequest({ clientId, auth, method = "GET", body = null }, endpoint, query = null) {
+  const nextAuth = await refreshSpotifyAuthIfNeeded({ clientId, auth });
+  const url = new URL(`https://api.spotify.com${endpoint}`);
+  if (query && typeof query === "object") {
+    Object.entries(query).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+  }
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${nextAuth.accessToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (response.status === 204) {
+    return { ok: true, auth: nextAuth };
+  }
+  const text = await response.text();
+  let parsed = {};
+  if (text) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = { message: text };
+    }
+  }
+  if (!response.ok) {
+    const message = parsed?.error?.message || parsed?.error_description || parsed?.error || parsed?.message || `Spotify request failed with ${response.status}.`;
+    throw new Error(message);
+  }
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+    ? { ...parsed, auth: nextAuth }
+    : { result: parsed, auth: nextAuth };
+}
+
+async function beginSpotifySignIn({ clientId }) {
+  const normalizedClientId = String(clientId ?? "").trim();
+  if (!normalizedClientId) {
+    throw new Error("Enter your Spotify Client ID before signing in.");
+  }
+
+  const verifier = createSpotifyCodeVerifier();
+  const challenge = createSpotifyCodeChallenge(verifier);
+  const stateToken = base64UrlEncode(randomBytes(18));
+  const authUrl = new URL("https://accounts.spotify.com/authorize");
+  authUrl.searchParams.set("client_id", normalizedClientId);
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("redirect_uri", SPOTIFY_REDIRECT_URI);
+  authUrl.searchParams.set("scope", SPOTIFY_AUTH_SCOPES);
+  authUrl.searchParams.set("code_challenge_method", "S256");
+  authUrl.searchParams.set("code_challenge", challenge);
+  authUrl.searchParams.set("state", stateToken);
+
+  const authorizationCode = await new Promise((resolve, reject) => {
+    const server = createServer((request, response) => {
+      try {
+        const requestUrl = new URL(request.url || "/", SPOTIFY_REDIRECT_URI);
+        if (requestUrl.pathname !== SPOTIFY_REDIRECT_PATH) {
+          response.writeHead(404);
+          response.end("Not found");
+          return;
+        }
+        const closeServer = () => server.close(() => {});
+        const error = requestUrl.searchParams.get("error");
+        if (error) {
+          response.writeHead(400, { "Content-Type": "text/html" });
+          response.end("<h1>Spotify sign-in failed</h1><p>You can close this window.</p>");
+          reject(new Error(`Spotify sign-in failed: ${error}`));
+          closeServer();
+          return;
+        }
+        if (requestUrl.searchParams.get("state") !== stateToken) {
+          response.writeHead(400, { "Content-Type": "text/html" });
+          response.end("<h1>Spotify sign-in failed</h1><p>Invalid state. You can close this window.</p>");
+          reject(new Error("Spotify sign-in failed because the security state did not match."));
+          closeServer();
+          return;
+        }
+        const code = requestUrl.searchParams.get("code");
+        if (!code) {
+          response.writeHead(400, { "Content-Type": "text/html" });
+          response.end("<h1>Spotify sign-in failed</h1><p>No code was returned. You can close this window.</p>");
+          reject(new Error("Spotify sign-in did not return an authorization code."));
+          closeServer();
+          return;
+        }
+        response.writeHead(200, { "Content-Type": "text/html" });
+        response.end("<h1>Spotify connected</h1><p>You can close this window and return to Stream Sync Pro.</p>");
+        resolve(code);
+        closeServer();
+      } catch (error) {
+        reject(error);
+        server.close(() => {});
+      }
+    });
+    server.on("error", (error) => {
+      reject(new Error(`Unable to start Spotify sign-in callback on ${SPOTIFY_REDIRECT_URI}. ${error.message || error}`));
+    });
+    server.listen(SPOTIFY_REDIRECT_PORT, "127.0.0.1", async () => {
+      try {
+        await shell.openExternal(authUrl.toString());
+      } catch (error) {
+        reject(error);
+        server.close(() => {});
+      }
+    });
+    setTimeout(() => {
+      reject(new Error("Spotify sign-in timed out. Try again."));
+      server.close(() => {});
+    }, 180000).unref?.();
+  });
+
+  const token = await exchangeSpotifyToken({
+    client_id: normalizedClientId,
+    grant_type: "authorization_code",
+    code: authorizationCode,
+    redirect_uri: SPOTIFY_REDIRECT_URI,
+    code_verifier: verifier
+  });
+  let auth = normalizeSpotifyAuth({
+    accessToken: token.access_token,
+    refreshToken: token.refresh_token,
+    expiresAt: Date.now() + Math.max(30, Number(token.expires_in) || 3600) * 1000,
+    tokenType: token.token_type
+  });
+  const profile = await spotifyApiRequest({ clientId: normalizedClientId, auth }, "/v1/me");
+  auth = normalizeSpotifyAuth({
+    ...auth,
+    displayName: profile.display_name || profile.id || "",
+    userId: profile.id || ""
+  });
+  return { ok: true, auth, redirectUri: SPOTIFY_REDIRECT_URI };
+}
+
+async function spotifyPlayTrack(payload = {}) {
+  const query = String(payload?.query ?? "").trim();
+  if (!query) {
+    throw new Error("Enter a track or artist before using !play.");
+  }
+  const allowExplicit = Boolean(payload?.allowExplicit);
+  const clientId = String(payload?.clientId ?? "").trim();
+  let auth = normalizeSpotifyAuth(payload?.auth);
+  const search = await spotifyApiRequest({ clientId, auth }, "/v1/search", {
+    q: query,
+    type: "track",
+    limit: allowExplicit ? 1 : 20
+  });
+  auth = normalizeSpotifyAuth(search.auth);
+  const searchResults = Array.isArray(search?.tracks?.items) ? search.tracks.items : [];
+  const track = allowExplicit
+    ? searchResults[0]
+    : searchResults.find((item) => !item?.explicit);
+  if (!track?.uri) {
+    throw new Error(allowExplicit
+      ? `No Spotify track found for "${query}".`
+      : `No non-explicit Spotify track found for "${query}". Enable explicit content to allow explicit tracks.`);
+  }
+  const queued = await spotifyApiRequest({ clientId, auth, method: "POST" }, "/v1/me/player/queue", { uri: track.uri });
+  auth = normalizeSpotifyAuth(queued.auth);
+  return {
+    ok: true,
+    auth,
+    track: {
+      name: track.name,
+      artist: track.artists?.map((artist) => artist.name).join(", ") || "",
+      uri: track.uri,
+      url: track.external_urls?.spotify || ""
+    }
+  };
+}
+
+async function spotifySkipTrack(payload = {}) {
+  const result = await spotifyApiRequest({ clientId: payload?.clientId, auth: payload?.auth, method: "POST" }, "/v1/me/player/next");
+  return { ok: true, auth: normalizeSpotifyAuth(result.auth) };
+}
+
 function normalizeCustomEventRules(source = []) {
   if (!Array.isArray(source)) {
     return [];
@@ -1199,6 +1573,7 @@ async function loadSettings() {
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
   };
   settings.ttsProvider = normalizeTtsProvider(settings.ttsProvider);
+  settings.ttsElevenFallbackTiktok = Boolean(settings.ttsElevenFallbackTiktok);
   settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
   settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
   settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
@@ -1233,6 +1608,7 @@ async function saveSettings(partialSettings) {
     listcommands: String(settings.commandFeedbackTemplates?.listcommands ?? "{user}, available chat commands: {commandList}")
   };
   settings.ttsProvider = normalizeTtsProvider(settings.ttsProvider);
+  settings.ttsElevenFallbackTiktok = Boolean(settings.ttsElevenFallbackTiktok);
   settings.ttsXttsServiceUrl = String(settings.ttsXttsServiceUrl ?? "http://127.0.0.1:8020").trim() || "http://127.0.0.1:8020";
   settings.ttsXttsSplitSentences = Boolean(settings.ttsXttsSplitSentences);
   settings.ttsXttsVoices = normalizeXttsVoices(settings.ttsXttsVoices);
@@ -2862,6 +3238,31 @@ ipcMain.handle("tiktok:sign-out", async () => {
   return { ok: true };
 });
 
+ipcMain.handle("spotify:sign-in", async (_event, payload = {}) => {
+  return beginSpotifySignIn(payload ?? {});
+});
+
+ipcMain.handle("spotify:get-me", async (_event, payload = {}) => {
+  const clientId = String(payload?.clientId ?? "").trim();
+  const result = await spotifyApiRequest({ clientId, auth: payload?.auth }, "/v1/me");
+  return {
+    ok: true,
+    auth: normalizeSpotifyAuth(result.auth),
+    profile: {
+      id: String(result?.id ?? ""),
+      displayName: String(result?.display_name ?? result?.id ?? "")
+    }
+  };
+});
+
+ipcMain.handle("spotify:play-track", async (_event, payload = {}) => {
+  return spotifyPlayTrack(payload ?? {});
+});
+
+ipcMain.handle("spotify:skip-track", async (_event, payload = {}) => {
+  return spotifySkipTrack(payload ?? {});
+});
+
 ipcMain.handle("app:get-settings", async () => {
   if (startupSettingsPromise) {
     await startupSettingsPromise.catch((error) => {
@@ -2962,6 +3363,24 @@ ipcMain.handle("overlay:update-spin-wheel-state", async (_event, payload) => {
   return {
     ok: true,
     state: spinWheelOverlayState
+  };
+});
+
+ipcMain.handle("overlay:get-progress-bar-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/progress-bar-overlay");
+  return {
+    ...overlayUrls,
+    url: overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url,
+    port: queueOverlayPort,
+    state: progressBarOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-progress-bar-state", async (_event, payload) => {
+  progressBarOverlayState = sanitizeProgressBarOverlayState(payload);
+  return {
+    ok: true,
+    state: progressBarOverlayState
   };
 });
 

@@ -102,6 +102,11 @@ function routeRequest(PDO $pdo, array $config): void
         return;
     }
 
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/progress-bar-state') {
+        handleGetProgressBarOverlayState($pdo, $_GET);
+        return;
+    }
+
     if ($requestMethod !== 'POST') {
         jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
     }
@@ -210,6 +215,9 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/overlay/update-spin-wheel-state':
             handleUpdateSpinWheelOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-progress-bar-state':
+            handleUpdateProgressBarOverlayState($pdo, $input);
             return;
         default:
             jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
@@ -328,6 +336,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
             vote_overlay_json LONGTEXT NULL,
             like_race_overlay_json LONGTEXT NULL,
             spin_wheel_overlay_json LONGTEXT NULL,
+            progress_bar_overlay_json LONGTEXT NULL,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             CONSTRAINT fk_overlay_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE CASCADE,
             UNIQUE KEY uniq_overlay_public_id (overlay_public_id),
@@ -390,6 +399,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_user_overlay_state', 'vote_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN vote_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'like_race_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN like_race_overlay_json LONGTEXT NULL AFTER vote_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'spin_wheel_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN spin_wheel_overlay_json LONGTEXT NULL AFTER like_race_overlay_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'progress_bar_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN progress_bar_overlay_json LONGTEXT NULL AFTER spin_wheel_overlay_json');
     ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
@@ -1061,7 +1071,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             viewer_stats_overlay_json,
             vote_overlay_json,
             like_race_overlay_json,
-            spin_wheel_overlay_json
+            spin_wheel_overlay_json,
+            progress_bar_overlay_json
         ) VALUES (
             :user_id,
             :overlay_public_id,
@@ -1075,7 +1086,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             :viewer_stats_overlay_json,
             :vote_overlay_json,
             :like_race_overlay_json,
-            :spin_wheel_overlay_json
+            :spin_wheel_overlay_json,
+            :progress_bar_overlay_json
         )
         ON DUPLICATE KEY UPDATE
             overlay_public_id = COALESCE(auth_user_overlay_state.overlay_public_id, VALUES(overlay_public_id)),
@@ -1089,7 +1101,8 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             viewer_stats_overlay_json = COALESCE(auth_user_overlay_state.viewer_stats_overlay_json, VALUES(viewer_stats_overlay_json)),
             vote_overlay_json = COALESCE(auth_user_overlay_state.vote_overlay_json, VALUES(vote_overlay_json)),
             like_race_overlay_json = COALESCE(auth_user_overlay_state.like_race_overlay_json, VALUES(like_race_overlay_json)),
-            spin_wheel_overlay_json = COALESCE(auth_user_overlay_state.spin_wheel_overlay_json, VALUES(spin_wheel_overlay_json))'
+            spin_wheel_overlay_json = COALESCE(auth_user_overlay_state.spin_wheel_overlay_json, VALUES(spin_wheel_overlay_json)),
+            progress_bar_overlay_json = COALESCE(auth_user_overlay_state.progress_bar_overlay_json, VALUES(progress_bar_overlay_json))'
     );
     $statement->execute([
         ':user_id' => (int) $user['id'],
@@ -1105,6 +1118,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         ':vote_overlay_json' => json_encode(defaultVoteOverlayState(), JSON_UNESCAPED_SLASHES),
         ':like_race_overlay_json' => json_encode(defaultLikeRaceOverlayState(), JSON_UNESCAPED_SLASHES),
         ':spin_wheel_overlay_json' => json_encode(defaultSpinWheelOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':progress_bar_overlay_json' => json_encode(defaultProgressBarOverlayState(), JSON_UNESCAPED_SLASHES),
     ]);
 
     $publicIdParam = rawurlencode($overlayPublicId);
@@ -1120,6 +1134,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
         'likeRaceUrl' => $siteBaseUrl . '/overlay/like-race.php?id=' . $publicIdParam . '&v=20260522-usernamesize',
         'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260610-nobom',
+        'progressBarUrl' => $siteBaseUrl . '/overlay/progress-bar.php?id=' . $publicIdParam,
         'publicId' => $overlayPublicId,
         'expiresAt' => $expiresAt,
     ];
@@ -1461,6 +1476,34 @@ function handleUpdateSpinWheelOverlayState(PDO $pdo, array $input): void
     ]);
 }
 
+function handleUpdateProgressBarOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeProgressBarOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            progress_bar_overlay_json
+        ) VALUES (
+            :user_id,
+            :progress_bar_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            progress_bar_overlay_json = VALUES(progress_bar_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':progress_bar_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
 function handleGetQueueOverlayState(PDO $pdo, array $query): void
 {
     [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
@@ -1604,6 +1647,23 @@ function handleGetSpinWheelOverlayState(PDO $pdo, array $query): void
     $decodedState = json_decode((string) ($overlayState['spin_wheel_overlay_json'] ?? ''), true);
     if (is_array($decodedState)) {
         $state = sanitizeSpinWheelOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetProgressBarOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultProgressBarOverlayState();
+    $decodedState = json_decode((string) ($overlayState['progress_bar_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeProgressBarOverlayStatePayload($decodedState);
     }
 
     jsonResponse(200, [
@@ -2791,6 +2851,16 @@ function defaultSpinWheelOverlayState(): array
     ];
 }
 
+function defaultProgressBarOverlayState(): array
+{
+    return [
+        'connected' => false,
+        'username' => '',
+        'bars' => [],
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
 function sanitizeOverlayDesignerTemplatePayload($payload): ?array
 {
     if (!is_array($payload)) {
@@ -3350,6 +3420,122 @@ function sanitizeSpinWheelOverlayStatePayload(array $payload): array
         'triggeredBy' => mb_substr(trim((string) ($payload['triggeredBy'] ?? '')), 0, 160),
         'triggerUser' => $triggerUser,
         'segments' => $segments,
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
+function sanitizeProgressBarOverlayStatePayload(array $payload): array
+{
+    $bars = [];
+    $allowedProgressBarFonts = [
+        'Segoe UI',
+        'Arial',
+        'Verdana',
+        'Tahoma',
+        'Trebuchet MS',
+        'Georgia',
+        'Impact',
+        'Courier New',
+        'Poppins',
+        'Montserrat',
+        'Oswald',
+        'Bebas Neue',
+    ];
+    if (isset($payload['bars']) && is_array($payload['bars'])) {
+        foreach (array_slice($payload['bars'], 0, 25) as $index => $bar) {
+            if (!is_array($bar)) {
+                continue;
+            }
+
+            $metric = trim((string) ($bar['metric'] ?? 'likes'));
+            if (!in_array($metric, ['likes', 'shares', 'follows', 'coins'], true)) {
+                $metric = 'likes';
+            }
+
+            $goal = max(1, (int) ($bar['goal'] ?? 1));
+            $value = max(0, (float) ($bar['value'] ?? 0));
+            $behavior = trim((string) ($bar['goalReachedBehavior'] ?? 'increase'));
+            if (!in_array($behavior, ['double', 'increase', 'hide'], true)) {
+                $behavior = 'increase';
+            }
+            $goalAnimation = trim((string) ($bar['goalAnimation'] ?? 'pulse'));
+            if (!in_array($goalAnimation, ['none', 'pulse', 'flash', 'bounce', 'sparkle', 'confetti'], true)) {
+                $goalAnimation = 'pulse';
+            }
+
+            $titleColor = trim((string) ($bar['titleColor'] ?? '#f2fbff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $titleColor)) {
+                $titleColor = '#f2fbff';
+            }
+            $textColor = trim((string) ($bar['textColor'] ?? '#f2fbff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $textColor)) {
+                $textColor = '#f2fbff';
+            }
+            $mutedColor = trim((string) ($bar['mutedColor'] ?? '#a7bfdd'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $mutedColor)) {
+                $mutedColor = '#a7bfdd';
+            }
+            $barStartColor = trim((string) ($bar['barStartColor'] ?? '#53dcff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $barStartColor)) {
+                $barStartColor = '#53dcff';
+            }
+            $barEndColor = trim((string) ($bar['barEndColor'] ?? '#b266ff'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $barEndColor)) {
+                $barEndColor = '#b266ff';
+            }
+            $backgroundColor = trim((string) ($bar['backgroundColor'] ?? '#091226'));
+            if (!preg_match('/^#[0-9a-fA-F]{6}$/', $backgroundColor)) {
+                $backgroundColor = '#091226';
+            }
+            $fontFamily = trim((string) ($bar['fontFamily'] ?? 'Segoe UI'));
+            if (!in_array($fontFamily, $allowedProgressBarFonts, true)) {
+                $fontFamily = 'Segoe UI';
+            }
+            $textPosition = trim((string) ($bar['textPosition'] ?? 'above'));
+            if (!in_array($textPosition, ['above', 'below', 'inside'], true)) {
+                $textPosition = 'above';
+            }
+
+            $bars[] = [
+                'id' => mb_substr(trim((string) ($bar['id'] ?? ('progress-bar-' . ($index + 1)))), 0, 120),
+                'title' => mb_substr(trim((string) ($bar['title'] ?? ('Progress Goal ' . ($index + 1)))), 0, 140),
+                'eyebrowText' => mb_substr(trim((string) ($bar['eyebrowText'] ?? 'Live Goal')), 0, 80) ?: 'Live Goal',
+                'metric' => $metric,
+                'value' => $value,
+                'goal' => $goal,
+                'percent' => max(0, min(100, (float) ($bar['percent'] ?? (($value / $goal) * 100)))),
+                'visible' => !isset($bar['visible']) || !empty($bar['visible']),
+                'hideBackground' => !empty($bar['hideBackground']),
+                'hideText' => !empty($bar['hideText']),
+                'textPosition' => $textPosition,
+                'goalIncreasePercent' => max(1, min(1000, (int) ($bar['goalIncreasePercent'] ?? 25))),
+                'titleColor' => $titleColor,
+                'textColor' => $textColor,
+                'mutedColor' => $mutedColor,
+                'barStartColor' => $barStartColor,
+                'barEndColor' => $barEndColor,
+                'backgroundColor' => $backgroundColor,
+                'fontFamily' => $fontFamily,
+                'eyebrowFontSize' => max(8, min(72, (int) ($bar['eyebrowFontSize'] ?? 12))),
+                'titleFontSize' => max(12, min(140, (int) ($bar['titleFontSize'] ?? 44))),
+                'metricFontSize' => max(8, min(72, (int) ($bar['metricFontSize'] ?? 12))),
+                'labelFontSize' => max(8, min(96, (int) ($bar['labelFontSize'] ?? 15))),
+                'footerFontSize' => max(8, min(72, (int) ($bar['footerFontSize'] ?? 13))),
+                'goalReachedBehavior' => $behavior,
+                'goalAnimation' => $goalAnimation,
+                'goalAnimationNonce' => mb_substr(trim((string) ($bar['goalAnimationNonce'] ?? '')), 0, 120),
+                'goalAnimationAt' => mb_substr(trim((string) ($bar['goalAnimationAt'] ?? '')), 0, 80),
+                'actionRuleId' => mb_substr(trim((string) ($bar['actionRuleId'] ?? '')), 0, 160),
+                'reachedCount' => max(0, (int) ($bar['reachedCount'] ?? 0)),
+                'updatedAt' => mb_substr(trim((string) ($bar['updatedAt'] ?? '')), 0, 80),
+            ];
+        }
+    }
+
+    return [
+        'connected' => !empty($payload['connected']),
+        'username' => mb_substr(trim((string) ($payload['username'] ?? '')), 0, 120),
+        'bars' => $bars,
         'updatedAt' => gmdate('Y-m-d H:i:s'),
     ];
 }

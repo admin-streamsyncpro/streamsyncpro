@@ -1,4 +1,6 @@
 const app = window.desktopApp;
+const BUILTIN_SPOTIFY_CLIENT_ID = "13ef9e18663a403fb7e9aac2de567b69";
+const SPOTIFY_REDIRECT_URI = "http://127.0.0.1:46329/spotify/callback";
 
 // Auth shell
 const authShell = document.getElementById("auth-shell");
@@ -47,6 +49,7 @@ const openControlsLayerButton = document.getElementById("open-controls-layer-but
 const openOverlaysLayerButton = document.getElementById("open-overlays-layer-button");
 const openEventActionsLayerButton = document.getElementById("open-event-actions-layer-button");
 const openGamesLayerButton = document.getElementById("open-games-layer-button");
+const openMusicLayerButton = document.getElementById("open-music-layer-button");
 const openUsersLayerButton = document.getElementById("open-users-layer-button");
 const topupCreditsButton = document.getElementById("topup-credits-button");
 
@@ -103,11 +106,13 @@ const dashboardAddonCards = document.getElementById("dashboard-addon-cards");
 const controlsTabButton = document.getElementById("controls-tab-button");
 const overlaysTabButton = document.getElementById("overlays-tab-button");
 const gamesTabButton = document.getElementById("games-tab-button");
+const musicTabButton = document.getElementById("music-tab-button");
 const usersTabButton = document.getElementById("users-tab-button");
 const eventActionsTabButton = document.getElementById("event-actions-tab-button");
 const controlsTabPanel = document.getElementById("controls-tab-panel");
 const overlaysTabPanel = document.getElementById("overlays-tab-panel");
 const gamesTabPanel = document.getElementById("games-tab-panel");
+const musicTabPanel = document.getElementById("music-tab-panel");
 const usersTabPanel = document.getElementById("users-tab-panel");
 const eventActionsTabPanel = document.getElementById("event-actions-tab-panel");
 const sidebarLayer = document.getElementById("sidebar-layer");
@@ -125,6 +130,23 @@ const queueFilterSelect = document.getElementById("queue-filter");
 const queueClearFilteredButton = document.getElementById("queue-clear-filtered");
 const queueActionList = document.getElementById("queue-action-list");
 const queueActionStatus = document.getElementById("queue-action-status");
+const musicEnabledInput = document.getElementById("music-enabled");
+const musicSkipEnabledInput = document.getElementById("music-skip-enabled");
+const musicAllowExplicitInput = document.getElementById("music-allow-explicit");
+const spotifyClientIdInput = document.getElementById("spotify-client-id");
+const spotifyRedirectUriInput = document.getElementById("spotify-redirect-uri");
+const spotifySignInButton = document.getElementById("spotify-signin-button");
+const spotifySignOutButton = document.getElementById("spotify-signout-button");
+const spotifyClearRequestsButton = document.getElementById("spotify-clear-requests-button");
+const musicAudienceModeInputs = Array.from(document.querySelectorAll('input[name="music-audience-mode"]'));
+const musicSelectedUserInput = document.getElementById("music-selected-user-input");
+const musicSelectedUserAddButton = document.getElementById("music-selected-user-add");
+const musicSelectedUsersList = document.getElementById("music-selected-users-list");
+const musicManualRequestInput = document.getElementById("music-manual-request");
+const musicAddRequestButton = document.getElementById("music-add-request-button");
+const musicSkipTrackButton = document.getElementById("music-skip-track-button");
+const musicRequestList = document.getElementById("music-request-list");
+const musicStatus = document.getElementById("music-status");
 const queueOverlayQueueSelect = document.getElementById("queue-overlay-queue");
 const queueOverlayModeSelect = document.getElementById("queue-overlay-mode");
 const queueOverlayUrlInput = document.getElementById("queue-overlay-url");
@@ -193,6 +215,10 @@ const voteOverlayCopyButton = document.getElementById("vote-overlay-copy");
 const voteOverlayOpenButton = document.getElementById("vote-overlay-open");
 const voteOverlayCustomizeButton = document.getElementById("vote-overlay-customize");
 const voteOverlayResetButton = document.getElementById("vote-overlay-reset");
+const progressBarOverlayUrlInput = document.getElementById("progress-bar-overlay-url");
+const progressBarOverlayAddButton = document.getElementById("progress-bar-add");
+const progressBarList = document.getElementById("progress-bar-list");
+const progressBarStatus = document.getElementById("progress-bar-status");
 const overlayDesignerTemplateSelect = document.getElementById("overlay-designer-template-select");
 const overlayDesignerUrlInput = document.getElementById("overlay-designer-url");
 const overlayDesignerOpenButton = document.getElementById("overlay-designer-open-button");
@@ -350,12 +376,24 @@ const ttsReadGiftsInput = document.getElementById("tts-read-gifts");
 const ttsGiftMinCoinsInput = document.getElementById("tts-gift-min-coins");
 const ttsProviderSelect = document.getElementById("tts-provider");
 const ttsRandomVoiceInput = document.getElementById("tts-random-voice");
+const ttsAudienceModeInputs = Array.from(document.querySelectorAll('input[name="tts-audience-mode"]'));
+const ttsCustomVoiceAudienceInputs = Array.from(document.querySelectorAll("[data-tts-custom-voice-audience]"));
+const ttsSelectedUserInput = document.getElementById("tts-selected-user-input");
+const ttsSelectedUserAddButton = document.getElementById("tts-selected-user-add");
+const ttsSelectedUsersList = document.getElementById("tts-selected-users-list");
+const ttsAccessTabButtons = Array.from(document.querySelectorAll("[data-tts-access-tab]"));
+const ttsAccessTabPanels = Array.from(document.querySelectorAll("[data-tts-access-panel]"));
+const ttsTriggersPanel = document.getElementById("tts-triggers-panel");
+const ttsVoicePanel = document.getElementById("tts-voice-panel");
+const ttsModerationTabPanel = document.getElementById("tts-moderation-tab-panel");
 const ttsElevenModeField = document.getElementById("tts-eleven-mode-field");
 const ttsElevenModeSelect = document.getElementById("tts-eleven-mode");
 const ttsElevenApiKeyField = document.getElementById("tts-eleven-api-key-field");
 const ttsElevenApiKeyInput = document.getElementById("tts-eleven-api-key");
 const ttsElevenModelField = document.getElementById("tts-eleven-model-field");
 const ttsElevenModelSelect = document.getElementById("tts-eleven-model");
+const ttsElevenFallbackTiktokField = document.getElementById("tts-eleven-fallback-tiktok-field");
+const ttsElevenFallbackTiktokInput = document.getElementById("tts-eleven-fallback-tiktok");
 const ttsXttsServiceUrlField = document.getElementById("tts-xtts-service-url-field");
 const ttsXttsServiceUrlInput = document.getElementById("tts-xtts-service-url");
 const ttsXttsServiceActions = document.getElementById("tts-xtts-service-actions");
@@ -1396,9 +1434,12 @@ const PROFILE_SETTING_KEYS = [
   "ttsReadPunctuation",
   "ttsReadGifts",
   "ttsGiftMinCoins",
+  "ttsAudienceMode",
   "ttsElevenMode",
+  "ttsCustomVoiceAudience",
   "ttsElevenApiKey",
   "ttsElevenModel",
+  "ttsElevenFallbackTiktok",
   "ttsXttsServiceUrl",
   "ttsXttsLanguage",
   "ttsXttsSplitSentences",
@@ -1419,11 +1460,13 @@ const PROFILE_SETTING_KEYS = [
     "votingOverlayOrientation",
     "likeRaceSettings",
     "likeRaceStats",
-    "spinWheelSettings",
-    "viewerStatsOverlayFilter",
-    "viewerStatsOverlayUsername",
-    "viewerStatsAllTime",
-    "viewerPointsSettings",
+  "spinWheelSettings",
+  "musicSettings",
+  "viewerStatsOverlayFilter",
+  "viewerStatsOverlayUsername",
+  "viewerStatsAllTime",
+  "progressBarOverlays",
+  "viewerPointsSettings",
     "viewerPointsLeaderboard",
     "overlayDesignerTemplates",
   "activeOverlayDesignerTemplateId",
@@ -1440,6 +1483,7 @@ const MAIN_SCREEN_CARD_DEFINITIONS = [
   { key: "controls-interactive-voting", label: "Controls | Voting" },
   { key: "games-like-race", label: "Games | Like Race" },
   { key: "games-spin-wheel", label: "Games | Spin Wheel" },
+  { key: "music-spotify", label: "Music | Spotify Requests" },
   { key: "controls-text-to-speech", label: "Controls | Text to Speech" },
   { key: "controls-audience-filters", label: "Controls | Filters" },
   { key: "overlays-queue-overlay", label: "Overlays | Queue Overlay" },
@@ -1447,6 +1491,7 @@ const MAIN_SCREEN_CARD_DEFINITIONS = [
   { key: "overlays-gift-overlay", label: "Overlays | Gift Overlay" },
   { key: "overlays-like-leaderboard", label: "Overlays | Like Leaderboard" },
   { key: "overlays-viewer-stats", label: "Overlays | Viewer Stats Leaderboard" },
+  { key: "overlays-progress-bars", label: "Overlays | Progress Bars" },
   { key: "overlays-command-feedback", label: "Overlays | Command Feedback Overlay" },
   { key: "overlays-designer", label: "Overlays | Overlay Designer" },
   { key: "users-points", label: "Users | Users and Points" },
@@ -1579,6 +1624,9 @@ const state = {
     likesOverlayBaseUrl: "",
     viewerStatsOverlayBaseUrl: "",
     voteOverlayBaseUrl: "",
+    progressBarOverlayBaseUrl: "",
+  progressBarPreviewOverrides: new Map(),
+  progressBarPreviewTimer: null,
   overlayDesignerBaseUrl: "",
   playbackQueueItems: [],
   chatOverlayItems: [],
@@ -1805,9 +1853,11 @@ function createDefaultSettings() {
     ttsReadPunctuation: false,
     ttsReadGifts: false,
     ttsGiftMinCoins: 0,
+    ttsAudienceMode: "allViewers",
     ttsElevenMode: "free",
     ttsElevenApiKey: "",
     ttsElevenModel: "eleven_flash_v2_5",
+    ttsElevenFallbackTiktok: false,
     ttsXttsServiceUrl: "http://127.0.0.1:8020",
     ttsXttsLanguage: "en",
     ttsXttsSplitSentences: false,
@@ -1815,8 +1865,23 @@ function createDefaultSettings() {
     ttsVoiceLockGiftName: "",
       ttsAudience: {
         allViewers: true,
+        topGifter: false,
+        followers: false,
         subscribers: false,
-        moderators: false
+        superFans: false,
+        teamMembers: false,
+        moderators: false,
+        customUsers: false,
+        customUsersList: []
+      },
+      ttsCustomVoiceAudience: {
+        allViewers: true,
+        topGifter: false,
+        followers: false,
+        superFans: false,
+        teamMembers: false,
+        moderators: false,
+        customUsers: false
       },
       ttsModeration: createDefaultTtsModerationSettings(),
       commandFeedbackOverlayDurationMs: 6000,
@@ -1830,9 +1895,11 @@ function createDefaultSettings() {
     likeRaceSettings: createDefaultLikeRaceSettings(),
     likeRaceStats: createDefaultLikeRaceStats(),
     spinWheelSettings: createDefaultSpinWheelSettings(),
+    musicSettings: createDefaultMusicSettings(),
     viewerStatsOverlayFilter: "everyone",
     viewerStatsOverlayUsername: "",
     viewerStatsAllTime: createDefaultViewerStatsAllTime(),
+    progressBarOverlays: [],
     viewerPointsSettings: createDefaultViewerPointsSettings(),
     viewerPointsLeaderboard: createDefaultViewerPointsLeaderboard(),
     ttsUserVoiceAssignments: {
@@ -1882,9 +1949,11 @@ function ensureSettingsShape(source = {}) {
     userNotes: normalizeUserNotes(activeProfileSettings?.userNotes),
     knownTikTokEmotes: normalizeKnownTikTokEmotes(activeProfileSettings?.knownTikTokEmotes),
     ttsUserVoiceAssignments: globalTtsVoiceSettings.ttsUserVoiceAssignments,
+    ttsAudienceMode: normalizeTtsAudienceMode(activeProfileSettings?.ttsAudienceMode, activeProfileSettings?.ttsAudience),
     likeRaceSettings: normalizeLikeRaceSettings(activeProfileSettings?.likeRaceSettings),
     likeRaceStats: normalizeLikeRaceStats(activeProfileSettings?.likeRaceStats),
     spinWheelSettings: normalizeSpinWheelSettings(activeProfileSettings?.spinWheelSettings),
+    musicSettings: normalizeMusicSettings(activeProfileSettings?.musicSettings),
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(activeProfileSettings?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
     commandFeedbackTemplates: {
       ...defaults.commandFeedbackTemplates,
@@ -1892,8 +1961,11 @@ function ensureSettingsShape(source = {}) {
     },
     ttsAudience: {
       ...defaults.ttsAudience,
-      ...(activeProfileSettings?.ttsAudience ?? {})
+      ...createTtsAudienceFromMode(normalizeTtsAudienceMode(activeProfileSettings?.ttsAudienceMode, activeProfileSettings?.ttsAudience)),
+      ...(normalizeTtsAudienceMode(activeProfileSettings?.ttsAudienceMode, activeProfileSettings?.ttsAudience) === "custom" ? (activeProfileSettings?.ttsAudience ?? {}) : {}),
+      customUsersList: normalizeTtsSelectedUsers(activeProfileSettings?.ttsAudience?.customUsersList)
     },
+    ttsCustomVoiceAudience: normalizeTtsCustomVoiceAudience(activeProfileSettings?.ttsCustomVoiceAudience),
     customEventRules: Array.isArray(activeProfileSettings?.customEventRules)
       ? activeProfileSettings.customEventRules.map(normalizeRule).filter(Boolean)
       : []
@@ -2362,6 +2434,25 @@ function getVoteOverlayUrl() {
   return state.voteOverlayBaseUrl || "";
 }
 
+function getProgressBarOverlayUrl() {
+  const baseUrl = state.progressBarOverlayBaseUrl || "";
+  if (!baseUrl) {
+    return "";
+  }
+  const firstVisibleBar = normalizeProgressBarOverlays(state.settings?.progressBarOverlays).find((bar) => bar.visible);
+  if (!firstVisibleBar) {
+    return baseUrl;
+  }
+  try {
+    const overlayUrl = new URL(baseUrl);
+    const selectionParam = overlayUrl.searchParams.has("id") ? "bar" : "id";
+    overlayUrl.searchParams.set(selectionParam, firstVisibleBar.id);
+    return overlayUrl.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
 function getLikeRaceOverlayUrl() {
   return state.likeRaceOverlayBaseUrl || "";
 }
@@ -2408,6 +2499,24 @@ function updateLikeRaceOverlayControls(info = {}) {
   );
 }
 
+function updateProgressBarOverlayControls(info = {}) {
+  if (Object.prototype.hasOwnProperty.call(info, "url")) {
+    state.progressBarOverlayBaseUrl = String(info.url ?? "").trim();
+  }
+
+  const overlayUrl = getProgressBarOverlayUrl();
+  if (progressBarOverlayUrlInput) {
+    progressBarOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  }
+  setStatusMessage(
+    progressBarStatus,
+    overlayUrl ? "success" : "info",
+    overlayUrl
+      ? `${normalizeProgressBarOverlays(state.settings?.progressBarOverlays).length} progress bar overlay${normalizeProgressBarOverlays(state.settings?.progressBarOverlays).length === 1 ? "" : "s"} ready.`
+      : "Progress bar overlay is unavailable right now."
+  );
+}
+
 async function loadLikeRaceOverlayInfo() {
   try {
     const info = await app.getLikeRaceOverlayInfo();
@@ -2419,6 +2528,18 @@ async function loadLikeRaceOverlayInfo() {
   }
 }
 
+async function loadProgressBarOverlayInfo() {
+  try {
+    const info = await app.getProgressBarOverlayInfo();
+    updateProgressBarOverlayControls(info);
+    syncProgressBarOverlayState();
+  } catch (error) {
+    state.progressBarOverlayBaseUrl = "";
+    updateProgressBarOverlayControls();
+    setStatusMessage(progressBarStatus, "error", error.message || "Unable to prepare progress bar overlay.");
+  }
+}
+
 async function loadOverlayInfoBundle() {
   if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
     state.queueOverlayBaseUrl = "";
@@ -2427,6 +2548,7 @@ async function loadOverlayInfoBundle() {
     state.likesOverlayBaseUrl = "";
     state.viewerStatsOverlayBaseUrl = "";
     state.voteOverlayBaseUrl = "";
+    state.progressBarOverlayBaseUrl = "";
     state.likeRaceOverlayBaseUrl = "";
     state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Sign in to generate hosted overlay";
@@ -2457,6 +2579,11 @@ async function loadOverlayInfoBundle() {
     voteOverlayCopyButton.disabled = true;
     voteOverlayOpenButton.disabled = true;
     setStatusMessage(voteOverlayStatus, "info", "Sign in to generate a hosted voting overlay URL for this user.");
+    updateProgressBarOverlayControls({ url: "" });
+    if (progressBarOverlayUrlInput) {
+      progressBarOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    }
+    setStatusMessage(progressBarStatus, "info", "Sign in to generate a hosted progress bar overlay URL for this user.");
     updateLikeRaceOverlayControls({ url: "" });
     if (likeRaceOverlayUrlInput) {
       likeRaceOverlayUrlInput.value = "Sign in to generate hosted overlay";
@@ -2482,6 +2609,7 @@ async function loadOverlayInfoBundle() {
     updateLikesOverlayControls({ url: info.likesUrl });
     updateViewerStatsOverlayControls({ url: info.viewerStatsUrl });
     updateVoteOverlayControls({ url: info.voteUrl });
+    updateProgressBarOverlayControls({ url: info.progressBarUrl });
     updateLikeRaceOverlayControls({ url: info.likeRaceUrl });
     updateSpinWheelOverlayControls({ url: info.spinWheelUrl });
   } catch (error) {
@@ -2491,6 +2619,7 @@ async function loadOverlayInfoBundle() {
     state.likesOverlayBaseUrl = "";
     state.viewerStatsOverlayBaseUrl = "";
     state.voteOverlayBaseUrl = "";
+    state.progressBarOverlayBaseUrl = "";
     state.likeRaceOverlayBaseUrl = "";
     state.spinWheelOverlayBaseUrl = "";
     state.commandFeedbackOverlayBaseUrl = "";
@@ -2522,6 +2651,11 @@ async function loadOverlayInfoBundle() {
     voteOverlayCopyButton.disabled = true;
     voteOverlayOpenButton.disabled = true;
     setStatusMessage(voteOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    updateProgressBarOverlayControls({ url: "" });
+    if (progressBarOverlayUrlInput) {
+      progressBarOverlayUrlInput.value = "Overlay unavailable";
+    }
+    setStatusMessage(progressBarStatus, "error", error.message || "Unable to load hosted overlay URLs.");
     updateLikeRaceOverlayControls({ url: "" });
     if (likeRaceOverlayUrlInput) {
       likeRaceOverlayUrlInput.value = "Overlay unavailable";
@@ -4099,6 +4233,203 @@ function syncViewerStatsOverlayState() {
   syncOverlayDesignerRuntimeState();
 }
 
+function buildProgressBarOverlayBars() {
+  return normalizeProgressBarOverlays(state.settings?.progressBarOverlays).map((bar) => {
+    const value = getProgressBarDisplayValue(bar);
+    const goal = Math.max(1, Number(bar.goal) || 1);
+    const previewOverride = getProgressBarPreviewOverride(bar.id);
+    return {
+      ...bar,
+      value,
+      goal,
+      visible: typeof previewOverride === "object" && previewOverride !== null && Object.prototype.hasOwnProperty.call(previewOverride, "visible")
+        ? Boolean(previewOverride.visible)
+        : bar.visible,
+      percent: Math.max(0, Math.min(100, (value / goal) * 100)),
+      updatedAt: new Date().toISOString()
+    };
+  });
+}
+
+function getProgressBarPreviewOverride(barId) {
+  return state.progressBarPreviewOverrides instanceof Map
+    ? state.progressBarPreviewOverrides.get(String(barId ?? "").trim())
+    : undefined;
+}
+
+function getProgressBarDisplayValue(bar) {
+  const previewOverride = getProgressBarPreviewOverride(bar?.id);
+  const previewValue = typeof previewOverride === "object" && previewOverride !== null ? previewOverride.value : previewOverride;
+  return previewValue === undefined ? getProgressBarMetricValue(bar?.metric) : Math.max(0, Number(previewValue) || 0);
+}
+
+function applyProgressBarGoalReachedBehavior(bar, reachedGoal) {
+  const goal = Math.max(1, Number(reachedGoal) || Number(bar?.goal) || 1);
+  const reachedCount = Math.max(0, Number(bar?.reachedCount) || 0) + 1;
+  const base = {
+    ...bar,
+    reachedCount,
+    lastReachedGoal: goal,
+    goalAnimationNonce: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    goalAnimationAt: new Date().toISOString()
+  };
+
+  if (bar.goalReachedBehavior === "hide") {
+    return normalizeProgressBarOverlay({ ...base, visible: false });
+  }
+
+  if (bar.goalReachedBehavior === "double") {
+    return normalizeProgressBarOverlay({ ...base, goal: Math.max(goal + 1, goal * 2) });
+  }
+
+  const increasePercent = Math.max(1, Number(bar.goalIncreasePercent) || 25);
+  const increaseAmount = Math.max(1, Math.ceil(goal * (increasePercent / 100)));
+  return normalizeProgressBarOverlay({ ...base, goal: goal + increaseAmount });
+}
+
+async function completeProgressBarGoal(barId, reachedGoal, sourceItem = null, options = {}) {
+  const id = String(barId ?? "").trim();
+  if (!id) {
+    return null;
+  }
+
+  const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+  const targetBar = bars.find((bar) => bar.id === id);
+  if (!targetBar) {
+    return null;
+  }
+
+  const goal = Math.max(1, Number(reachedGoal) || Number(targetBar.goal) || 1);
+  const nextBar = applyProgressBarGoalReachedBehavior(targetBar, goal);
+  const linkedRule = targetBar.actionRuleId
+    ? state.settings.customEventRules.find((rule) => rule.id === targetBar.actionRuleId)
+    : null;
+  if (options.triggerLinkedAction !== false && linkedRule && linkedRule.enabled !== false && !isRuleWithinDisabledTimeWindow(linkedRule)) {
+    void triggerCustomRule(linkedRule, { sourceItem, force: false });
+  }
+
+  const nextBars = bars.map((bar) => (bar.id === id ? nextBar : bar));
+  await persistProgressBarOverlays(nextBars, { render: options.render !== false });
+  return {
+    before: targetBar,
+    after: nextBar,
+    reachedGoal: goal
+  };
+}
+
+function testProgressBarOverlay(barId) {
+  const id = String(barId ?? "").trim();
+  const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+  const targetBar = bars.find((bar) => bar.id === id);
+  if (!targetBar) {
+    showToast("Progress bar could not be found.", "error");
+    return;
+  }
+
+  const goal = Math.max(1, Number(targetBar.goal) || 1);
+  const testValue = goal;
+  if (!(state.progressBarPreviewOverrides instanceof Map)) {
+    state.progressBarPreviewOverrides = new Map();
+  }
+  state.progressBarPreviewOverrides.clear();
+  state.progressBarPreviewOverrides.set(id, { value: testValue, visible: true });
+  renderProgressBarSettings();
+  syncProgressBarOverlayState();
+  showToast(`Testing ${targetBar.title}: goal reached behaviour will apply.`, "success");
+
+  if (targetBar.goalReachedBehavior === "hide") {
+    setTimeout(() => {
+      const override = state.progressBarPreviewOverrides instanceof Map ? state.progressBarPreviewOverrides.get(id) : null;
+      if (!override || typeof override !== "object") {
+        return;
+      }
+      state.progressBarPreviewOverrides.set(id, { ...override, visible: false });
+      renderProgressBarSettings();
+      syncProgressBarOverlayState();
+    }, 1200);
+  }
+
+  setTimeout(() => {
+    void completeProgressBarGoal(id, goal, null, { triggerLinkedAction: false }).then((result) => {
+      if (!result || !(state.progressBarPreviewOverrides instanceof Map)) {
+        return;
+      }
+      if (result.after.visible !== false) {
+        state.progressBarPreviewOverrides.set(id, { value: goal, visible: true });
+        renderProgressBarSettings();
+        syncProgressBarOverlayState();
+      }
+      const nextGoal = Math.max(1, Number(result.after.goal) || goal);
+      if (result.after.goalReachedBehavior === "double") {
+        showToast(`${result.after.title} goal doubled to ${nextGoal.toLocaleString("en-GB")}.`, "success");
+      } else if (result.after.goalReachedBehavior === "increase") {
+        showToast(`${result.after.title} goal increased to ${nextGoal.toLocaleString("en-GB")}.`, "success");
+      }
+    }).catch((error) => {
+      showToast(error.message || "Unable to apply progress bar goal behaviour.", "error");
+    });
+  }, 1400);
+
+  if (state.progressBarPreviewTimer) {
+    clearTimeout(state.progressBarPreviewTimer);
+  }
+  state.progressBarPreviewTimer = setTimeout(() => {
+    state.progressBarPreviewOverrides.clear();
+    state.progressBarPreviewTimer = null;
+    renderProgressBarSettings();
+    syncProgressBarOverlayState();
+  }, 12000);
+}
+
+function syncProgressBarOverlayState() {
+  const payload = {
+    connected: state.connected,
+    username: state.username,
+    bars: buildProgressBarOverlayBars(),
+    updatedAt: new Date().toISOString()
+  };
+
+  void app.updateProgressBarOverlayState(payload).catch(() => {
+    // Keep live event handling moving if the local overlay process is restarting.
+  });
+
+  if (state.authenticatedUser?.id && state.authenticatedUser?.sessionToken) {
+    void authRequest("/api/overlay/update-progress-bar-state", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken,
+      ...payload
+    }).catch(() => {
+      // Ignore hosted overlay sync errors so live metrics continue normally.
+    });
+  }
+}
+
+async function evaluateProgressBarGoals(sourceItem = null) {
+  const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+  if (!bars.length) {
+    syncProgressBarOverlayState();
+    return;
+  }
+
+  let changed = false;
+  for (const bar of bars) {
+    const value = getProgressBarDisplayValue(bar);
+    const goal = Math.max(1, Number(bar.goal) || 1);
+    if (bar.visible && value >= goal && Number(bar.lastReachedGoal) !== goal) {
+      await completeProgressBarGoal(bar.id, goal, sourceItem, { render: false });
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    renderProgressBarSettings();
+    syncProgressBarOverlayState();
+    return;
+  }
+
+  syncProgressBarOverlayState();
+}
+
 function buildVoteOverlayOptions() {
   const options = Array.isArray(state.activeVote?.options) ? state.activeVote.options : [];
   const totalVotes = options.reduce((sum, option) => sum + Math.max(0, Number(option?.votes) || 0), 0);
@@ -5284,7 +5615,7 @@ async function startSpinWheel(sourceItem = null, options = {}) {
     syncSpinWheelOverlayState();
     setStatusMessage(spinWheelStatus, "success", `Spin Wheel selected: ${winner.label}.`);
     const actionRule = state.settings.customEventRules.find((rule) => rule.id === winner.actionRuleId);
-    if (actionRule) {
+    if (actionRule?.enabled !== false && !isRuleWithinDisabledTimeWindow(actionRule)) {
       void triggerCustomRule(actionRule, {
         sourceItem,
         fromSpinWheel: true
@@ -5554,6 +5885,750 @@ function createDefaultViewerStatsAllTime() {
   return {
     users: {}
   };
+}
+
+function createDefaultMusicSettings() {
+  return {
+    enabled: false,
+    skipEnabled: false,
+    allowExplicit: false,
+    spotifyClientId: BUILTIN_SPOTIFY_CLIENT_ID,
+    spotifyRedirectUri: SPOTIFY_REDIRECT_URI,
+    spotifyAuth: null,
+    audience: {
+      allViewers: true,
+      topGifter: false,
+      followers: false,
+      subscribers: false,
+      superFans: false,
+      teamMembers: false,
+      moderators: false,
+      customUsers: false,
+      customUsersList: []
+    },
+    requests: []
+  };
+}
+
+function normalizeTtsAudienceMode(value, audience = null) {
+  const mode = String(value ?? "").trim();
+  const allowedModes = ["allViewers", "topGifter", "followers", "superFans", "teamMembers", "moderators", "customUsers", "superFansModerators", "custom"];
+  if (allowedModes.includes(mode)) {
+    return mode;
+  }
+  if (audience?.allViewers) {
+    return "allViewers";
+  }
+  if ((audience?.subscribers || audience?.superFans) && audience?.moderators) {
+    return "superFansModerators";
+  }
+  if (audience?.moderators) {
+    return "moderators";
+  }
+  if (audience?.subscribers || audience?.superFans) {
+    return "superFans";
+  }
+  if (audience?.topGifter) {
+    return "topGifter";
+  }
+  if (audience?.followers) {
+    return "followers";
+  }
+  if (audience?.teamMembers) {
+    return "teamMembers";
+  }
+  if (audience?.customUsers) {
+    return "custom";
+  }
+  return "allViewers";
+}
+
+function createTtsAudienceFromMode(mode) {
+  const normalizedMode = normalizeTtsAudienceMode(mode);
+  return {
+    allViewers: normalizedMode === "allViewers",
+    topGifter: normalizedMode === "topGifter",
+    followers: normalizedMode === "followers",
+    subscribers: normalizedMode === "superFans" || normalizedMode === "superFansModerators",
+    superFans: normalizedMode === "superFans" || normalizedMode === "superFansModerators",
+    teamMembers: normalizedMode === "teamMembers",
+    moderators: normalizedMode === "moderators" || normalizedMode === "superFansModerators",
+    customUsers: normalizedMode === "customUsers",
+    customUsersList: []
+  };
+}
+
+function normalizeTtsSelectedUsers(value = []) {
+  return Array.from(new Set(
+    (Array.isArray(value) ? value : String(value ?? "").split(/[\s,;]+/))
+      .map((entry) => normalizeUserKey(entry))
+      .filter(Boolean)
+  )).slice(0, 100);
+}
+
+function normalizeTtsCustomVoiceAudience(value = {}) {
+  return {
+    allViewers: Boolean(value?.allViewers ?? true),
+    topGifter: Boolean(value?.topGifter),
+    followers: Boolean(value?.followers),
+    superFans: Boolean(value?.superFans || value?.subscribers),
+    teamMembers: Boolean(value?.teamMembers),
+    moderators: Boolean(value?.moderators),
+    customUsers: Boolean(value?.customUsers)
+  };
+}
+
+function getSelectedTtsAudience() {
+  const selectedValues = new Set(ttsAudienceModeInputs.filter((input) => input.checked).map((input) => input.value));
+  const allViewers = selectedValues.has("allViewers") || !Array.from(selectedValues).some((value) => value !== "allViewers");
+  return {
+    allViewers,
+    topGifter: !allViewers && selectedValues.has("topGifter"),
+    followers: !allViewers && selectedValues.has("followers"),
+    subscribers: !allViewers && selectedValues.has("superFans"),
+    superFans: !allViewers && selectedValues.has("superFans"),
+    teamMembers: !allViewers && selectedValues.has("teamMembers"),
+    moderators: !allViewers && selectedValues.has("moderators"),
+    customUsers: !allViewers && selectedValues.has("customUsers"),
+    customUsersList: normalizeTtsSelectedUsers(state.settings?.ttsAudience?.customUsersList)
+  };
+}
+
+function getSelectedTtsCustomVoiceAudience() {
+  const selectedValues = new Set(ttsCustomVoiceAudienceInputs.filter((input) => input.checked).map((input) => input.dataset.ttsCustomVoiceAudience));
+  return normalizeTtsCustomVoiceAudience({
+    allViewers: selectedValues.has("allViewers"),
+    topGifter: selectedValues.has("topGifter"),
+    followers: selectedValues.has("followers"),
+    superFans: selectedValues.has("superFans"),
+    teamMembers: selectedValues.has("teamMembers"),
+    moderators: selectedValues.has("moderators"),
+    customUsers: selectedValues.has("customUsers")
+  });
+}
+
+function getSelectedTtsAudienceMode() {
+  const audience = getSelectedTtsAudience();
+  if (audience.allViewers) {
+    return "allViewers";
+  }
+  if (audience.superFans && audience.moderators && !audience.topGifter && !audience.followers && !audience.teamMembers) {
+    return "superFansModerators";
+  }
+  if (audience.superFans && !audience.moderators && !audience.topGifter && !audience.followers && !audience.teamMembers) return "superFans";
+  if (audience.moderators && !audience.superFans && !audience.topGifter && !audience.followers && !audience.teamMembers) return "moderators";
+  if (audience.topGifter && !audience.superFans && !audience.moderators && !audience.followers && !audience.teamMembers) return "topGifter";
+  if (audience.followers && !audience.superFans && !audience.moderators && !audience.topGifter && !audience.teamMembers) return "followers";
+  if (audience.teamMembers && !audience.superFans && !audience.moderators && !audience.topGifter && !audience.followers) return "teamMembers";
+  return "custom";
+}
+
+function applyTtsAudienceMode(mode) {
+  const normalizedMode = normalizeTtsAudienceMode(mode, state.settings?.ttsAudience);
+  ttsAudienceModeInputs.forEach((input) => {
+    input.checked = normalizedMode === "allViewers"
+      ? input.value === "allViewers"
+      : input.value !== "allViewers" && (
+        (normalizedMode === "topGifter" && input.value === "topGifter") ||
+        (normalizedMode === "followers" && input.value === "followers") ||
+        (normalizedMode === "superFans" && input.value === "superFans") ||
+        (normalizedMode === "teamMembers" && input.value === "teamMembers") ||
+        (normalizedMode === "moderators" && input.value === "moderators") ||
+        (normalizedMode === "superFansModerators" && ["superFans", "moderators"].includes(input.value))
+      );
+  });
+  const audience = createTtsAudienceFromMode(normalizedMode);
+  if (ttsAudienceAllInput) ttsAudienceAllInput.checked = audience.allViewers;
+  if (ttsAudienceSubscribersInput) ttsAudienceSubscribersInput.checked = audience.superFans;
+  if (ttsAudienceModeratorsInput) ttsAudienceModeratorsInput.checked = audience.moderators;
+  if (ttsAudienceVipsInput) ttsAudienceVipsInput.checked = false;
+  return normalizedMode;
+}
+
+function applyTtsAudienceSelection(audience = {}) {
+  const normalizedAudience = {
+    ...createTtsAudienceFromMode(normalizeTtsAudienceMode(audience?.allViewers ? "allViewers" : "custom")),
+    ...audience
+  };
+  const allViewers = Boolean(normalizedAudience.allViewers);
+  ttsAudienceModeInputs.forEach((input) => {
+    input.checked = input.value === "allViewers"
+      ? allViewers
+      : !allViewers && Boolean(normalizedAudience[input.value] || (input.value === "superFans" && normalizedAudience.subscribers));
+  });
+  ttsCustomVoiceAudienceInputs.forEach((input) => {
+    const key = input.dataset.ttsCustomVoiceAudience;
+    input.checked = Boolean(normalizeTtsCustomVoiceAudience(state.settings?.ttsCustomVoiceAudience)[key]);
+  });
+  if (ttsAudienceAllInput) ttsAudienceAllInput.checked = allViewers;
+  if (ttsAudienceSubscribersInput) ttsAudienceSubscribersInput.checked = !allViewers && Boolean(normalizedAudience.superFans || normalizedAudience.subscribers);
+  if (ttsAudienceModeratorsInput) ttsAudienceModeratorsInput.checked = !allViewers && Boolean(normalizedAudience.moderators);
+  if (ttsAudienceVipsInput) ttsAudienceVipsInput.checked = false;
+  renderTtsSelectedUsersList(normalizedAudience.customUsersList);
+}
+
+function normalizeSelectedTtsAudienceInputs(changedInput = null) {
+  const allInput = ttsAudienceModeInputs.find((input) => input.value === "allViewers");
+  const restrictedInputs = ttsAudienceModeInputs.filter((input) => input.value !== "allViewers");
+
+  if (changedInput?.value === "allViewers" && changedInput.checked) {
+    restrictedInputs.forEach((input) => {
+      input.checked = false;
+    });
+    return applyTtsAudienceMode("allViewers");
+  }
+
+  if (changedInput && changedInput.value !== "allViewers" && changedInput.checked && allInput) {
+    allInput.checked = false;
+  }
+
+  if (!restrictedInputs.some((input) => input.checked) && allInput) {
+    allInput.checked = true;
+  }
+
+  const audience = getSelectedTtsAudience();
+  applyTtsAudienceSelection(audience);
+  return normalizeTtsAudienceMode(getSelectedTtsAudienceMode(), audience);
+}
+
+function renderTtsSelectedUsersList(users = state.settings?.ttsAudience?.customUsersList) {
+  if (!ttsSelectedUsersList) {
+    return;
+  }
+  const selectedUsers = normalizeTtsSelectedUsers(users);
+  if (!selectedUsers.length) {
+    ttsSelectedUsersList.innerHTML = `<span class="helper-text">No selected users yet.</span>`;
+    return;
+  }
+  ttsSelectedUsersList.innerHTML = selectedUsers.map((user) => `
+    <span class="tts-selected-user-chip">
+      @${escapeHtml(user)}
+      <button type="button" class="ghost compact-icon-button" data-tts-remove-selected-user="${escapeHtml(user)}" title="Remove @${escapeHtml(user)}" aria-label="Remove @${escapeHtml(user)}">&times;</button>
+    </span>
+  `).join("");
+}
+
+function getTtsAudienceModeLabel(mode) {
+  switch (normalizeTtsAudienceMode(mode, state.settings?.ttsAudience)) {
+    case "superFans":
+      return "Super Fans";
+    case "topGifter":
+      return "Top Gifter";
+    case "followers":
+      return "Followers";
+    case "teamMembers":
+      return "Team Members";
+    case "moderators":
+      return "Moderators";
+    case "superFansModerators":
+      return "Super Fans and Moderators";
+    case "custom": {
+      const audience = getSelectedTtsAudience();
+      const labels = [
+        audience.topGifter ? "Top Gifter" : "",
+        audience.followers ? "Followers" : "",
+        audience.superFans ? "Super Fans" : "",
+        audience.teamMembers ? "Team Members" : "",
+        audience.moderators ? "Moderators" : ""
+      ].filter(Boolean);
+      return labels.length ? labels.join(", ") : "All Viewers";
+    }
+    case "allViewers":
+    default:
+      return "All Viewers";
+  }
+}
+
+function normalizeMusicSettings(source = {}) {
+  const defaults = createDefaultMusicSettings();
+  const sourceAudience = source?.audience && typeof source.audience === "object" ? source.audience : {};
+  const sourceAuth = source?.spotifyAuth && typeof source.spotifyAuth === "object" ? source.spotifyAuth : null;
+  const allViewers = Boolean(sourceAudience.allViewers ?? defaults.audience.allViewers);
+  const rawRequests = Array.isArray(source?.requests) ? source.requests : [];
+  return {
+    enabled: Boolean(source?.enabled ?? defaults.enabled),
+    skipEnabled: Boolean(source?.skipEnabled ?? defaults.skipEnabled),
+    allowExplicit: Boolean(source?.allowExplicit ?? defaults.allowExplicit),
+    spotifyClientId: String(source?.spotifyClientId ?? "").trim() || defaults.spotifyClientId,
+    spotifyRedirectUri: String(source?.spotifyRedirectUri ?? defaults.spotifyRedirectUri).trim() || defaults.spotifyRedirectUri,
+    spotifyAuth: sourceAuth ? {
+      accessToken: String(sourceAuth?.accessToken ?? "").trim(),
+      refreshToken: String(sourceAuth?.refreshToken ?? "").trim(),
+      expiresAt: Math.max(0, Number(sourceAuth?.expiresAt) || 0),
+      tokenType: String(sourceAuth?.tokenType ?? "Bearer").trim() || "Bearer",
+      displayName: String(sourceAuth?.displayName ?? "").trim(),
+      userId: String(sourceAuth?.userId ?? "").trim()
+    } : null,
+    audience: {
+      ...defaults.audience,
+      ...sourceAudience,
+      allViewers,
+      topGifter: !allViewers && Boolean(sourceAudience.topGifter),
+      followers: !allViewers && Boolean(sourceAudience.followers),
+      subscribers: !allViewers && Boolean(sourceAudience.subscribers || sourceAudience.superFans),
+      superFans: !allViewers && Boolean(sourceAudience.superFans || sourceAudience.subscribers),
+      teamMembers: !allViewers && Boolean(sourceAudience.teamMembers),
+      moderators: !allViewers && Boolean(sourceAudience.moderators),
+      customUsers: !allViewers && Boolean(sourceAudience.customUsers),
+      customUsersList: normalizeTtsSelectedUsers(sourceAudience.customUsersList)
+    },
+    requests: rawRequests.map((request, index) => ({
+      id: String(request?.id ?? `music-request-${Date.now()}-${index}`),
+      track: String(request?.track ?? "").trim(),
+      user: normalizeUserKey(request?.user),
+      displayName: String(request?.displayName ?? request?.user ?? "").trim(),
+      profilePictureUrl: String(request?.profilePictureUrl ?? "").trim(),
+      requestedAt: Number(request?.requestedAt ?? Date.now()) || Date.now()
+    })).filter((request) => request.track).slice(0, 100)
+  };
+}
+
+function getSelectedMusicAudience() {
+  const selectedValues = new Set(musicAudienceModeInputs.filter((input) => input.checked).map((input) => input.value));
+  const allViewers = selectedValues.has("allViewers") || !Array.from(selectedValues).some((value) => value !== "allViewers");
+  return {
+    allViewers,
+    topGifter: !allViewers && selectedValues.has("topGifter"),
+    followers: !allViewers && selectedValues.has("followers"),
+    subscribers: !allViewers && selectedValues.has("superFans"),
+    superFans: !allViewers && selectedValues.has("superFans"),
+    teamMembers: !allViewers && selectedValues.has("teamMembers"),
+    moderators: !allViewers && selectedValues.has("moderators"),
+    customUsers: !allViewers && selectedValues.has("customUsers"),
+    customUsersList: normalizeTtsSelectedUsers(state.settings?.musicSettings?.audience?.customUsersList)
+  };
+}
+
+function applyMusicAudienceSelection(audience = {}) {
+  const normalizedAudience = normalizeMusicSettings({ audience }).audience;
+  const allViewers = Boolean(normalizedAudience.allViewers);
+  musicAudienceModeInputs.forEach((input) => {
+    input.checked = input.value === "allViewers"
+      ? allViewers
+      : !allViewers && Boolean(normalizedAudience[input.value] || (input.value === "superFans" && normalizedAudience.subscribers));
+  });
+  renderMusicSelectedUsersList(normalizedAudience.customUsersList);
+}
+
+function normalizeSelectedMusicAudienceInputs(changedInput = null) {
+  const allInput = musicAudienceModeInputs.find((input) => input.value === "allViewers");
+  const restrictedInputs = musicAudienceModeInputs.filter((input) => input.value !== "allViewers");
+  if (changedInput?.value === "allViewers" && changedInput.checked) {
+    restrictedInputs.forEach((input) => {
+      input.checked = false;
+    });
+  }
+  if (changedInput && changedInput.value !== "allViewers" && changedInput.checked && allInput) {
+    allInput.checked = false;
+  }
+  if (!restrictedInputs.some((input) => input.checked) && allInput) {
+    allInput.checked = true;
+  }
+  const audience = getSelectedMusicAudience();
+  applyMusicAudienceSelection(audience);
+  return audience;
+}
+
+function renderMusicSelectedUsersList(users = state.settings?.musicSettings?.audience?.customUsersList) {
+  if (!musicSelectedUsersList) {
+    return;
+  }
+  const selectedUsers = normalizeTtsSelectedUsers(users);
+  if (!selectedUsers.length) {
+    musicSelectedUsersList.innerHTML = `<span class="helper-text">No selected music users yet.</span>`;
+    return;
+  }
+  musicSelectedUsersList.innerHTML = selectedUsers.map((user) => `
+    <span class="tts-selected-user-chip">
+      @${escapeHtml(user)}
+      <button type="button" class="ghost compact-icon-button" data-music-remove-selected-user="${escapeHtml(user)}" title="Remove @${escapeHtml(user)}" aria-label="Remove @${escapeHtml(user)}">&times;</button>
+    </span>
+  `).join("");
+}
+
+function canItemUseMusicAudience(item, audienceSettings = state.settings?.musicSettings?.audience) {
+  return canItemUseTtsAudience(item, normalizeMusicSettings({ audience: audienceSettings }).audience);
+}
+
+function collectMusicSettingsFromUi(source = state.settings?.musicSettings) {
+  const current = normalizeMusicSettings(source);
+  return normalizeMusicSettings({
+    ...current,
+    enabled: Boolean(musicEnabledInput?.checked),
+    skipEnabled: Boolean(musicSkipEnabledInput?.checked),
+    allowExplicit: Boolean(musicAllowExplicitInput?.checked),
+    spotifyClientId: String(spotifyClientIdInput?.value ?? current.spotifyClientId ?? "").trim() || BUILTIN_SPOTIFY_CLIENT_ID,
+    spotifyRedirectUri: String(spotifyRedirectUriInput?.value ?? current.spotifyRedirectUri).trim(),
+    audience: getSelectedMusicAudience()
+  });
+}
+
+function renderMusicSettings() {
+  const music = normalizeMusicSettings(state.settings?.musicSettings);
+  if (musicEnabledInput) {
+    musicEnabledInput.checked = music.enabled;
+  }
+  if (musicSkipEnabledInput) {
+    musicSkipEnabledInput.checked = music.skipEnabled;
+  }
+  if (musicAllowExplicitInput) {
+    musicAllowExplicitInput.checked = music.allowExplicit;
+  }
+  if (spotifyClientIdInput) {
+    spotifyClientIdInput.value = music.spotifyClientId;
+  }
+  if (spotifyRedirectUriInput) {
+    spotifyRedirectUriInput.value = music.spotifyRedirectUri;
+  }
+  if (spotifySignInButton) {
+    spotifySignInButton.textContent = music.spotifyAuth?.refreshToken ? "Reconnect Spotify" : "Sign in to Spotify";
+  }
+  if (spotifySignOutButton) {
+    spotifySignOutButton.disabled = !music.spotifyAuth?.refreshToken;
+  }
+  applyMusicAudienceSelection(music.audience);
+  renderMusicRequests();
+  if (musicStatus) {
+    const requestCount = music.requests.length;
+    const roleLabel = music.audience.allViewers ? "all viewers" : "selected roles";
+    const spotifyLabel = music.spotifyAuth?.displayName || music.spotifyAuth?.userId || "";
+    setStatusMessage(
+      musicStatus,
+      music.enabled && music.spotifyAuth?.refreshToken ? "success" : "info",
+      music.spotifyAuth?.refreshToken
+        ? `Spotify connected${spotifyLabel ? ` as ${spotifyLabel}` : ""}. !play is ${music.enabled ? `enabled for ${roleLabel}` : "off"}; !skip is ${music.skipEnabled ? "enabled" : "off"}. ${requestCount} request${requestCount === 1 ? "" : "s"} logged.`
+        : "Sign in to Spotify to enable music controls."
+    );
+  }
+}
+
+function renderMusicRequests() {
+  if (!musicRequestList) {
+    return;
+  }
+  const requests = normalizeMusicSettings(state.settings?.musicSettings).requests;
+  if (!requests.length) {
+    musicRequestList.innerHTML = `<div class="queue-action-empty">No music requests yet.</div>`;
+    return;
+  }
+  musicRequestList.innerHTML = requests.map((request, index) => `
+    <article class="queue-action-row" data-music-request-id="${escapeHtml(request.id)}">
+      <div class="queue-action-copy">
+        <strong>${index + 1}. ${escapeHtml(request.track)}</strong>
+        <small>Requested by ${escapeHtml(request.displayName || request.user || "Manual")} ${request.requestedAt ? `at ${escapeHtml(new Date(request.requestedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }))}` : ""}</small>
+      </div>
+      <div class="queue-action-row-actions">
+        <button type="button" class="ghost compact-button" data-music-open-search="${escapeHtml(request.id)}">Search Spotify</button>
+        <button type="button" class="ghost compact-button danger" data-music-remove-request="${escapeHtml(request.id)}">Remove</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+async function persistMusicSettings(nextMusicSettings, options = {}) {
+  const musicSettings = normalizeMusicSettings(nextMusicSettings);
+  state.settings.musicSettings = musicSettings;
+  await persistSettings({ musicSettings }, { render: false });
+  if (options.render !== false) {
+    renderMusicSettings();
+  }
+}
+
+async function updateSpotifyAuthInMusicSettings(auth) {
+  const music = normalizeMusicSettings(state.settings?.musicSettings);
+  const musicSettings = normalizeMusicSettings({
+    ...music,
+    spotifyAuth: auth
+  });
+  state.settings.musicSettings = musicSettings;
+  await persistSettings({ musicSettings }, { render: false });
+  renderMusicSettings();
+}
+
+async function playSpotifyTrackRequest(track, item = null) {
+  const trimmedTrack = String(track ?? "").trim();
+  if (!trimmedTrack) {
+    showToast("Enter a track name or Spotify URL first.", "error");
+    return false;
+  }
+  const music = normalizeMusicSettings(state.settings?.musicSettings);
+  if (!music.spotifyClientId) {
+    showToast("Spotify is not configured yet.", "error");
+    spotifyClientIdInput?.focus();
+    return false;
+  }
+  if (!music.spotifyAuth?.refreshToken) {
+    showToast("Sign in to Spotify before using music controls.", "error");
+    return false;
+  }
+  const result = await app.spotifyPlayTrack({
+    clientId: music.spotifyClientId,
+    auth: music.spotifyAuth,
+    query: trimmedTrack,
+    allowExplicit: music.allowExplicit
+  });
+  if (result?.auth) {
+    await updateSpotifyAuthInMusicSettings(result.auth);
+  }
+  const trackLabel = [result?.track?.artist, result?.track?.name].filter(Boolean).join(" - ") || trimmedTrack;
+  const latestMusic = normalizeMusicSettings(state.settings?.musicSettings);
+  const userKey = normalizeUserKey(item?.user);
+  const request = {
+    id: `music-request-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    track: trackLabel.slice(0, 240),
+    user: userKey,
+    displayName: String(item?.nickname || item?.displayName || item?.user || "Manual").trim(),
+    profilePictureUrl: String(item?.profilePictureUrl || "").trim(),
+    requestedAt: Date.now()
+  };
+  await persistMusicSettings({
+    ...latestMusic,
+    requests: [request, ...latestMusic.requests].slice(0, 100)
+  });
+  showToast(`Queued Spotify track: ${request.track}`, "success");
+  return true;
+}
+
+async function skipSpotifyTrackRequest(item = null) {
+  const music = normalizeMusicSettings(state.settings?.musicSettings);
+  if (!music.spotifyClientId) {
+    showToast("Spotify is not configured yet.", "error");
+    return false;
+  }
+  if (!music.spotifyAuth?.refreshToken) {
+    showToast("Sign in to Spotify before skipping tracks.", "error");
+    return false;
+  }
+  const result = await app.spotifySkipTrack({
+    clientId: music.spotifyClientId,
+    auth: music.spotifyAuth
+  });
+  if (result?.auth) {
+    await updateSpotifyAuthInMusicSettings(result.auth);
+  }
+  const userKey = normalizeUserKey(item?.user);
+  showToast(userKey ? `@${userKey} skipped the current Spotify track.` : "Skipped the current Spotify track.", "success");
+  return true;
+}
+
+async function handleMusicRequestCommand(item) {
+  const messageText = String(item?.message ?? item?.text ?? "").trim();
+  const skipMatch = messageText.match(/^!skip\s*$/i);
+  if (skipMatch) {
+    const music = normalizeMusicSettings(state.settings?.musicSettings);
+    if (!music.skipEnabled) {
+      showToast("Spotify skip command ignored because !skip is disabled.", "info");
+      return true;
+    }
+    if (!canItemUseMusicAudience(item, music.audience)) {
+      showToast(`@${normalizeUserKey(item?.user) || "viewer"} is not allowed to skip music right now.`, "info");
+      return true;
+    }
+    await skipSpotifyTrackRequest(item);
+    return true;
+  }
+
+  const match = messageText.match(/^!(?:play|sr|songrequest|requestsong)\s+(.+)$/i);
+  if (!match) {
+    return false;
+  }
+  const music = normalizeMusicSettings(state.settings?.musicSettings);
+  if (!music.enabled) {
+    showToast("Music command ignored because !play is off.", "info");
+    return true;
+  }
+  if (!canItemUseMusicAudience(item, music.audience)) {
+    showToast(`@${normalizeUserKey(item?.user) || "viewer"} is not allowed to control music right now.`, "info");
+    return true;
+  }
+  await playSpotifyTrackRequest(match[1], item);
+  return true;
+}
+
+function setActiveTtsAccessTab(tabName = "who") {
+  const activeTab = ["triggers", "voice", "who", "moderation"].includes(String(tabName ?? "").trim()) ? String(tabName).trim() : "triggers";
+  ttsAccessTabButtons.forEach((button) => {
+    const isActive = button.dataset.ttsAccessTab === activeTab;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+  ttsAccessTabPanels.forEach((panel) => {
+    panel.classList.toggle("is-hidden", panel.dataset.ttsAccessPanel !== activeTab);
+  });
+}
+
+function initializeTtsAccessTabs() {
+  if (ttsTriggersPanel) {
+    const triggerControlIds = [
+      "tts-enabled",
+      "tts-include-username",
+      "tts-read-gifts",
+      "tts-gift-min-coins",
+      "tts-random-voice"
+    ];
+    triggerControlIds.forEach((controlId) => {
+      const control = document.getElementById(controlId);
+      const controlWrapper = control?.closest("label");
+      if (controlWrapper && controlWrapper.parentElement !== ttsTriggersPanel) {
+        ttsTriggersPanel.appendChild(controlWrapper);
+      }
+    });
+    ttsTriggersPanel.classList.add("tts-triggers-options");
+  }
+  if (ttsVoicePanel) {
+    const voiceSections = [
+      document.querySelector(".tts-provider-grid"),
+      document.querySelector(".tts-slider-grid"),
+      document.querySelector(".tts-test-text-field"),
+      document.querySelector(".tts-actions")
+    ].filter(Boolean);
+    voiceSections.forEach((section) => {
+      if (section.parentElement !== ttsVoicePanel) {
+        ttsVoicePanel.appendChild(section);
+      }
+    });
+    ttsVoicePanel.classList.add("tts-voice-options");
+  }
+  if (ttsModerationTabPanel) {
+    const moderationPanel = document.querySelector(".tts-moderation-panel");
+    if (moderationPanel && moderationPanel.parentElement !== ttsModerationTabPanel) {
+      ttsModerationTabPanel.appendChild(moderationPanel);
+    }
+  }
+  ttsAccessTabButtons.forEach((button) => {
+    button.addEventListener("click", () => setActiveTtsAccessTab(button.dataset.ttsAccessTab));
+  });
+  setActiveTtsAccessTab("triggers");
+}
+
+function createDefaultProgressBarOverlay(index = 0) {
+  return {
+    id: `progress-bar-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    title: `Live Goal ${index + 1}`,
+    eyebrowText: "Live Goal",
+    metric: "likes",
+    goal: 1000,
+    goalIncreasePercent: 25,
+    goalReachedBehavior: "increase",
+    goalAnimation: "pulse",
+    actionRuleId: "",
+    visible: true,
+    minimized: false,
+    hideBackground: false,
+    hideText: false,
+    textPosition: "above",
+    titleColor: "#f2fbff",
+    textColor: "#f2fbff",
+    mutedColor: "#a7bfdd",
+    barStartColor: "#53dcff",
+    barEndColor: "#b266ff",
+    backgroundColor: "#091226",
+    fontFamily: "Segoe UI",
+    eyebrowFontSize: 12,
+    titleFontSize: 44,
+    metricFontSize: 12,
+    labelFontSize: 15,
+    footerFontSize: 13,
+    reachedCount: 0,
+    lastReachedGoal: 0
+  };
+}
+
+function normalizeProgressBarOverlay(source = {}, index = 0) {
+  const goal = Math.max(1, Number(source?.goal) || 1000);
+  const legacyIncrement = Number(source?.goalIncrement);
+  const derivedIncreasePercent = Number.isFinite(legacyIncrement) && legacyIncrement > 0
+    ? Math.round((legacyIncrement / goal) * 100)
+    : 25;
+  return {
+    id: String(source?.id ?? `progress-bar-${index + 1}`).trim() || `progress-bar-${index + 1}`,
+    title: String(source?.title ?? `Live Goal ${index + 1}`).trim() || `Live Goal ${index + 1}`,
+    eyebrowText: String(source?.eyebrowText ?? "Live Goal").trim() || "Live Goal",
+    metric: ["likes", "shares", "follows", "coins"].includes(String(source?.metric ?? "").trim())
+      ? String(source.metric).trim()
+      : "likes",
+    goal,
+    goalIncreasePercent: Math.max(1, Math.min(1000, Number(source?.goalIncreasePercent) || derivedIncreasePercent || 25)),
+    goalReachedBehavior: ["double", "increase", "hide"].includes(String(source?.goalReachedBehavior ?? "").trim())
+      ? String(source.goalReachedBehavior).trim()
+      : "increase",
+    goalAnimation: ["none", "pulse", "flash", "bounce", "sparkle", "confetti"].includes(String(source?.goalAnimation ?? "").trim())
+      ? String(source.goalAnimation).trim()
+      : "pulse",
+    goalAnimationNonce: String(source?.goalAnimationNonce ?? "").trim(),
+    goalAnimationAt: String(source?.goalAnimationAt ?? "").trim(),
+    actionRuleId: String(source?.actionRuleId ?? "").trim(),
+    visible: source?.visible !== false,
+    minimized: Boolean(source?.minimized),
+    hideBackground: Boolean(source?.hideBackground),
+    hideText: Boolean(source?.hideText),
+    textPosition: ["above", "below", "inside"].includes(String(source?.textPosition ?? "").trim())
+      ? String(source.textPosition).trim()
+      : "above",
+    titleColor: normalizeOverlayDesignerHex(source?.titleColor, "#f2fbff"),
+    textColor: normalizeOverlayDesignerHex(source?.textColor, "#f2fbff"),
+    mutedColor: normalizeOverlayDesignerHex(source?.mutedColor, "#a7bfdd"),
+    barStartColor: normalizeOverlayDesignerHex(source?.barStartColor, "#53dcff"),
+    barEndColor: normalizeOverlayDesignerHex(source?.barEndColor, "#b266ff"),
+    backgroundColor: normalizeOverlayDesignerHex(source?.backgroundColor, "#091226"),
+    fontFamily: normalizeProgressBarFontFamily(source?.fontFamily),
+    eyebrowFontSize: Math.max(8, Math.min(72, Number(source?.eyebrowFontSize) || 12)),
+    titleFontSize: Math.max(12, Math.min(140, Number(source?.titleFontSize) || 44)),
+    metricFontSize: Math.max(8, Math.min(72, Number(source?.metricFontSize) || 12)),
+    labelFontSize: Math.max(8, Math.min(96, Number(source?.labelFontSize) || 15)),
+    footerFontSize: Math.max(8, Math.min(72, Number(source?.footerFontSize) || 13)),
+    reachedCount: Math.max(0, Number(source?.reachedCount) || 0),
+    lastReachedGoal: Math.max(0, Number(source?.lastReachedGoal) || 0)
+  };
+}
+
+function normalizeProgressBarFontFamily(value) {
+  const candidate = String(value ?? "").trim();
+  const allowedFonts = [
+    "Segoe UI",
+    "Arial",
+    "Verdana",
+    "Tahoma",
+    "Trebuchet MS",
+    "Georgia",
+    "Impact",
+    "Courier New",
+    "Poppins",
+    "Montserrat",
+    "Oswald",
+    "Bebas Neue"
+  ];
+  return allowedFonts.includes(candidate) ? candidate : "Segoe UI";
+}
+
+function renderProgressBarFontOptions(selectedFont) {
+  const fonts = ["Segoe UI", "Arial", "Verdana", "Tahoma", "Trebuchet MS", "Georgia", "Impact", "Courier New", "Poppins", "Montserrat", "Oswald", "Bebas Neue"];
+  return fonts.map((font) => `<option value="${escapeHtml(font)}" ${font === selectedFont ? "selected" : ""}>${escapeHtml(font)}</option>`).join("");
+}
+
+function normalizeProgressBarOverlays(source = []) {
+  return Array.isArray(source)
+    ? source.map((bar, index) => normalizeProgressBarOverlay(bar, index)).slice(0, 25)
+    : [];
+}
+
+function duplicateProgressBarOverlay(source = {}, index = 0) {
+  const base = normalizeProgressBarOverlay(source, index);
+  return {
+    ...base,
+    id: `progress-bar-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    title: `${base.title} copy`,
+    visible: true,
+    reachedCount: 0,
+    lastReachedGoal: 0
+  };
+}
+
+function getProgressBarMetricValue(metric) {
+  const metricKey = ["likes", "shares", "follows", "coins"].includes(String(metric ?? "").trim())
+    ? String(metric).trim()
+    : "likes";
+  return Math.max(0, Number(state.sessionMetrics?.[metricKey] ?? 0) || 0);
 }
 
 function createDefaultViewerPointsSettings() {
@@ -6307,6 +7382,7 @@ function getDefaultProfileSettingsSource() {
     ttsIncludeUsername: true,
     ttsReadGifts: false,
     ttsGiftMinCoins: 0,
+    ttsAudienceMode: "allViewers",
     ttsElevenMode: "free",
     ttsElevenApiKey: "",
     ttsElevenModel: "eleven_flash_v2_5",
@@ -6316,8 +7392,23 @@ function getDefaultProfileSettingsSource() {
     ttsVoiceLockGiftName: "",
     ttsAudience: {
       allViewers: true,
+      topGifter: false,
+      followers: false,
       subscribers: false,
-      moderators: false
+      superFans: false,
+      teamMembers: false,
+      moderators: false,
+      customUsers: false,
+      customUsersList: []
+    },
+    ttsCustomVoiceAudience: {
+      allViewers: true,
+      topGifter: false,
+      followers: false,
+      superFans: false,
+      teamMembers: false,
+      moderators: false,
+      customUsers: false
     },
     ttsModeration: createDefaultTtsModerationSettings(),
     commandFeedbackOverlayDurationMs: 6000,
@@ -6333,6 +7424,7 @@ function getDefaultProfileSettingsSource() {
     spinWheelSettings: createDefaultSpinWheelSettings(),
     viewerStatsOverlayFilter: "everyone",
     viewerStatsOverlayUsername: "",
+    progressBarOverlays: [],
     viewerPointsSettings: createDefaultViewerPointsSettings(),
     viewerPointsLeaderboard: createDefaultViewerPointsLeaderboard(),
     ttsUserVoiceAssignments: {
@@ -6500,15 +7592,20 @@ function normalizeProfileSettingsSnapshot(source = {}) {
     ttsElevenMode: source?.ttsElevenMode === "paid" ? "paid" : "free",
     ttsElevenApiKey: String(source?.ttsElevenApiKey ?? defaults.ttsElevenApiKey).trim(),
     ttsElevenModel: String(source?.ttsElevenModel ?? defaults.ttsElevenModel).trim() || defaults.ttsElevenModel,
+    ttsElevenFallbackTiktok: Boolean(source?.ttsElevenFallbackTiktok ?? defaults.ttsElevenFallbackTiktok),
     ttsXttsServiceUrl: String(source?.ttsXttsServiceUrl ?? defaults.ttsXttsServiceUrl).trim() || defaults.ttsXttsServiceUrl,
     ttsXttsLanguage: String(source?.ttsXttsLanguage ?? defaults.ttsXttsLanguage).trim().toLowerCase() || defaults.ttsXttsLanguage,
     ttsXttsSplitSentences: Boolean(source?.ttsXttsSplitSentences ?? defaults.ttsXttsSplitSentences),
     ttsXttsVoices: normalizeXttsVoices(source?.ttsXttsVoices ?? defaults.ttsXttsVoices),
     ttsVoiceLockGiftName: String(source?.ttsVoiceLockGiftName ?? defaults.ttsVoiceLockGiftName).trim(),
+    ttsAudienceMode: normalizeTtsAudienceMode(source?.ttsAudienceMode, source?.ttsAudience),
     ttsAudience: {
       ...defaults.ttsAudience,
-      ...(source?.ttsAudience ?? {})
+      ...createTtsAudienceFromMode(normalizeTtsAudienceMode(source?.ttsAudienceMode, source?.ttsAudience)),
+      ...(normalizeTtsAudienceMode(source?.ttsAudienceMode, source?.ttsAudience) === "custom" ? (source?.ttsAudience ?? {}) : {}),
+      customUsersList: normalizeTtsSelectedUsers(source?.ttsAudience?.customUsersList)
     },
+    ttsCustomVoiceAudience: normalizeTtsCustomVoiceAudience(source?.ttsCustomVoiceAudience),
     ttsModeration: normalizeTtsModerationSettings(source?.ttsModeration),
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(source?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
       commandFeedbackTemplates: {
@@ -6525,11 +7622,13 @@ function normalizeProfileSettingsSnapshot(source = {}) {
       likeRaceSettings: normalizeLikeRaceSettings(source?.likeRaceSettings),
       likeRaceStats: normalizeLikeRaceStats(source?.likeRaceStats),
       spinWheelSettings: normalizeSpinWheelSettings(source?.spinWheelSettings),
+      musicSettings: normalizeMusicSettings(source?.musicSettings),
       viewerStatsOverlayFilter: ["everyone", "subscriber", "moderator", "username"].includes(String(source?.viewerStatsOverlayFilter ?? "").trim().toLowerCase())
         ? String(source?.viewerStatsOverlayFilter ?? "").trim().toLowerCase()
         : defaults.viewerStatsOverlayFilter,
       viewerStatsOverlayUsername: String(source?.viewerStatsOverlayUsername ?? defaults.viewerStatsOverlayUsername).trim().replace(/^@/, ""),
       viewerStatsAllTime: normalizeViewerStatsAllTime(source?.viewerStatsAllTime),
+      progressBarOverlays: normalizeProgressBarOverlays(source?.progressBarOverlays ?? defaults.progressBarOverlays),
       viewerPointsSettings: normalizeViewerPointsSettings(source?.viewerPointsSettings),
       viewerPointsLeaderboard: normalizeViewerPointsLeaderboard(source?.viewerPointsLeaderboard),
       ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(source?.ttsUserVoiceAssignments),
@@ -7227,6 +8326,9 @@ function triggerBirthdayViewerActionIfNeeded(item) {
 
   const linkedRule = state.settings.customEventRules.find((rule) => rule.id === noteRecord.birthdayActionRuleId);
   if (!linkedRule) {
+    return;
+  }
+  if (linkedRule.enabled === false || isRuleWithinDisabledTimeWindow(linkedRule)) {
     return;
   }
   if (!doesItemMatchRuleMetric(linkedRule, item) || !doesItemMatchRuleAudience(linkedRule, item)) {
@@ -8077,22 +9179,21 @@ function getCurrentProfileSettingsFromUi(overrides = {}) {
     ttsPitch: Number(ttsPitchInput.value),
     ttsVolume: Number(ttsVolumeInput.value),
     ttsIncludeUsername: ttsIncludeUsernameInput.checked,
-    ttsReadPunctuation: Boolean(ttsReadPunctuationInput?.checked),
+    ttsReadPunctuation: false,
     ttsReadGifts: ttsReadGiftsInput.checked,
     ttsGiftMinCoins: Math.max(0, Number(ttsGiftMinCoinsInput.value) || 0),
+    ttsAudienceMode: getSelectedTtsAudienceMode(),
     ttsElevenMode: ttsElevenModeSelect.value,
     ttsElevenApiKey: ttsElevenApiKeyInput.value.trim(),
     ttsElevenModel: ttsElevenModelSelect.value,
+    ttsElevenFallbackTiktok: Boolean(ttsElevenFallbackTiktokInput?.checked),
     ttsXttsServiceUrl: String(ttsXttsServiceUrlInput?.value ?? "").trim(),
     ttsXttsLanguage: String(ttsXttsLanguageSelect?.value ?? "en").trim().toLowerCase() || "en",
     ttsXttsSplitSentences: Boolean(ttsXttsSplitSentencesInput?.checked),
     ttsXttsVoices: normalizeXttsVoices(merged.ttsXttsVoices),
     ttsVoiceLockGiftName: String(ttsVoiceLockGiftSelect?.value ?? "").trim(),
-    ttsAudience: {
-      allViewers: ttsAudienceAllInput.checked,
-      subscribers: ttsAudienceSubscribersInput.checked,
-      moderators: ttsAudienceModeratorsInput.checked
-    },
+    ttsAudience: getSelectedTtsAudience(),
+    ttsCustomVoiceAudience: getSelectedTtsCustomVoiceAudience(),
     ttsModeration: collectTtsModerationSettingsFromUi(merged.ttsModeration),
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(commandFeedbackDurationInput.value) || 6000),
     commandFeedbackTemplates: {
@@ -8105,9 +9206,11 @@ function getCurrentProfileSettingsFromUi(overrides = {}) {
     likeRaceSettings: collectLikeRaceSettingsFromUi(merged.likeRaceSettings),
     likeRaceStats: normalizeLikeRaceStats(merged.likeRaceStats),
     spinWheelSettings: collectSpinWheelSettingsFromUi(merged.spinWheelSettings),
+    musicSettings: collectMusicSettingsFromUi(merged.musicSettings),
     viewerStatsOverlayFilter: String(viewerStatsOverlayFilterInput?.value ?? "everyone").trim().toLowerCase(),
     viewerStatsOverlayUsername: String(viewerStatsOverlayUsernameInput?.value ?? "").trim().replace(/^@/, ""),
     viewerStatsAllTime: normalizeViewerStatsAllTime(merged.viewerStatsAllTime),
+    progressBarOverlays: normalizeProgressBarOverlays(merged.progressBarOverlays),
     viewerPointsSettings: collectViewerPointsSettingsFromUi(merged.viewerPointsSettings),
     viewerPointsLeaderboard: normalizeViewerPointsLeaderboard(merged.viewerPointsLeaderboard),
     ttsUserVoiceAssignments: normalizeTtsUserVoiceAssignments(merged.ttsUserVoiceAssignments),
@@ -8211,6 +9314,7 @@ async function persistSettings(partial = {}, options = {}) {
       if (shouldRenderUi) {
         renderCustomRules();
         refreshSpinWheelActionOptions();
+        renderProgressBarSettings();
         renderRememberedUsernameOptions();
         renderSettingsProfileOptions();
         updateHeaderPills();
@@ -9081,6 +10185,7 @@ function updateTtsStatus() {
 
   const voiceLabel = ttsVoiceSelect.options[ttsVoiceSelect.selectedIndex]?.text ?? "Default voice";
   const providerLabel = getCurrentTtsProviderLabel();
+  const audienceLabel = getTtsAudienceModeLabel(getSelectedTtsAudienceMode());
   const elevenModelLabel =
     ttsProviderSelect.value === "elevenlabs"
       ? ttsElevenModelSelect.options[ttsElevenModelSelect.selectedIndex]?.text ?? "selected model"
@@ -9095,14 +10200,14 @@ function updateTtsStatus() {
   }
   if (ttsRandomVoiceInput.checked) {
     const randomLabel = state.voices.length ? `${state.voices.length} available voices` : "no loaded voices";
-    setStatusMessage(ttsStatus, "success", `TTS is on using random ${providerLabel} voices per message from ${randomLabel} on ${getQueueLabel(ttsQueueSelect.value)}. User-picked voices still take priority.`);
+    setStatusMessage(ttsStatus, "success", `TTS is on for ${audienceLabel} using random ${providerLabel} voices per message from ${randomLabel} on ${getQueueLabel(ttsQueueSelect.value)}. User-picked voices still take priority.`);
     return;
   }
   if (ttsProviderSelect.value === "elevenlabs") {
-    setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} via ${providerLabel} with ${elevenModelLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
+    setStatusMessage(ttsStatus, "success", `TTS is on for ${audienceLabel} using ${voiceLabel} via ${providerLabel} with ${elevenModelLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
     return;
   }
-  setStatusMessage(ttsStatus, "success", `TTS is on using ${voiceLabel} via ${providerLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
+  setStatusMessage(ttsStatus, "success", `TTS is on for ${audienceLabel} using ${voiceLabel} via ${providerLabel} on ${getQueueLabel(ttsQueueSelect.value)}.`);
 }
 
 function updateUpdateStatus() {
@@ -9466,6 +10571,9 @@ function normalizeSidebarTabName(tabName) {
   if (tabName === "games") {
     return "games";
   }
+  if (tabName === "music") {
+    return "music";
+  }
   if (tabName === "users") {
     return "users";
   }
@@ -9482,21 +10590,27 @@ function setActiveTab(tabName) {
 
   const controlsActive = normalizedTabName === "controls";
   const gamesActive = normalizedTabName === "games";
+  const musicActive = normalizedTabName === "music";
   const usersActive = normalizedTabName === "users";
   const eventActionsActive = normalizedTabName === "event-actions";
 
   controlsTabButton?.classList.toggle("active", controlsActive);
   overlaysTabButton?.classList.toggle("active", false);
   gamesTabButton?.classList.toggle("active", gamesActive);
+  musicTabButton?.classList.toggle("active", musicActive);
   usersTabButton?.classList.toggle("active", usersActive);
   eventActionsTabButton?.classList.toggle("active", eventActionsActive);
   controlsTabPanel?.classList.toggle("active", controlsActive);
   overlaysTabPanel?.classList.toggle("active", false);
   gamesTabPanel?.classList.toggle("active", gamesActive);
+  musicTabPanel?.classList.toggle("active", musicActive);
   usersTabPanel?.classList.toggle("active", usersActive);
   eventActionsTabPanel?.classList.toggle("active", eventActionsActive);
   if (usersActive) {
     renderViewerPointsLeaderboard();
+  }
+  if (musicActive) {
+    renderMusicSettings();
   }
 }
 
@@ -9628,6 +10742,8 @@ function getSidebarLayerTitle(tabName) {
       return "Event Actions";
     case "games":
       return "Games";
+    case "music":
+      return "Music";
     case "users":
       return "Users and Points";
     case "controls":
@@ -9678,6 +10794,13 @@ function openFocusedGamesLayer() {
   openSidebarLayer("games", {
     singleView: true,
     title: "Games"
+  });
+}
+
+function openFocusedMusicLayer() {
+  openSidebarLayer("music", {
+    singleView: true,
+    title: "Music"
   });
 }
 
@@ -10070,6 +11193,8 @@ async function ensureSoundCatalog() {
     renderCustomRules();
     renderLikeRaceSettings();
     renderSpinWheelSettings();
+    renderMusicSettings();
+    renderProgressBarSettings();
   } catch (error) {
     state.soundCatalogError = error.message || "Unable to load the sound library.";
     setStatusMessage(customRuleStatus, "error", state.soundCatalogError);
@@ -10456,6 +11581,7 @@ async function playAudioUrl(audioUrl, volume = Number(ttsVolumeInput.value) || 1
   const bytes = await response.arrayBuffer();
   const buffer = await state.audioContext.decodeAudioData(bytes.slice(0));
   const playbackBuffer = createAudioBufferWithTailPadding(buffer, AUDIO_TAIL_PADDING_MS);
+  const rateFactor = clamp(Number(effects?.rate ?? 1) || 1, 0.7, 1.5);
   const pitchFactor = clamp(Number(effects?.pitch ?? 1) || 1, 0.5, 1.8);
   const detuneCents = Math.round(1200 * Math.log2(pitchFactor));
 
@@ -10499,6 +11625,9 @@ async function playAudioUrl(audioUrl, volume = Number(ttsVolumeInput.value) || 1
     state.currentAudioSource = source;
     gainNode.gain.value = volume;
     source.buffer = playbackBuffer;
+    if (Number.isFinite(rateFactor) && rateFactor !== 1 && source.playbackRate) {
+      source.playbackRate.value = rateFactor;
+    }
     if (Number.isFinite(detuneCents) && detuneCents !== 0 && source.detune) {
       source.detune.value = detuneCents;
     }
@@ -10514,7 +11643,7 @@ async function playAudioUrl(audioUrl, volume = Number(ttsVolumeInput.value) || 1
 
     const maxDurationMs = Math.max(
       AUDIO_PLAYBACK_GRACE_MS,
-      Math.ceil((playbackBuffer.duration * 1000) / pitchFactor) + Math.max(0, Number(graph?.tailMs) || 0) + AUDIO_PLAYBACK_GRACE_MS
+      Math.ceil((playbackBuffer.duration * 1000) / Math.max(0.1, rateFactor * pitchFactor)) + Math.max(0, Number(graph?.tailMs) || 0) + AUDIO_PLAYBACK_GRACE_MS
     );
     timeoutId = window.setTimeout(() => {
       try {
@@ -10765,6 +11894,11 @@ async function previewCustomRuleAction(ruleId) {
     return;
   }
 
+  if (rule.enabled === false) {
+    showToast(`Custom action "${rule.name}" is disabled. Enable it before testing.`, "info");
+    return;
+  }
+
   await triggerCustomRule(rule, { testMode: true });
 }
 
@@ -10793,6 +11927,13 @@ async function previewCustomRuleSound(ruleId) {
 
 async function triggerCustomRule(rule, options = {}) {
   const { testMode = false, sourceItem = null } = options;
+  if (rule?.enabled === false && !options.force) {
+    return false;
+  }
+  if (isRuleWithinDisabledTimeWindow(rule) && !options.force) {
+    return false;
+  }
+
   const hasFeedbackOverlay = hasCustomActionFeedbackOverlay(rule);
   const spinWheelSettings = getSpinWheelSettings();
   const shouldTriggerSpinWheel = !options.fromSpinWheel
@@ -10800,7 +11941,7 @@ async function triggerCustomRule(rule, options = {}) {
     && spinWheelSettings.eventRuleId
     && spinWheelSettings.eventRuleId === rule?.id;
   if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay && !shouldTriggerSpinWheel) {
-    return;
+    return false;
   }
 
   if (shouldTriggerSpinWheel) {
@@ -10812,7 +11953,7 @@ async function triggerCustomRule(rule, options = {}) {
   }
 
   if (!rule?.soundId && !rule?.webhookUrl) {
-    return;
+    return true;
   }
 
   await enqueuePlaybackTask(rule.queueId, async () => {
@@ -10874,6 +12015,8 @@ async function triggerCustomRule(rule, options = {}) {
   if (testMode) {
     showToast(`Tested custom action: ${rule.name}`, "success");
   }
+
+  return true;
 }
 
 function renderCustomRules() {
@@ -11219,6 +12362,273 @@ function renderCustomRules() {
         : `Showing ${filteredRules.length} of ${rules.length} custom event ${rules.length === 1 ? "action" : "actions"}.`
     );
   }
+}
+
+function getProgressBarMetricLabel(metric) {
+  switch (metric) {
+    case "shares":
+      return "Shares";
+    case "follows":
+      return "Follows";
+    case "coins":
+      return "Gift coins";
+    case "likes":
+    default:
+      return "Likes";
+  }
+}
+
+function getProgressBarUrl(barId = "") {
+  const baseUrl = state.progressBarOverlayBaseUrl || "";
+  if (!baseUrl) {
+    return "";
+  }
+  try {
+    const overlayUrl = new URL(baseUrl);
+    const id = String(barId ?? "").trim();
+    if (id) {
+      const selectionParam = overlayUrl.searchParams.has("id") ? "bar" : "id";
+      overlayUrl.searchParams.set(selectionParam, id);
+    }
+    return overlayUrl.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+function normalizeCustomEventRulesForSelect() {
+  return Array.isArray(state.settings?.customEventRules)
+    ? state.settings.customEventRules.map(normalizeRule).filter(Boolean)
+    : [];
+}
+
+function renderProgressBarSettings() {
+  if (!progressBarList) {
+    return;
+  }
+
+  const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+  state.settings.progressBarOverlays = bars;
+  updateProgressBarOverlayControls();
+
+  if (!bars.length) {
+    progressBarList.innerHTML = `<div class="status info">No progress bars yet. Add one to create a live goal overlay.</div>`;
+    return;
+  }
+
+  const actionRules = normalizeCustomEventRulesForSelect();
+
+  progressBarList.innerHTML = bars.map((bar, index) => {
+    const value = getProgressBarDisplayValue(bar);
+    const goal = Math.max(1, Number(bar.goal) || 1);
+    const percent = Math.max(0, Math.min(100, (value / goal) * 100));
+    const barUrl = getProgressBarUrl(bar.id);
+    const remaining = Math.max(0, goal - value);
+    const previewOverride = getProgressBarPreviewOverride(bar.id);
+    const isTestingPreview = previewOverride !== undefined;
+    const miniEyebrowSize = Math.max(8, Math.round((Number(bar.eyebrowFontSize) || 12) * 0.82));
+    const miniTitleSize = Math.max(12, Math.round((Number(bar.titleFontSize) || 44) * 0.42));
+    const miniMetricSize = Math.max(8, Math.round((Number(bar.metricFontSize) || 12) * 0.82));
+    const miniLabelSize = Math.max(10, Math.round((Number(bar.labelFontSize) || 15) * 0.82));
+    const miniFooterSize = Math.max(9, Math.round((Number(bar.footerFontSize) || 13) * 0.82));
+    const linkedActionOptions = [
+      `<option value="">No linked action</option>`,
+      ...actionRules.map((rule) => `<option value="${escapeHtml(rule.id)}" ${rule.id === bar.actionRuleId ? "selected" : ""}>${escapeHtml(rule.name)}</option>`)
+    ].join("");
+
+    return `
+      <article class="progress-bar-config ${bar.minimized ? "is-minimized" : ""}" data-progress-bar-id="${escapeHtml(bar.id)}">
+        <div class="progress-bar-config-head">
+          <div>
+            <strong>${escapeHtml(bar.title)}</strong>
+            <small>${escapeHtml(getProgressBarMetricLabel(bar.metric))}: ${Math.round(value).toLocaleString("en-GB")} / ${goal.toLocaleString("en-GB")} (${Math.round(percent)}%)</small>
+          </div>
+          <div class="progress-bar-actions">
+            <button type="button" class="ghost compact-icon-button" data-progress-bar-minimize="${escapeHtml(bar.id)}" title="${bar.minimized ? "Expand" : "Minimize"}" aria-label="${bar.minimized ? "Expand" : "Minimize"}">${bar.minimized ? "+" : "-"}</button>
+            <button type="button" class="ghost compact-icon-button" data-progress-bar-test="${escapeHtml(bar.id)}" title="Test this progress bar" aria-label="Test this progress bar">&#9654;</button>
+            <button type="button" class="ghost compact-icon-button" data-progress-bar-copy-url="${escapeHtml(bar.id)}" title="Copy this bar URL" aria-label="Copy this bar URL">&#10697;</button>
+            <button type="button" class="ghost compact-icon-button" data-progress-bar-duplicate="${escapeHtml(bar.id)}" title="Duplicate" aria-label="Duplicate">&#10753;</button>
+            <button type="button" class="ghost compact-icon-button danger-icon-button" data-progress-bar-delete="${escapeHtml(bar.id)}" title="Delete" aria-label="Delete">&#128465;</button>
+          </div>
+        </div>
+        <div class="progress-bar-config-body">
+          <div class="progress-bar-url-row">
+            <label class="field">
+              <span>Overlay URL for this progress bar</span>
+              <input type="text" readonly value="${escapeHtml(barUrl || "Overlay URL unavailable")}" />
+            </label>
+            <div class="progress-bar-url-actions">
+              <button type="button" class="ghost compact-button" data-progress-bar-copy-url="${escapeHtml(bar.id)}">Copy URL</button>
+              <button type="button" class="ghost compact-button" data-progress-bar-open-url="${escapeHtml(bar.id)}">Open Overlay</button>
+            </div>
+          </div>
+          <div class="progress-bar-mini-preview text-${escapeHtml(bar.textPosition)} ${bar.hideText ? "text-hidden" : ""} ${bar.hideBackground ? "no-preview-background" : ""}" style="--progress-title:${escapeHtml(bar.titleColor)}; --progress-text:${escapeHtml(bar.textColor)}; --progress-muted:${escapeHtml(bar.mutedColor)}; --progress-start:${escapeHtml(bar.barStartColor)}; --progress-end:${escapeHtml(bar.barEndColor)}; --progress-bg:${escapeHtml(bar.backgroundColor)}; --progress-font:'${escapeHtml(bar.fontFamily)}', 'Segoe UI', sans-serif; --progress-eyebrow-size:${miniEyebrowSize}px; --progress-title-size:${miniTitleSize}px; --progress-metric-size:${miniMetricSize}px; --progress-label-size:${miniLabelSize}px; --progress-footer-size:${miniFooterSize}px;">
+            <div class="progress-bar-mini-head">
+              <div>
+                <span class="progress-bar-mini-eyebrow">${escapeHtml(bar.eyebrowText)}</span>
+                <strong>${escapeHtml(bar.title)}</strong>
+              </div>
+              <span>${escapeHtml(getProgressBarMetricLabel(bar.metric))}</span>
+            </div>
+            <div class="progress-bar-mini-track ${isTestingPreview && bar.goalAnimation !== "none" ? `preview-anim-${escapeHtml(bar.goalAnimation)}` : ""}">
+              <span style="width:${percent}%"></span>
+              <em>${bar.textPosition === "inside" ? `${escapeHtml(bar.title)} - ` : ""}${Math.round(value).toLocaleString("en-GB")} / ${goal.toLocaleString("en-GB")}</em>
+            </div>
+            <div class="progress-bar-mini-foot">
+              <span>${Math.round(percent)}%</span>
+              <span>${percent >= 100 ? "Goal reached" : `${remaining.toLocaleString("en-GB")} to go`}</span>
+            </div>
+            <div class="progress-bar-mini-animation">Goal animation: ${escapeHtml(bar.goalAnimation === "none" ? "None" : bar.goalAnimation.replace(/^\w/, (letter) => letter.toUpperCase()))}</div>
+          </div>
+          <div class="settings-grid progress-bar-settings-grid">
+            <label class="field">
+              <span>Title</span>
+              <input type="text" data-progress-bar-title="${escapeHtml(bar.id)}" value="${escapeHtml(bar.title)}" />
+            </label>
+            <label class="field">
+              <span>Eyebrow text</span>
+              <input type="text" data-progress-bar-eyebrow="${escapeHtml(bar.id)}" value="${escapeHtml(bar.eyebrowText)}" />
+            </label>
+            <label class="field">
+              <span>Font family</span>
+              <select data-progress-bar-font-family="${escapeHtml(bar.id)}">
+                ${renderProgressBarFontOptions(bar.fontFamily)}
+              </select>
+            </label>
+            <label class="field">
+              <span>Event type to track</span>
+              <select data-progress-bar-metric="${escapeHtml(bar.id)}">
+                <option value="likes" ${bar.metric === "likes" ? "selected" : ""}>Likes</option>
+                <option value="shares" ${bar.metric === "shares" ? "selected" : ""}>Shares</option>
+                <option value="follows" ${bar.metric === "follows" ? "selected" : ""}>Follows</option>
+                <option value="coins" ${bar.metric === "coins" ? "selected" : ""}>Coins</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Goal number</span>
+              <input type="number" min="1" step="1" data-progress-bar-goal="${escapeHtml(bar.id)}" value="${goal}" />
+          </label>
+          <label class="field">
+            <span>Increase by %</span>
+            <input type="number" min="1" max="1000" step="1" data-progress-bar-increase-percent="${escapeHtml(bar.id)}" value="${Math.max(1, Number(bar.goalIncreasePercent) || 25)}" />
+          </label>
+            <label class="field">
+              <span>When goal is reached</span>
+              <select data-progress-bar-behavior="${escapeHtml(bar.id)}">
+                <option value="double" ${bar.goalReachedBehavior === "double" ? "selected" : ""}>Double goal</option>
+                <option value="increase" ${bar.goalReachedBehavior === "increase" ? "selected" : ""}>Increase goal</option>
+                <option value="hide" ${bar.goalReachedBehavior === "hide" ? "selected" : ""}>Hide overlay</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Goal animation</span>
+              <select data-progress-bar-animation="${escapeHtml(bar.id)}">
+                <option value="none" ${bar.goalAnimation === "none" ? "selected" : ""}>None</option>
+                <option value="pulse" ${bar.goalAnimation === "pulse" ? "selected" : ""}>Pulse glow</option>
+                <option value="flash" ${bar.goalAnimation === "flash" ? "selected" : ""}>Flash</option>
+                <option value="bounce" ${bar.goalAnimation === "bounce" ? "selected" : ""}>Bounce</option>
+                <option value="sparkle" ${bar.goalAnimation === "sparkle" ? "selected" : ""}>Sparkle sweep</option>
+                <option value="confetti" ${bar.goalAnimation === "confetti" ? "selected" : ""}>Confetti burst</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Trigger Event Action</span>
+              <select data-progress-bar-action="${escapeHtml(bar.id)}">${linkedActionOptions}</select>
+            </label>
+            <label class="field">
+              <span>Text position</span>
+              <select data-progress-bar-text-position="${escapeHtml(bar.id)}">
+                <option value="above" ${bar.textPosition === "above" ? "selected" : ""}>Above bar</option>
+                <option value="below" ${bar.textPosition === "below" ? "selected" : ""}>Below bar</option>
+                <option value="inside" ${bar.textPosition === "inside" ? "selected" : ""}>Inside bar</option>
+              </select>
+            </label>
+            <label class="field progress-bar-size-field">
+              <span>Eyebrow size <strong data-progress-bar-size-readout>${Math.max(8, Number(bar.eyebrowFontSize) || 12)}px</strong></span>
+              <input type="range" min="8" max="72" step="1" data-progress-bar-eyebrow-size="${escapeHtml(bar.id)}" value="${Math.max(8, Number(bar.eyebrowFontSize) || 12)}" />
+            </label>
+            <label class="field progress-bar-size-field">
+              <span>Title size <strong data-progress-bar-size-readout>${Math.max(12, Number(bar.titleFontSize) || 44)}px</strong></span>
+              <input type="range" min="12" max="140" step="1" data-progress-bar-title-size="${escapeHtml(bar.id)}" value="${Math.max(12, Number(bar.titleFontSize) || 44)}" />
+            </label>
+            <label class="field progress-bar-size-field">
+              <span>Metric size <strong data-progress-bar-size-readout>${Math.max(8, Number(bar.metricFontSize) || 12)}px</strong></span>
+              <input type="range" min="8" max="72" step="1" data-progress-bar-metric-size="${escapeHtml(bar.id)}" value="${Math.max(8, Number(bar.metricFontSize) || 12)}" />
+            </label>
+            <label class="field progress-bar-size-field">
+              <span>Bar value size <strong data-progress-bar-size-readout>${Math.max(8, Number(bar.labelFontSize) || 15)}px</strong></span>
+              <input type="range" min="8" max="96" step="1" data-progress-bar-label-size="${escapeHtml(bar.id)}" value="${Math.max(8, Number(bar.labelFontSize) || 15)}" />
+            </label>
+            <label class="field progress-bar-size-field">
+              <span>Footer size <strong data-progress-bar-size-readout>${Math.max(8, Number(bar.footerFontSize) || 13)}px</strong></span>
+              <input type="range" min="8" max="72" step="1" data-progress-bar-footer-size="${escapeHtml(bar.id)}" value="${Math.max(8, Number(bar.footerFontSize) || 13)}" />
+            </label>
+            <label class="field color-field">
+              <span>Title colour</span>
+              <input type="color" data-progress-bar-title-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.titleColor)}" />
+            </label>
+            <label class="field color-field">
+              <span>Text colour</span>
+              <input type="color" data-progress-bar-text-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.textColor)}" />
+            </label>
+            <label class="field color-field">
+              <span>Muted text</span>
+              <input type="color" data-progress-bar-muted-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.mutedColor)}" />
+            </label>
+            <label class="field color-field">
+              <span>Bar start</span>
+              <input type="color" data-progress-bar-start-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.barStartColor)}" />
+            </label>
+            <label class="field color-field">
+              <span>Bar end</span>
+              <input type="color" data-progress-bar-end-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.barEndColor)}" />
+            </label>
+            <label class="field color-field">
+              <span>Background</span>
+              <input type="color" data-progress-bar-background-color="${escapeHtml(bar.id)}" value="${escapeHtml(bar.backgroundColor)}" />
+            </label>
+          </div>
+          <div class="progress-bar-toggle-row">
+            <label class="toggle-switch compact-toggle">
+              <input type="checkbox" data-progress-bar-visible="${escapeHtml(bar.id)}" ${bar.visible ? "checked" : ""} />
+              <span class="switch-ui"></span>
+              <span class="switch-copy"><strong>Show overlay</strong><small>${escapeHtml(barUrl || "Overlay URL unavailable")}</small></span>
+            </label>
+            <label class="toggle-switch compact-toggle">
+              <input type="checkbox" data-progress-bar-hide-background="${escapeHtml(bar.id)}" ${bar.hideBackground ? "checked" : ""} />
+              <span class="switch-ui"></span>
+              <span class="switch-copy"><strong>Hide background</strong><small>Use transparent shell behind the progress bar.</small></span>
+            </label>
+            <label class="toggle-switch compact-toggle">
+              <input type="checkbox" data-progress-bar-hide-text="${escapeHtml(bar.id)}" ${bar.hideText ? "checked" : ""} />
+              <span class="switch-ui"></span>
+              <span class="switch-copy"><strong>Hide text</strong><small>Show the progress bar only with no labels or numbers.</small></span>
+            </label>
+          </div>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function persistProgressBarOverlays(nextBars, options = {}) {
+  const progressBarOverlays = normalizeProgressBarOverlays(nextBars);
+  state.settings.progressBarOverlays = progressBarOverlays;
+  if (options.render !== false) {
+    renderProgressBarSettings();
+  }
+  syncProgressBarOverlayState();
+  await persistSettings({ progressBarOverlays }, { render: options.render !== false });
+}
+
+function updateProgressBarById(barId, updates = {}) {
+  const id = String(barId ?? "").trim();
+  if (!id) {
+    return normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+  }
+  return normalizeProgressBarOverlays(state.settings?.progressBarOverlays).map((bar) =>
+    bar.id === id ? normalizeProgressBarOverlay({ ...bar, ...updates }) : bar
+  );
 }
 
 async function refreshRuleSoundOptions(ruleId, searchText) {
@@ -12274,6 +13684,7 @@ function updateSessionUserProfile(item) {
     profilePictureUrl: "",
     isSubscriber: false,
     isModerator: false,
+    isTeamMember: false,
     followedThisSession: false,
     firstActivityAt: activityAt,
     lastActivityAt: activityAt
@@ -12285,6 +13696,7 @@ function updateSessionUserProfile(item) {
     profilePictureUrl: String(item?.profilePictureUrl || existing.profilePictureUrl || "").trim(),
     isSubscriber: Boolean(item?.isSubscriber) || existing.isSubscriber,
     isModerator: Boolean(item?.isModerator) || existing.isModerator,
+    isTeamMember: Boolean(item?.isTeamMember || item?.teamMember || item?.isMember || item?.member) || existing.isTeamMember,
     followedThisSession: existing.followedThisSession || item?.type === "follow",
     firstActivityAt: Math.max(0, Number(existing.firstActivityAt) || activityAt),
     lastActivityAt: activityAt
@@ -12801,19 +14213,32 @@ function shouldSpeakChatItem(item) {
     return false;
   }
 
-  if (ttsAudienceAllInput.checked) {
+  return canItemUseTtsAudience(item, getSelectedTtsAudience());
+}
+
+function canItemUseTtsAudience(item, audienceSettings) {
+  const audience = typeof audienceSettings === "object" && audienceSettings !== null
+    ? audienceSettings
+    : createTtsAudienceFromMode(normalizeTtsAudienceMode(audienceSettings, state.settings?.ttsAudience));
+  const userKey = normalizeUserKey(item?.user);
+  const profile = userKey ? state.sessionUserProfiles.get(userKey) : null;
+  if (audience.allViewers) {
     return true;
   }
-
-  if (ttsAudienceSubscribersInput.checked && item.isSubscriber) {
-    return true;
-  }
-
-  if (ttsAudienceModeratorsInput.checked && item.isModerator) {
-    return true;
-  }
-
+  if (audience.topGifter && userKey && getTopGifterUserId() === userKey) return true;
+  if (audience.followers && (item?.isFollower || item?.followedThisSession || profile?.followedThisSession)) return true;
+  if ((audience.superFans || audience.subscribers) && (item?.isSubscriber || profile?.isSubscriber)) return true;
+  if (audience.teamMembers && (item?.isTeamMember || item?.teamMember || item?.isMember || item?.member || profile?.isTeamMember)) return true;
+  if (audience.moderators && (item?.isModerator || profile?.isModerator)) return true;
+  if (audience.customUsers && userKey && normalizeTtsSelectedUsers(audience.customUsersList).includes(userKey)) return true;
   return false;
+}
+
+function canItemUseCustomTtsVoiceSelection(item) {
+  return canItemUseTtsAudience(item, {
+    ...normalizeTtsCustomVoiceAudience(state.settings?.ttsCustomVoiceAudience),
+    customUsersList: normalizeTtsSelectedUsers(state.settings?.ttsAudience?.customUsersList)
+  });
 }
 
 function formatTextForSpokenPunctuation(text = "") {
@@ -13141,32 +14566,22 @@ async function handleModeratorTtsCommand(item) {
     return true;
   }
   if (normalizedMessage === "!lock tts") {
-    ttsAudienceAllInput.checked = false;
-    ttsAudienceSubscribersInput.checked = true;
-    ttsAudienceModeratorsInput.checked = true;
+    const audienceMode = applyTtsAudienceMode("superFansModerators");
     await persistSettings({
-      ttsAudience: {
-        allViewers: false,
-        subscribers: true,
-        moderators: true
-      }
+      ttsAudienceMode: audienceMode,
+      ttsAudience: createTtsAudienceFromMode(audienceMode)
     });
     updateTtsStatus();
     renderTtsModerationSettings();
-    audit("Locked TTS to subscribers and moderators.");
-    respond("TTS locked to subscribers and moderators.");
+    audit("Locked TTS to Super Fans and Moderators.");
+    respond("TTS locked to Super Fans and Moderators.");
     return true;
   }
   if (normalizedMessage === "!unlock tts") {
-    ttsAudienceAllInput.checked = true;
-    ttsAudienceSubscribersInput.checked = false;
-    ttsAudienceModeratorsInput.checked = false;
+    const audienceMode = applyTtsAudienceMode("allViewers");
     await persistSettings({
-      ttsAudience: {
-        allViewers: true,
-        subscribers: false,
-        moderators: false
-      }
+      ttsAudienceMode: audienceMode,
+      ttsAudience: createTtsAudienceFromMode(audienceMode)
     });
     updateTtsStatus();
     renderTtsModerationSettings();
@@ -13696,10 +15111,13 @@ function renderElevenLabsUsagePanel() {
   const overageHint = usage.canExtend && usage.remaining === 0
     ? " Usage-based overage may still be available."
     : "";
+  const fallbackHint = shouldFallbackElevenLabsToTikTok()
+    ? " TikTok TTS fallback is enabled and will be used until ElevenLabs credits are available again."
+    : "";
   setStatusMessage(
     ttsElevenLabsUsageStatus,
-    "success",
-    `Subscription ${usage.status || "active"}. Used ${formatUsageNumber(usage?.used)} of ${usage?.limit == null ? "--" : formatUsageNumber(usage?.limit)} credits.${overageHint}`
+    usage.remaining === 0 ? "error" : "success",
+    `Subscription ${usage.status || "active"}. Used ${formatUsageNumber(usage?.used)} of ${usage?.limit == null ? "--" : formatUsageNumber(usage?.limit)} credits. ${formatUsageNumber(usage.remaining)} remaining.${overageHint}${fallbackHint}`
   );
 }
 
@@ -14074,6 +15492,27 @@ function getStyleAdjustedVolume() {
   return clamp(baseVolume * styleProfile.volumeMultiplier, 0.2, 3);
 }
 
+function shouldFallbackElevenLabsToTikTok() {
+  if (!ttsElevenFallbackTiktokInput?.checked || ttsProviderSelect.value !== "elevenlabs") {
+    return false;
+  }
+  const remaining = Number(elevenLabsUsageState.data?.remaining);
+  return Number.isFinite(remaining) && remaining <= 0;
+}
+
+function getFallbackTikTokTtsVoiceSelection(currentVoiceSelection = null) {
+  if (currentVoiceSelection?.providerKey === "tiktok") {
+    return currentVoiceSelection;
+  }
+  return {
+    value: "en_us_001",
+    label: "TikTok TTS fallback",
+    baseLabel: "TikTok TTS fallback",
+    providerKey: "tiktok",
+    voice: null
+  };
+}
+
 function updateTtsProviderVisibility() {
   const isElevenLabs = ttsProviderSelect.value === "elevenlabs";
   const isTikTok = ttsProviderSelect.value === "tiktok";
@@ -14082,6 +15521,7 @@ function updateTtsProviderVisibility() {
   ttsElevenModeField.classList.toggle("is-hidden", !isElevenLabs);
   ttsElevenApiKeyField.classList.toggle("is-hidden", !isElevenLabs);
   ttsElevenModelField.classList.toggle("is-hidden", !isElevenLabs);
+  ttsElevenFallbackTiktokField?.classList.toggle("is-hidden", !isElevenLabs);
   ttsXttsServiceUrlField?.classList.toggle("is-hidden", !showXttsTools);
   ttsXttsServiceActions?.classList.toggle("is-hidden", !showXttsTools);
   ttsXttsSplitSentencesField?.classList.toggle("is-hidden", !showXttsTools);
@@ -14100,11 +15540,14 @@ function enqueueSpeech(text, options = {}) {
   }
 
   const previewText = text.length > 44 ? `${text.slice(0, 44)}...` : text;
-  const provider = options.provider ?? ttsProviderSelect.value;
+  const requestedProvider = options.provider ?? ttsProviderSelect.value;
   const mode = options.mode ?? ttsElevenModeSelect.value;
   const apiKey = options.apiKey ?? ttsElevenApiKeyInput.value.trim();
   const modelId = options.modelId ?? ttsElevenModelSelect.value;
-  const voiceSelection = options.voiceSelection ?? getResolvedTtsVoiceSelection();
+  const requestedVoiceSelection = options.voiceSelection ?? getResolvedTtsVoiceSelection();
+  const useTikTokFallback = requestedProvider === "elevenlabs" && shouldFallbackElevenLabsToTikTok();
+  const provider = useTikTokFallback ? "tiktok" : requestedProvider;
+  const voiceSelection = useTikTokFallback ? getFallbackTikTokTtsVoiceSelection(requestedVoiceSelection) : requestedVoiceSelection;
   const synthesisProvider = ["xtts", "tiktok"].includes(voiceSelection?.providerKey) ? voiceSelection.providerKey : provider;
   const xttsVoice = synthesisProvider === "xtts" ? getSelectedXttsVoice(voiceSelection?.value) : null;
   const xttsTuning = xttsVoice ? normalizeXttsVoiceTuning(xttsVoice.tuning) : null;
@@ -14123,6 +15566,8 @@ function enqueueSpeech(text, options = {}) {
   void reportAuthenticatedDebugTrace("TTS queued", "Queued TTS message for playback.", {
     queueId,
     voice: voiceSelection?.value || "",
+    provider: synthesisProvider,
+    fallbackProvider: useTikTokFallback ? "tiktok" : "",
     previewText,
     sourceUser,
     latencySinceReceiptMs: Math.max(0, queuedAt - receivedAt)
@@ -14135,6 +15580,8 @@ function enqueueSpeech(text, options = {}) {
     await reportAuthenticatedDebugTrace("TTS playback", "Starting queued TTS playback task.", {
       queueId,
       voice: voiceSelection?.value || "",
+      provider: synthesisProvider,
+      fallbackProvider: useTikTokFallback ? "tiktok" : "",
       previewText,
       sourceUser,
       queueWaitMs: Math.max(0, playbackStartedAt - queuedAt),
@@ -14144,7 +15591,7 @@ function enqueueSpeech(text, options = {}) {
     try {
         const result = await app.speakToFile({
           text,
-          provider: synthesisProvider,
+        provider: synthesisProvider,
           voiceName: String(voiceSelection.value ?? "").replace(/^builtin:/, ""),
           voiceId: String(voiceSelection.value ?? "").replace(/^xtts:/, ""),
           mode,
@@ -14170,6 +15617,8 @@ function enqueueSpeech(text, options = {}) {
       await reportAuthenticatedDebugTrace("TTS synthesis", "Finished generating TTS audio file.", {
         queueId,
         voice: voiceSelection?.value || "",
+        provider: synthesisProvider,
+        fallbackProvider: useTikTokFallback ? "tiktok" : "",
         previewText,
         sourceUser,
         synthDurationMs: Math.max(0, synthCompletedAt - synthStartedAt),
@@ -14182,7 +15631,12 @@ function enqueueSpeech(text, options = {}) {
         if (queueItem?.cancelled) {
           throw createPlaybackStoppedError();
         }
-        await playAudioUrl(fileUrl, volume, synthesisProvider === "xtts" ? { ...xttsTuning, pitch } : null);
+        const playbackEffects = synthesisProvider === "xtts"
+          ? { ...xttsTuning, pitch }
+          : synthesisProvider === "tiktok"
+            ? { rate, pitch }
+            : null;
+        await playAudioUrl(fileUrl, volume, playbackEffects);
         if (queueItem?.cancelled) {
           if (!result?.cached) {
             await app.deleteTtsFile(result.filePath);
@@ -14194,6 +15648,8 @@ function enqueueSpeech(text, options = {}) {
         await reportAuthenticatedDebugTrace("TTS complete", "Completed TTS playback.", {
           queueId,
           voice: voiceSelection?.value || "",
+          provider: synthesisProvider,
+          fallbackProvider: useTikTokFallback ? "tiktok" : "",
           previewText,
           sourceUser,
           totalLatencyMs: Math.max(0, playbackCompletedAt - receivedAt),
@@ -14272,6 +15728,10 @@ async function handleMyTtsVoiceCommand(item) {
     showToast("A viewer tried to set a TTS voice, but their TikTok username was not available.", "error");
     return true;
   }
+  if (!canItemUseCustomTtsVoiceSelection(item)) {
+    showToast(`@${userKey} is not allowed to choose a custom TTS voice right now.`, "info");
+    return true;
+  }
 
   const providerKey = getCurrentTtsProviderKey();
   let availableEntries = getAvailableTtsVoiceEntries();
@@ -14320,6 +15780,10 @@ async function handleLockMyTtsVoiceCommand(item) {
   const requiredGiftName = String(state.settings?.ttsVoiceLockGiftName ?? "").trim();
   const requiredGiftKey = normalizeGiftKey(requiredGiftName);
   if (!userKey) {
+    return true;
+  }
+  if (!canItemUseCustomTtsVoiceSelection(item)) {
+    showToast(`@${userKey} is not allowed to lock a custom TTS voice right now.`, "info");
     return true;
   }
   if (!requiredGiftKey) {
@@ -14545,6 +16009,9 @@ async function handleIncomingChat(payload) {
   if (["chat", "gift", "follow", "share", "like"].includes(item.type)) {
     syncViewerStatsOverlayState();
   }
+  if (["gift", "follow", "share", "like"].includes(item.type)) {
+    void evaluateProgressBarGoals(item);
+  }
 
   state.chatItems.unshift(item);
   if (state.chatItems.length > MAX_CHAT_MESSAGES) {
@@ -14601,6 +16068,11 @@ async function handleIncomingChat(payload) {
 
   const handledVoiceCommand = await handleMyTtsVoiceCommand(item);
   if (handledVoiceCommand) {
+    return;
+  }
+
+  const handledMusicRequestCommand = await handleMusicRequestCommand(item);
+  if (handledMusicRequestCommand) {
     return;
   }
 
@@ -14755,13 +16227,17 @@ function applySettingsToUi() {
   ttsRandomVoiceInput.checked = Boolean(settings.ttsRandomVoicePerMessage);
   ttsIncludeUsernameInput.checked = settings.ttsIncludeUsername;
   if (ttsReadPunctuationInput) {
-    ttsReadPunctuationInput.checked = Boolean(settings.ttsReadPunctuation);
+    ttsReadPunctuationInput.checked = false;
   }
   ttsReadGiftsInput.checked = settings.ttsReadGifts;
   ttsGiftMinCoinsInput.value = String(Math.max(0, Number(settings.ttsGiftMinCoins) || 0));
+  applyTtsAudienceSelection(settings.ttsAudience);
   ttsElevenModeSelect.value = settings.ttsElevenMode || "free";
   ttsElevenApiKeyInput.value = settings.ttsElevenApiKey || "";
   ttsElevenModelSelect.value = settings.ttsElevenModel || "eleven_flash_v2_5";
+  if (ttsElevenFallbackTiktokInput) {
+    ttsElevenFallbackTiktokInput.checked = Boolean(settings.ttsElevenFallbackTiktok);
+  }
   if (ttsXttsServiceUrlInput) {
     ttsXttsServiceUrlInput.value = settings.ttsXttsServiceUrl || "http://127.0.0.1:8020";
   }
@@ -14777,9 +16253,7 @@ function applySettingsToUi() {
   ttsPitchInput.value = String(settings.ttsPitch);
   ttsVolumeInput.value = String(settings.ttsVolume);
 
-    ttsAudienceAllInput.checked = settings.ttsAudience.allViewers;
-    ttsAudienceSubscribersInput.checked = settings.ttsAudience.subscribers;
-    ttsAudienceModeratorsInput.checked = settings.ttsAudience.moderators;
+    applyTtsAudienceSelection(settings.ttsAudience);
     ttsAudienceVipsInput.checked = false;
     renderTtsModerationSettings();
     commandFeedbackDurationInput.value = String(Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000));
@@ -14792,6 +16266,7 @@ function applySettingsToUi() {
     votingOverlayOrientationInput.value = String(settings.votingOverlayOrientation ?? "").trim().toLowerCase() === "vertical" ? "vertical" : "horizontal";
     renderLikeRaceSettings();
     renderSpinWheelSettings();
+    renderProgressBarSettings();
     viewerStatsOverlayFilterInput.value = ["everyone", "subscriber", "moderator", "username"].includes(String(settings.viewerStatsOverlayFilter ?? "").trim().toLowerCase())
       ? String(settings.viewerStatsOverlayFilter).trim().toLowerCase()
       : "everyone";
@@ -15217,6 +16692,7 @@ function wireAuthEvents() {
   openOverlaysLayerButton?.addEventListener("click", () => openFocusedControlsLayer());
   openEventActionsLayerButton?.addEventListener("click", () => openFocusedEventActionsLayer());
   openGamesLayerButton?.addEventListener("click", () => openFocusedGamesLayer());
+  openMusicLayerButton?.addEventListener("click", () => openFocusedMusicLayer());
   openUsersLayerButton?.addEventListener("click", () => openFocusedUsersLayer());
 
   registerForm.addEventListener("submit", async (event) => {
@@ -15561,6 +17037,148 @@ function wireChatToolbarEvents() {
       showToast(error.message || "Unable to open the voting overlay.", "error");
     }
   });
+  progressBarOverlayAddButton?.addEventListener("click", () => {
+    const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+    void persistProgressBarOverlays([...bars, createDefaultProgressBarOverlay(bars.length)]).catch((error) => {
+      showToast(error.message || "Unable to add progress bar.", "error");
+    });
+  });
+  progressBarList?.addEventListener("click", (event) => {
+    const minimizeId = event.target.closest("[data-progress-bar-minimize]")?.dataset.progressBarMinimize;
+    if (minimizeId) {
+      const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+      const targetBar = bars.find((bar) => bar.id === minimizeId);
+      void persistProgressBarOverlays(updateProgressBarById(minimizeId, { minimized: !targetBar?.minimized })).catch((error) => {
+        showToast(error.message || "Unable to update progress bar.", "error");
+      });
+      return;
+    }
+
+    const testId = event.target.closest("[data-progress-bar-test]")?.dataset.progressBarTest;
+    if (testId) {
+      testProgressBarOverlay(testId);
+      return;
+    }
+
+    const copyId = event.target.closest("[data-progress-bar-copy-url]")?.dataset.progressBarCopyUrl;
+    if (copyId) {
+      const overlayUrl = getProgressBarUrl(copyId);
+      if (!overlayUrl) {
+        showToast("Progress bar overlay URL is not ready yet.", "info");
+        return;
+      }
+      void navigator.clipboard.writeText(overlayUrl).then(() => {
+        showToast("Progress bar URL copied.", "success");
+      }).catch((error) => {
+        showToast(error.message || "Unable to copy progress bar URL.", "error");
+      });
+      return;
+    }
+
+    const openId = event.target.closest("[data-progress-bar-open-url]")?.dataset.progressBarOpenUrl;
+    if (openId) {
+      const overlayUrl = getProgressBarUrl(openId);
+      if (!overlayUrl) {
+        showToast("Progress bar overlay URL is not ready yet.", "info");
+        return;
+      }
+      void app.openExternal(overlayUrl).catch((error) => {
+        showToast(error.message || "Unable to open progress bar overlay.", "error");
+      });
+      return;
+    }
+
+    const duplicateId = event.target.closest("[data-progress-bar-duplicate]")?.dataset.progressBarDuplicate;
+    if (duplicateId) {
+      const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
+      const source = bars.find((bar) => bar.id === duplicateId);
+      if (!source) {
+        return;
+      }
+      void persistProgressBarOverlays([...bars, duplicateProgressBarOverlay(source, bars.length)]).catch((error) => {
+        showToast(error.message || "Unable to duplicate progress bar.", "error");
+      });
+      return;
+    }
+
+    const deleteId = event.target.closest("[data-progress-bar-delete]")?.dataset.progressBarDelete;
+    if (deleteId) {
+      const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays).filter((bar) => bar.id !== deleteId);
+      void persistProgressBarOverlays(bars).catch((error) => {
+        showToast(error.message || "Unable to delete progress bar.", "error");
+      });
+    }
+  });
+  progressBarList?.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!target?.matches?.("[data-progress-bar-eyebrow-size], [data-progress-bar-title-size], [data-progress-bar-metric-size], [data-progress-bar-label-size], [data-progress-bar-footer-size]")) {
+      return;
+    }
+    const readout = target.closest(".progress-bar-size-field")?.querySelector("[data-progress-bar-size-readout]");
+    if (readout) {
+      readout.textContent = `${Math.round(Number(target.value) || 0)}px`;
+    }
+  });
+  progressBarList?.addEventListener("change", (event) => {
+    const target = event.target;
+    const barId = target.dataset.progressBarTitle
+      || target.dataset.progressBarEyebrow
+      || target.dataset.progressBarFontFamily
+      || target.dataset.progressBarMetric
+      || target.dataset.progressBarGoal
+      || target.dataset.progressBarIncreasePercent
+      || target.dataset.progressBarBehavior
+      || target.dataset.progressBarAnimation
+      || target.dataset.progressBarAction
+      || target.dataset.progressBarTextPosition
+      || target.dataset.progressBarEyebrowSize
+      || target.dataset.progressBarTitleSize
+      || target.dataset.progressBarMetricSize
+      || target.dataset.progressBarLabelSize
+      || target.dataset.progressBarFooterSize
+      || target.dataset.progressBarVisible
+      || target.dataset.progressBarHideBackground
+      || target.dataset.progressBarHideText
+      || target.dataset.progressBarTitleColor
+      || target.dataset.progressBarTextColor
+      || target.dataset.progressBarMutedColor
+      || target.dataset.progressBarStartColor
+      || target.dataset.progressBarEndColor
+      || target.dataset.progressBarBackgroundColor;
+    if (!barId) {
+      return;
+    }
+
+    const updates = {};
+    if (target.dataset.progressBarTitle) updates.title = target.value;
+    if (target.dataset.progressBarEyebrow) updates.eyebrowText = target.value;
+    if (target.dataset.progressBarFontFamily) updates.fontFamily = normalizeProgressBarFontFamily(target.value);
+    if (target.dataset.progressBarMetric) updates.metric = target.value;
+    if (target.dataset.progressBarGoal) updates.goal = Number(target.value) || 1;
+    if (target.dataset.progressBarIncreasePercent) updates.goalIncreasePercent = Math.max(1, Math.min(1000, Number(target.value) || 25));
+    if (target.dataset.progressBarBehavior) updates.goalReachedBehavior = target.value;
+    if (target.dataset.progressBarAnimation) updates.goalAnimation = target.value;
+    if (target.dataset.progressBarAction) updates.actionRuleId = target.value;
+    if (target.dataset.progressBarTextPosition) updates.textPosition = target.value;
+    if (target.dataset.progressBarEyebrowSize) updates.eyebrowFontSize = Math.max(8, Math.min(72, Number(target.value) || 12));
+    if (target.dataset.progressBarTitleSize) updates.titleFontSize = Math.max(12, Math.min(140, Number(target.value) || 44));
+    if (target.dataset.progressBarMetricSize) updates.metricFontSize = Math.max(8, Math.min(72, Number(target.value) || 12));
+    if (target.dataset.progressBarLabelSize) updates.labelFontSize = Math.max(8, Math.min(96, Number(target.value) || 15));
+    if (target.dataset.progressBarFooterSize) updates.footerFontSize = Math.max(8, Math.min(72, Number(target.value) || 13));
+    if (target.dataset.progressBarVisible) updates.visible = Boolean(target.checked);
+    if (target.dataset.progressBarHideBackground) updates.hideBackground = Boolean(target.checked);
+    if (target.dataset.progressBarHideText) updates.hideText = Boolean(target.checked);
+    if (target.dataset.progressBarTitleColor) updates.titleColor = normalizeOverlayDesignerHex(target.value, "#f2fbff");
+    if (target.dataset.progressBarTextColor) updates.textColor = normalizeOverlayDesignerHex(target.value, "#f2fbff");
+    if (target.dataset.progressBarMutedColor) updates.mutedColor = normalizeOverlayDesignerHex(target.value, "#a7bfdd");
+    if (target.dataset.progressBarStartColor) updates.barStartColor = normalizeOverlayDesignerHex(target.value, "#53dcff");
+    if (target.dataset.progressBarEndColor) updates.barEndColor = normalizeOverlayDesignerHex(target.value, "#b266ff");
+    if (target.dataset.progressBarBackgroundColor) updates.backgroundColor = normalizeOverlayDesignerHex(target.value, "#091226");
+
+    void persistProgressBarOverlays(updateProgressBarById(barId, updates)).catch((error) => {
+      showToast(error.message || "Unable to save progress bar.", "error");
+    });
+  });
   commandFeedbackOverlayCopyButton.addEventListener("click", async () => {
     const overlayUrl = commandFeedbackOverlayUrlInput.value.trim();
     if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
@@ -15619,8 +17237,171 @@ function wireTabEvents() {
   controlsTabButton?.addEventListener("click", () => setActiveTab("controls"));
   overlaysTabButton?.addEventListener("click", () => setActiveTab("controls"));
   gamesTabButton?.addEventListener("click", () => setActiveTab("games"));
+  musicTabButton?.addEventListener("click", () => setActiveTab("music"));
   usersTabButton?.addEventListener("click", () => setActiveTab("users"));
   eventActionsTabButton?.addEventListener("click", () => setActiveTab("event-actions"));
+
+  [musicEnabledInput, musicSkipEnabledInput, musicAllowExplicitInput, spotifyClientIdInput, ...musicAudienceModeInputs].forEach((element) => {
+    element?.addEventListener("change", () => {
+      if (musicAudienceModeInputs.includes(element)) {
+        const audience = normalizeSelectedMusicAudienceInputs(element);
+        state.settings.musicSettings = normalizeMusicSettings({
+          ...state.settings.musicSettings,
+          audience
+        });
+      } else {
+        state.settings.musicSettings = collectMusicSettingsFromUi();
+      }
+      renderMusicSettings();
+      scheduleSettingsSave();
+    });
+  });
+
+  spotifyClientIdInput?.addEventListener("input", () => {
+    state.settings.musicSettings = collectMusicSettingsFromUi();
+    scheduleSettingsSave();
+  });
+
+  spotifySignInButton?.addEventListener("click", async () => {
+    const clientId = String(spotifyClientIdInput?.value ?? state.settings?.musicSettings?.spotifyClientId ?? "").trim() || BUILTIN_SPOTIFY_CLIENT_ID;
+    if (!clientId) {
+      showToast("Spotify is not configured yet.", "error");
+      spotifyClientIdInput?.focus();
+      return;
+    }
+    try {
+      setStatusMessage(musicStatus, "info", "Opening Spotify sign-in...");
+      const result = await app.beginSpotifySignIn({ clientId });
+      const music = normalizeMusicSettings({
+        ...state.settings.musicSettings,
+        spotifyClientId: clientId,
+        spotifyRedirectUri: result?.redirectUri || state.settings?.musicSettings?.spotifyRedirectUri,
+        spotifyAuth: result?.auth
+      });
+      state.settings.musicSettings = music;
+      await persistSettings({ musicSettings: music }, { render: false });
+      renderMusicSettings();
+      showToast("Spotify connected.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to sign in to Spotify.", "error");
+      setStatusMessage(musicStatus, "error", error.message || "Unable to sign in to Spotify.");
+    }
+  });
+
+  spotifySignOutButton?.addEventListener("click", () => {
+    const music = normalizeMusicSettings({
+      ...state.settings.musicSettings,
+      spotifyAuth: null
+    });
+    state.settings.musicSettings = music;
+    void persistSettings({ musicSettings: music }, { render: false }).then(() => {
+      renderMusicSettings();
+      showToast("Spotify signed out.", "info");
+    }).catch((error) => showToast(error.message || "Unable to sign out of Spotify.", "error"));
+  });
+
+  spotifyClearRequestsButton?.addEventListener("click", () => {
+    void persistMusicSettings({
+      ...normalizeMusicSettings(state.settings?.musicSettings),
+      requests: []
+    }).then(() => showToast("Music requests cleared.", "success")).catch((error) => {
+      showToast(error.message || "Unable to clear music requests.", "error");
+    });
+  });
+
+  musicSelectedUserAddButton?.addEventListener("click", () => {
+    const userKey = normalizeUserKey(musicSelectedUserInput?.value);
+    if (!userKey) {
+      showToast("Enter a TikTok username before adding a music user.", "error");
+      musicSelectedUserInput?.focus();
+      return;
+    }
+    const music = normalizeMusicSettings(state.settings?.musicSettings);
+    const audience = {
+      ...getSelectedMusicAudience(),
+      customUsers: true,
+      customUsersList: normalizeTtsSelectedUsers([...(music.audience.customUsersList ?? []), userKey])
+    };
+    state.settings.musicSettings = normalizeMusicSettings({ ...music, audience });
+    if (musicSelectedUserInput) {
+      musicSelectedUserInput.value = "";
+    }
+    renderMusicSettings();
+    scheduleSettingsSave();
+    showToast(`Added @${userKey} to music users.`, "success");
+  });
+
+  musicSelectedUserInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      musicSelectedUserAddButton?.click();
+    }
+  });
+
+  musicSelectedUsersList?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-music-remove-selected-user]");
+    if (!removeButton) {
+      return;
+    }
+    const userKey = normalizeUserKey(removeButton.dataset.musicRemoveSelectedUser);
+    const music = normalizeMusicSettings(state.settings?.musicSettings);
+    const audience = {
+      ...getSelectedMusicAudience(),
+      customUsersList: music.audience.customUsersList.filter((user) => user !== userKey)
+    };
+    if (!audience.customUsersList.length) {
+      audience.customUsers = false;
+    }
+    state.settings.musicSettings = normalizeMusicSettings({ ...music, audience });
+    renderMusicSettings();
+    scheduleSettingsSave();
+    showToast(`Removed @${userKey} from music users.`, "info");
+  });
+
+  musicAddRequestButton?.addEventListener("click", () => {
+    void playSpotifyTrackRequest(musicManualRequestInput?.value).then((added) => {
+      if (added && musicManualRequestInput) {
+        musicManualRequestInput.value = "";
+      }
+    }).catch((error) => {
+      showToast(error.message || "Unable to add music request.", "error");
+    });
+  });
+
+  musicSkipTrackButton?.addEventListener("click", () => {
+    void skipSpotifyTrackRequest().catch((error) => {
+      showToast(error.message || "Unable to skip Spotify track.", "error");
+    });
+  });
+
+  musicManualRequestInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      musicAddRequestButton?.click();
+    }
+  });
+
+  musicRequestList?.addEventListener("click", (event) => {
+    const searchButton = event.target.closest("[data-music-open-search]");
+    const removeButton = event.target.closest("[data-music-remove-request]");
+    const music = normalizeMusicSettings(state.settings?.musicSettings);
+    if (searchButton) {
+      const request = music.requests.find((entry) => entry.id === searchButton.dataset.musicOpenSearch);
+      if (request) {
+        const url = /^https:\/\/open\.spotify\.com\//i.test(request.track)
+          ? request.track
+          : `https://open.spotify.com/search/${encodeURIComponent(request.track)}`;
+        void app.openExternal(url).catch((error) => showToast(error.message || "Unable to open Spotify search.", "error"));
+      }
+      return;
+    }
+    if (removeButton) {
+      void persistMusicSettings({
+        ...music,
+        requests: music.requests.filter((entry) => entry.id !== removeButton.dataset.musicRemoveRequest)
+      }).catch((error) => showToast(error.message || "Unable to remove music request.", "error"));
+    }
+  });
   sidebarLayerCloseButton?.addEventListener("click", () => closeSidebarLayer());
   sidebarLayer?.addEventListener("click", (event) => {
     if (event.target === sidebarLayer) {
@@ -16424,6 +18205,7 @@ function wireOverlayDesignerEvents() {
 }
 
 function wireSettingsEvents() {
+  initializeTtsAccessTabs();
   [
         translationEnabledInput,
         translationTargetLanguageSelect,
@@ -16432,15 +18214,17 @@ function wireSettingsEvents() {
           ttsRandomVoiceInput,
         ttsReadPunctuationInput,
         ttsElevenModeSelect,
-        ttsElevenApiKeyInput,
-        ttsElevenModelSelect,
-        ttsXttsServiceUrlInput,
+      ttsElevenApiKeyInput,
+      ttsElevenModelSelect,
+      ttsElevenFallbackTiktokInput,
+      ttsXttsServiceUrlInput,
         ttsXttsLanguageSelect,
-        ttsXttsSplitSentencesInput,
-        ttsIncludeUsernameInput,
-        ttsReadGiftsInput,
-        ttsGiftMinCoinsInput,
-        votingEnabledInput,
+      ttsXttsSplitSentencesInput,
+      ttsIncludeUsernameInput,
+      ttsReadGiftsInput,
+      ttsGiftMinCoinsInput,
+      ...ttsCustomVoiceAudienceInputs,
+      votingEnabledInput,
         votingStartRoleInput,
         votingOverlayOrientationInput,
       ttsVoiceSelect,
@@ -16451,6 +18235,7 @@ function wireSettingsEvents() {
       commandFeedbackDurationInput,
       commandFeedbackTemplateMyttsvoiceInput,
       commandFeedbackTemplateListcommandsInput,
+      ...ttsAudienceModeInputs,
       ttsAudienceAllInput,
       ttsAudienceSubscribersInput,
       ttsAudienceModeratorsInput,
@@ -16459,12 +18244,22 @@ function wireSettingsEvents() {
       ...Object.values(ttsModerationFilterInputs)
   ].forEach((element) => {
       element.addEventListener("change", () => {
+        if (ttsAudienceModeInputs.includes(element)) {
+          normalizeSelectedTtsAudienceInputs(element);
+          state.settings.ttsAudience = getSelectedTtsAudience();
+        }
+        if (ttsCustomVoiceAudienceInputs.includes(element)) {
+          state.settings.ttsCustomVoiceAudience = getSelectedTtsCustomVoiceAudience();
+        }
         state.settings.ttsModeration = collectTtsModerationSettingsFromUi();
         updateTtsProviderVisibility();
         updateRatePitchVolumeLabels();
         updateTranslationStatus();
         updateTtsStatus();
         void refreshElevenLabsUsage({ force: element === ttsProviderSelect || element === ttsElevenApiKeyInput });
+        if (element === ttsElevenFallbackTiktokInput) {
+          renderElevenLabsUsagePanel();
+        }
         updateVotingStatus();
         updateVoteOverlayControls();
         syncVoteOverlayState();
@@ -16509,21 +18304,72 @@ function wireSettingsEvents() {
   });
 
   ttsLockButton?.addEventListener("click", () => {
-    ttsAudienceAllInput.checked = false;
-    ttsAudienceSubscribersInput.checked = true;
-    ttsAudienceModeratorsInput.checked = true;
+    state.settings.ttsAudience = {
+      ...createTtsAudienceFromMode("superFansModerators"),
+      customUsersList: normalizeTtsSelectedUsers(state.settings?.ttsAudience?.customUsersList)
+    };
+    applyTtsAudienceSelection(state.settings.ttsAudience);
     updateTtsStatus();
     scheduleSettingsSave();
-    showToast("TTS locked to subscribers and moderators.", "success");
+    showToast("TTS locked to Super Fans and Moderators.", "success");
   });
 
   ttsUnlockButton?.addEventListener("click", () => {
-    ttsAudienceAllInput.checked = true;
-    ttsAudienceSubscribersInput.checked = false;
-    ttsAudienceModeratorsInput.checked = false;
+    state.settings.ttsAudience = {
+      ...createTtsAudienceFromMode("allViewers"),
+      customUsersList: normalizeTtsSelectedUsers(state.settings?.ttsAudience?.customUsersList)
+    };
+    applyTtsAudienceSelection(state.settings.ttsAudience);
     updateTtsStatus();
     scheduleSettingsSave();
     showToast("TTS unlocked for everyone.", "success");
+  });
+
+  ttsSelectedUserAddButton?.addEventListener("click", () => {
+    const userKey = normalizeUserKey(ttsSelectedUserInput?.value);
+    if (!userKey) {
+      showToast("Enter a TikTok username before adding a selected TTS user.", "error");
+      ttsSelectedUserInput?.focus();
+      return;
+    }
+    const audience = {
+      ...getSelectedTtsAudience(),
+      customUsers: true,
+      customUsersList: normalizeTtsSelectedUsers([...(state.settings?.ttsAudience?.customUsersList ?? []), userKey])
+    };
+    state.settings.ttsAudience = audience;
+    ttsSelectedUserInput.value = "";
+    applyTtsAudienceSelection(audience);
+    updateTtsStatus();
+    scheduleSettingsSave();
+    showToast(`Added @${userKey} to selected TTS users.`, "success");
+  });
+
+  ttsSelectedUserInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      ttsSelectedUserAddButton?.click();
+    }
+  });
+
+  ttsSelectedUsersList?.addEventListener("click", (event) => {
+    const removeButton = event.target.closest("[data-tts-remove-selected-user]");
+    if (!removeButton) {
+      return;
+    }
+    const userKey = normalizeUserKey(removeButton.dataset.ttsRemoveSelectedUser);
+    const audience = {
+      ...getSelectedTtsAudience(),
+      customUsersList: normalizeTtsSelectedUsers(state.settings?.ttsAudience?.customUsersList).filter((user) => user !== userKey)
+    };
+    if (!audience.customUsersList.length) {
+      audience.customUsers = false;
+    }
+    state.settings.ttsAudience = audience;
+    applyTtsAudienceSelection(audience);
+    updateTtsStatus();
+    scheduleSettingsSave();
+    showToast(`Removed @${userKey} from selected TTS users.`, "info");
   });
 
   ttsClearButton?.addEventListener("click", () => {
@@ -16557,7 +18403,7 @@ function wireSettingsEvents() {
     showToast("Moderator command log cleared.", "info");
   });
 
-      [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput, ttsXttsServiceUrlInput, ttsXttsLanguageSelect, ttsXttsSplitSentencesInput].forEach((element) => {
+      [ttsProviderSelect, ttsElevenModeSelect, ttsElevenApiKeyInput, ttsElevenFallbackTiktokInput, ttsXttsServiceUrlInput, ttsXttsLanguageSelect, ttsXttsSplitSentencesInput].forEach((element) => {
         element.addEventListener("change", () => {
           void loadVoices();
         });
@@ -16675,7 +18521,7 @@ function wireSettingsEvents() {
     scheduleSettingsSave();
   });
 
-      [ttsProviderSelect, ttsElevenModeSelect, ttsElevenModelSelect, ttsXttsServiceUrlInput, ttsXttsLanguageSelect, ttsXttsSplitSentencesInput, ttsVoiceSelect, ttsQueueSelect].forEach((element) => {
+      [ttsProviderSelect, ttsElevenModeSelect, ttsElevenModelSelect, ttsElevenFallbackTiktokInput, ttsXttsServiceUrlInput, ttsXttsLanguageSelect, ttsXttsSplitSentencesInput, ttsVoiceSelect, ttsQueueSelect].forEach((element) => {
     element.addEventListener("change", () => {
       if (element === ttsVoiceSelect) {
         renderXttsVoiceTuning();
@@ -16893,6 +18739,7 @@ function wireCustomRuleEvents() {
       openEventActionsWorkspace({ preferInline: true });
       renderCustomRules();
       refreshSpinWheelActionOptions();
+      renderProgressBarSettings();
       await persistSettings({ customEventRules: state.settings.customEventRules });
       focusCustomRuleEditor(nextRule.id);
     });
@@ -16957,6 +18804,7 @@ function wireCustomRuleEvents() {
       openEventActionsWorkspace({ preferInline: true });
       renderCustomRules();
       refreshSpinWheelActionOptions();
+      renderProgressBarSettings();
       await persistSettings({ customEventRules: state.settings.customEventRules });
       focusCustomRuleEditor(duplicatedRule.id);
       showToast("Custom event action duplicated.", "success");
@@ -17038,6 +18886,7 @@ function wireCustomRuleEvents() {
         }
         await persistSettings({ customEventRules: state.settings.customEventRules });
       refreshSpinWheelActionOptions();
+      renderProgressBarSettings();
       showToast("Custom event action deleted.", "info");
       return;
     }
@@ -17150,6 +18999,7 @@ function wireCustomRuleEvents() {
       clearRuleTriggerState(saveId);
       await persistSettings({ customEventRules: state.settings.customEventRules });
       refreshSpinWheelActionOptions();
+      renderProgressBarSettings();
       showToast("Custom event action saved.", "success");
     }
   });
@@ -17218,6 +19068,7 @@ function wireCustomRuleEvents() {
     await persistSettings({ customEventRules: state.settings.customEventRules });
     renderCustomRules();
     refreshSpinWheelActionOptions();
+    renderProgressBarSettings();
     showToast(`Custom action ${nextEnabled ? "enabled" : "disabled"}.`, "success");
   });
 
@@ -17673,6 +19524,7 @@ async function initializeApp() {
     ensureSoundCatalog(),
     loadOverlayInfoBundle(),
     loadOverlayDesignerInfo(),
+    loadProgressBarOverlayInfo(),
     loadSpinWheelOverlayInfo()
   ]);
 
@@ -17688,6 +19540,7 @@ async function initializeApp() {
   syncGiftOverlayState();
   syncLikesOverlayState();
   syncViewerStatsOverlayState();
+  syncProgressBarOverlayState();
   syncVoteOverlayState();
   syncLikeRaceOverlayState();
   syncSpinWheelOverlayState();

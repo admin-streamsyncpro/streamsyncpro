@@ -156,6 +156,9 @@
               <button type="button" id="open-games-layer-button" class="workspace-nav-button" title="Games" aria-label="Games">
                 <span aria-hidden="true">G</span>
               </button>
+              <button type="button" id="open-music-layer-button" class="workspace-nav-button" title="Music" aria-label="Music">
+                <span aria-hidden="true">M</span>
+              </button>
               <button type="button" id="open-users-layer-button" class="workspace-nav-button" title="Users and points" aria-label="Users and points">
                 <span aria-hidden="true">U</span>
               </button>
@@ -361,6 +364,7 @@
               <div class="sidebar-tabs card">
                 <button type="button" id="controls-tab-button" class="sidebar-tab-button active">Controls</button>
                 <button type="button" id="games-tab-button" class="sidebar-tab-button">Games</button>
+                <button type="button" id="music-tab-button" class="sidebar-tab-button">Music</button>
                 <button type="button" id="users-tab-button" class="sidebar-tab-button">Users</button>
                 <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
               </div>
@@ -570,7 +574,7 @@
               <div class="card-body">
                 <div class="settings-grid">
                   <div class="tts-toggle-grid">
-                    <label class="toggle-switch">
+                    <label class="toggle-switch tts-trigger-chat-toggle">
                       <input id="tts-enabled" type="checkbox" />
                       <span class="switch-ui"></span>
                       <span class="switch-copy">
@@ -579,7 +583,7 @@
                       </span>
                     </label>
 
-                    <label class="toggle-switch">
+                    <label class="toggle-switch tts-trigger-username-toggle">
                       <input id="tts-include-username" type="checkbox" checked />
                       <span class="switch-ui"></span>
                       <span class="switch-copy">
@@ -588,7 +592,7 @@
                       </span>
                     </label>
 
-                    <label class="toggle-switch">
+                    <label class="toggle-switch tts-trigger-gift-toggle">
                       <input id="tts-read-gifts" type="checkbox" />
                       <span class="switch-ui"></span>
                       <span class="switch-copy">
@@ -597,7 +601,7 @@
                       </span>
                     </label>
 
-                    <label class="toggle-switch">
+                    <label class="toggle-switch tts-trigger-random-toggle">
                       <input id="tts-random-voice" type="checkbox" />
                       <span class="switch-ui"></span>
                       <span class="switch-copy">
@@ -606,18 +610,11 @@
                       </span>
                     </label>
 
-                    <label class="toggle-switch">
-                      <input id="tts-read-punctuation" type="checkbox" />
-                      <span class="switch-ui"></span>
-                      <span class="switch-copy">
-                        <strong>Read punctuation</strong>
-                        <small>Speak grammar marks such as comma, full stop, question mark, and exclamation mark.</small>
-                      </span>
-                    </label>
+                    <input id="tts-read-punctuation" type="checkbox" hidden />
                   </div>
 
                   <div class="field-grid tts-support-grid">
-                    <label class="field">
+                    <label class="field tts-trigger-gift-min-field">
                       <span>Gift alert minimum coins</span>
                       <input
                         id="tts-gift-min-coins"
@@ -645,6 +642,112 @@
                       </select>
                     </label>
                   </div>
+
+                  <section class="tts-tab-panel" aria-labelledby="tts-access-tabs-title">
+                    <div class="tts-tab-head">
+                      <div class="tts-tab-strip" id="tts-access-tabs-title" role="tablist" aria-label="TTS access settings">
+                        <button type="button" class="tts-tab-button active" id="tts-access-triggers-tab" data-tts-access-tab="triggers" role="tab" aria-selected="true" aria-controls="tts-triggers-panel">Triggers</button>
+                        <button type="button" class="tts-tab-button" id="tts-access-voice-tab" data-tts-access-tab="voice" role="tab" aria-selected="false" aria-controls="tts-voice-panel">Voice</button>
+                        <button type="button" class="tts-tab-button" id="tts-access-who-tab" data-tts-access-tab="who" role="tab" aria-selected="false" aria-controls="tts-who-can-use-panel">Who Can Use</button>
+                        <button type="button" class="tts-tab-button" id="tts-access-moderation-tab" data-tts-access-tab="moderation" role="tab" aria-selected="false" aria-controls="tts-moderation-tab-panel">Moderation</button>
+                      </div>
+                      <small>Choose what TTS reads, who can use it, and how it is moderated.</small>
+                    </div>
+                    <div class="tts-tab-content" id="tts-triggers-panel" data-tts-access-panel="triggers" role="tabpanel" aria-labelledby="tts-access-triggers-tab"></div>
+                    <div class="tts-tab-content is-hidden" id="tts-voice-panel" data-tts-access-panel="voice" role="tabpanel" aria-labelledby="tts-access-voice-tab"></div>
+                    <div class="tts-tab-content is-hidden" id="tts-who-can-use-panel" data-tts-access-panel="who" role="tabpanel" aria-labelledby="tts-access-who-tab">
+                      <div class="tts-who-can-use-options" aria-labelledby="tts-access-who-tab">
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="allViewers" checked />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>All Viewers</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="allViewers" checked />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="topGifter" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Top Gifter</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="topGifter" />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="followers" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Followers</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="followers" />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="superFans" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Super Fans</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="superFans" />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="teamMembers" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Team Members</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="teamMembers" />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="tts-audience-mode" value="moderators" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Moderators</span>
+                          </label>
+                          <label class="tts-custom-voice-option">
+                            <input type="checkbox" data-tts-custom-voice-audience="moderators" />
+                            <span>Allow custom voice selection</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div class="tts-selected-users-panel">
+                        <label class="tts-radio-tile tts-selected-users-toggle">
+                          <input type="checkbox" name="tts-audience-mode" value="customUsers" />
+                          <span class="switch-ui" aria-hidden="true"></span>
+                          <span>Selected Users</span>
+                        </label>
+                        <label class="tts-custom-voice-option tts-selected-users-custom-voice">
+                          <input type="checkbox" data-tts-custom-voice-audience="customUsers" />
+                          <span>Allow custom voice selection</span>
+                        </label>
+                        <div class="tts-selected-users-editor">
+                          <label class="field">
+                            <span>Add TikTok username</span>
+                            <input id="tts-selected-user-input" type="text" autocomplete="off" placeholder="@viewername" />
+                          </label>
+                          <button type="button" id="tts-selected-user-add" class="ghost compact-button">Add user</button>
+                        </div>
+                        <div id="tts-selected-users-list" class="tts-selected-users-list">
+                          <span class="helper-text">No selected users yet.</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tts-tab-content is-hidden" id="tts-moderation-tab-panel" data-tts-access-panel="moderation" role="tabpanel" aria-labelledby="tts-access-moderation-tab"></div>
+                  </section>
 
                   <div class="field-grid tts-provider-grid">
                       <label class="field">
@@ -683,6 +786,14 @@
                           <option value="eleven_v3">Eleven v3</option>
                         </select>
                         <small class="field-hint">This changes how ElevenLabs generates speech, not which voices appear in the Voice list. Differences can be subtle on the same voice, especially with very short test phrases.</small>
+                      </label>
+
+                      <label class="toggle-row compact-toggle tts-elevenlabs-only is-hidden" id="tts-eleven-fallback-tiktok-field">
+                        <input id="tts-eleven-fallback-tiktok" type="checkbox" />
+                        <span>
+                          <strong>Fallback to TikTok TTS when credits run out</strong>
+                          <small>If ElevenLabs remaining credits reach 0, speech uses TikTok TTS automatically.</small>
+                        </span>
                       </label>
 
                       <label class="field tts-xtts-only is-hidden field-span-2" id="tts-xtts-service-url-field">
@@ -1074,7 +1185,7 @@
             </section>
 
             <!-- Audience Filters -->
-            <section class="sidebar-card card" data-main-screen-card="controls-audience-filters">
+            <section class="sidebar-card card" data-main-screen-card="controls-audience-filters" hidden>
               <div class="card-header section-head">
                 <div>
                   <p class="eyebrow">Audience</p>
@@ -1295,6 +1406,23 @@
                     <button type="button" id="viewer-stats-overlay-reset" class="ghost compact-button">Reset</button>
                   </div>
                   <p id="viewer-stats-overlay-status" class="status info">Preparing viewer stats overlay...</p>
+                </div>
+              </section>
+
+              <section class="sidebar-card card progress-bar-card" data-main-screen-card="overlays-progress-bars">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Overlay</p>
+                    <h3 class="section-title">Progress Bars</h3>
+                  </div>
+                  <button type="button" id="progress-bar-add" class="ghost compact-button">Add Progress Bar</button>
+                </div>
+
+                <div class="card-body">
+                  <p class="section-copy">Create duplicated live goal bars for likes, shares, follows, or gift coins. Each bar has its own goal, title, completion behaviour, and optional linked Event Action.</p>
+                  <input id="progress-bar-overlay-url" type="hidden" value="Loading..." />
+                  <div id="progress-bar-list" class="progress-bar-list"></div>
+                  <p id="progress-bar-status" class="status info">Preparing progress bar overlay...</p>
                 </div>
               </section>
 
@@ -1705,6 +1833,145 @@
                     </div>
 
                     <p id="spin-wheel-status" class="status info">Spin Wheel is idle.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div id="music-tab-panel" class="sidebar-tab-panel">
+              <section class="sidebar-card card music-card" data-main-screen-card="music-spotify">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Music</p>
+                    <h3 class="section-title">Spotify Control</h3>
+                  </div>
+                  <div class="actions">
+                    <button type="button" id="spotify-signin-button" class="ghost compact-button">Sign in to Spotify</button>
+                    <button type="button" id="spotify-signout-button" class="ghost compact-button">Sign out</button>
+                    <button type="button" id="spotify-clear-requests-button" class="ghost compact-button danger">Clear requests</button>
+                  </div>
+                </div>
+
+                <div class="card-body">
+                  <div class="settings-grid">
+                    <p class="section-copy">
+                      Sign in to Spotify so selected viewer roles can control the stream music with
+                      <code>!play artist song</code>. If enabled, <code>!skip</code> skips the current track.
+                    </p>
+
+                    <div class="field-grid">
+                      <label class="toggle-switch">
+                        <input id="music-enabled" type="checkbox" />
+                        <span class="switch-ui"></span>
+                        <span class="switch-copy">
+                          <strong>Enable !play</strong>
+                          <small>Allow eligible viewers to add Spotify tracks from chat.</small>
+                        </span>
+                      </label>
+
+                      <label class="toggle-switch">
+                        <input id="music-skip-enabled" type="checkbox" />
+                        <span class="switch-ui"></span>
+                        <span class="switch-copy">
+                          <strong>Enable !skip</strong>
+                          <small>Allow eligible viewers to skip the current Spotify track.</small>
+                        </span>
+                      </label>
+
+                      <label class="toggle-switch">
+                        <input id="music-allow-explicit" type="checkbox" />
+                        <span class="switch-ui"></span>
+                        <span class="switch-copy">
+                          <strong>Allow explicit content</strong>
+                          <small>When off, Spotify requests skip tracks marked explicit.</small>
+                        </span>
+                      </label>
+                    </div>
+
+                    <div class="field-grid">
+                      <input id="spotify-client-id" type="hidden" value="13ef9e18663a403fb7e9aac2de567b69" />
+                      <input id="spotify-redirect-uri" type="hidden" value="http://127.0.0.1:46329/spotify/callback" />
+                    </div>
+
+                    <section class="tts-tab-panel music-access-panel">
+                      <div class="tts-tab-head">
+                        <span class="tts-tab-label">Who can control music</span>
+                        <small>Uses the same role choices as Text to Speech.</small>
+                      </div>
+                      <div class="tts-who-can-use-options">
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="allViewers" checked />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>All Viewers</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="topGifter" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Top Gifter</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="followers" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Followers</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="superFans" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Super Fans</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="teamMembers" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Team Members</span>
+                          </label>
+                        </div>
+                        <div class="tts-audience-tile">
+                          <label class="tts-radio-tile">
+                            <input type="checkbox" name="music-audience-mode" value="moderators" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Moderators</span>
+                          </label>
+                        </div>
+                        <div class="tts-selected-users-panel">
+                          <label class="tts-radio-tile tts-selected-users-toggle">
+                            <input type="checkbox" name="music-audience-mode" value="customUsers" />
+                            <span class="switch-ui" aria-hidden="true"></span>
+                            <span>Selected Users</span>
+                          </label>
+                          <div class="tts-selected-users-editor">
+                            <label class="field">
+                              <span>Add music controller</span>
+                              <input id="music-selected-user-input" type="text" autocomplete="off" placeholder="@viewername" />
+                            </label>
+                            <button type="button" id="music-selected-user-add" class="ghost compact-button">Add user</button>
+                          </div>
+                          <div id="music-selected-users-list" class="tts-selected-users-list">
+                            <span class="helper-text">No selected music users yet.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    <div class="field-grid">
+                      <label class="field">
+                        <span>Manual Spotify play</span>
+                        <input id="music-manual-request" type="text" autocomplete="off" placeholder="Artist - Track" />
+                      </label>
+                      <button type="button" id="music-add-request-button" class="ghost">Play / queue track</button>
+                      <button type="button" id="music-skip-track-button" class="ghost">Skip current track</button>
+                    </div>
+
+                    <div id="music-request-list" class="queue-action-list"></div>
+                    <p id="music-status" class="status info">Music requests are off.</p>
                   </div>
                 </div>
               </section>
