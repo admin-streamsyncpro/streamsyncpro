@@ -150,17 +150,21 @@
               <button type="button" id="open-overlays-layer-button" class="workspace-nav-button" title="Controls and overlays" aria-label="Controls and overlays">
                 <span aria-hidden="true">🖥</span>
               </button>
-              <button type="button" id="open-event-actions-layer-button" class="workspace-nav-button" title="Event actions" aria-label="Event actions">
-                <span aria-hidden="true">⚡</span>
+              <button type="button" id="open-event-actions-layer-button" class="workspace-nav-button workspace-nav-button-event-actions" title="Event actions" aria-label="Event actions">
+                <img class="event-actions-nav-icon" src="assets/event-actions-badge.png" alt="" aria-hidden="true" />
+                <span class="workspace-nav-label workspace-nav-label-event-actions">Event Actions</span>
               </button>
-              <button type="button" id="open-games-layer-button" class="workspace-nav-button" title="Games" aria-label="Games">
-                <span aria-hidden="true">G</span>
+              <button type="button" id="open-games-layer-button" class="workspace-nav-button workspace-nav-button-games" title="Games" aria-label="Games">
+                <img class="games-nav-icon" src="assets/games-controller-badge.png" alt="" aria-hidden="true" />
+                <span class="workspace-nav-label workspace-nav-label-games">Games</span>
               </button>
-              <button type="button" id="open-music-layer-button" class="workspace-nav-button" title="Music" aria-label="Music">
-                <span aria-hidden="true">M</span>
+              <button type="button" id="open-music-layer-button" class="workspace-nav-button workspace-nav-button-music" title="Music" aria-label="Music">
+                <img class="music-nav-icon" src="assets/music-spotify-headphones.png" alt="" aria-hidden="true" />
+                <span class="workspace-nav-label workspace-nav-label-music">Music</span>
               </button>
-              <button type="button" id="open-users-layer-button" class="workspace-nav-button" title="Users and points" aria-label="Users and points">
-                <span aria-hidden="true">U</span>
+              <button type="button" id="open-users-layer-button" class="workspace-nav-button workspace-nav-button-points" title="Users and points" aria-label="Users and points">
+                <img class="points-nav-icon" src="assets/user-points-badge.png" alt="" aria-hidden="true" />
+                <span class="workspace-nav-label">User Points</span>
               </button>
               <button type="button" id="open-layout-customizer-button" class="workspace-nav-button" title="Customize view" aria-label="Customize view">
                 <span aria-hidden="true">🧩</span>
@@ -2086,13 +2090,15 @@
                           <span>Viewer username</span>
                           <input id="viewer-points-adjust-username" type="text" placeholder="@viewername" autocomplete="off" />
                         </label>
-                        <label class="field">
-                          <span>Points amount</span>
-                          <input id="viewer-points-adjust-amount" type="number" min="0" step="1" placeholder="100" />
-                        </label>
-                        <div class="viewer-points-admin-actions">
-                          <button type="button" id="viewer-points-add" class="ghost compact-button">Add points</button>
-                          <button type="button" id="viewer-points-remove" class="ghost compact-button danger">Remove points</button>
+                        <div class="viewer-points-amount-actions">
+                          <label class="field">
+                            <span>Points amount</span>
+                            <input id="viewer-points-adjust-amount" type="number" min="0" step="1" placeholder="100" />
+                          </label>
+                          <div class="viewer-points-admin-actions">
+                            <button type="button" id="viewer-points-add" class="ghost compact-button">Add points</button>
+                            <button type="button" id="viewer-points-remove" class="ghost compact-button danger">Remove points</button>
+                          </div>
                         </div>
                       </div>
                     </div>

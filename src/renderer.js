@@ -10612,6 +10612,9 @@ function setActiveTab(tabName) {
   if (musicActive) {
     renderMusicSettings();
   }
+  if (eventActionsActive) {
+    ensureEventActionsCardInLayer();
+  }
 }
 
 function updateCardCollapseButton(button, collapsed) {
@@ -10754,6 +10757,7 @@ function getSidebarLayerTitle(tabName) {
 
 function openSidebarLayer(tabName = "controls", options = {}) {
   const normalizedTabName = normalizeSidebarTabName(tabName);
+  applyMainScreenPinnedCards();
   setActiveTab(normalizedTabName);
   if (sidebarLayer) {
     sidebarLayer.classList.toggle("sidebar-layer-single-view", Boolean(options?.singleView));
@@ -10774,13 +10778,24 @@ function closeSidebarLayer() {
     }
     document.body.classList.remove("sidebar-layer-open");
   }
+  applyMainScreenPinnedCards();
+}
+
+function ensureEventActionsCardInLayer() {
+  const card = document.querySelector('[data-main-screen-card="event-actions-main"]');
+  if (!card || !eventActionsTabPanel || eventActionsTabPanel.contains(card)) {
+    return;
+  }
+  eventActionsTabPanel.appendChild(card);
 }
 
 function openFocusedEventActionsLayer() {
+  ensureEventActionsCardInLayer();
   openSidebarLayer("event-actions", {
     singleView: true,
     title: "Event Actions"
   });
+  ensureEventActionsCardInLayer();
 }
 
 function openFocusedControlsLayer() {
