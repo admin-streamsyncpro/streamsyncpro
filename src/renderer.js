@@ -1654,26 +1654,29 @@ const state = {
   customRuleTriggerCounts: new Map(),
   customRuleUserCooldowns: new Map(),
   customRuleCooldownNoticeAt: new Map(),
+  eventActionTikTokVoices: [],
   birthdayActionTriggers: new Set(),
-    sessionMetrics: {
-      join: 0,
-      firstActivity: 0,
-      follows: 0,
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      coins: 0,
-      subEmote: 0,
-      fanEmote: 0
-    },
-    sessionUserMetrics: {
-      join: new Map(),
-      firstActivity: new Map(),
-      follows: new Map(),
-      likes: new Map(),
-      comments: new Map(),
-      shares: new Map(),
-      coins: new Map(),
+  sessionMetrics: {
+    join: 0,
+    firstActivity: 0,
+    follows: 0,
+    likes: 0,
+    comments: 0,
+    shares: 0,
+    coins: 0,
+    treasureBox: 0,
+    subEmote: 0,
+    fanEmote: 0
+  },
+  sessionUserMetrics: {
+    join: new Map(),
+    firstActivity: new Map(),
+    follows: new Map(),
+    likes: new Map(),
+    comments: new Map(),
+    shares: new Map(),
+    coins: new Map(),
+    treasureBox: new Map(),
     subEmote: new Map(),
     fanEmote: new Map()
   },
@@ -1992,6 +1995,11 @@ function normalizeRuleTimeValue(value) {
   return match ? `${match[1]}:${match[2]}` : "";
 }
 
+function normalizeRuleSoundVolume(value) {
+  const numericValue = Number(value);
+  return clamp(Number.isFinite(numericValue) ? numericValue : 100, 0, 200);
+}
+
 function getRuleTimeMinutes(value) {
   const normalized = normalizeRuleTimeValue(value);
   if (!normalized) {
@@ -2078,10 +2086,11 @@ function normalizeRule(rule, index = 0) {
     id: String(rule.id ?? `rule-${Date.now()}-${index}`),
     enabled: rule.enabled !== false,
     name: String(rule.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
-    metric: ["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule.metric) ? rule.metric : "follows",
+    metric: ["follows", "likes", "shares", "coins", "specificGift", "treasureBox", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule.metric) ? rule.metric : "follows",
     threshold: Math.max(1, Number(rule.threshold) || 1),
     queueId: normalizeQueueId(rule.queueId, 1),
     soundId: String(rule.soundId ?? "").trim(),
+    soundVolume: normalizeRuleSoundVolume(rule.soundVolume),
     webhookUrl: String(rule.webhookUrl ?? "").trim(),
     userCooldownSeconds: Math.max(0, Number(rule.userCooldownSeconds) || 0),
     disableWindowStartTime: normalizeRuleTimeValue(rule.disableWindowStartTime),
@@ -2098,7 +2107,9 @@ function normalizeRule(rule, index = 0) {
     feedbackOverlayEnabled: Boolean(rule.feedbackOverlayEnabled),
     feedbackOverlayTitle: String(rule.feedbackOverlayTitle ?? "").trim(),
     feedbackOverlayMessage: String(rule.feedbackOverlayMessage ?? "").trim(),
-    feedbackOverlayAccentColor: normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor)
+    feedbackOverlayAccentColor: normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor),
+    tiktokTtsText: String(rule.tiktokTtsText ?? "").trim(),
+    tiktokTtsVoice: String(rule.tiktokTtsVoice ?? "").trim()
   };
 }
 
@@ -2111,6 +2122,7 @@ function createDraftRule() {
     threshold: 1,
     queueId: 1,
     soundId: "",
+    soundVolume: 100,
     webhookUrl: "",
     userCooldownSeconds: 0,
     disableWindowStartTime: "",
@@ -2125,7 +2137,9 @@ function createDraftRule() {
     feedbackOverlayEnabled: false,
         feedbackOverlayTitle: "Custom Event",
         feedbackOverlayMessage: "{username} triggered {rule name}. Total likes: {user total likes}",
-    feedbackOverlayAccentColor: "#53dcff"
+    feedbackOverlayAccentColor: "#53dcff",
+    tiktokTtsText: "",
+    tiktokTtsVoice: "en_us_001"
   };
 }
 
@@ -7792,6 +7806,114 @@ function getAvailableTtsVoiceEntries() {
   });
 }
 
+function getEventActionTikTokVoiceOptionsMarkup(selectedVoiceId = "en_us_001") {
+  const voices = Array.isArray(state.eventActionTikTokVoices) ? state.eventActionTikTokVoices : [];
+  if (!voices.length) {
+    return '<option value="">No TikTok voices loaded</option>';
+  }
+
+  const normalizedSelectedVoiceId = String(selectedVoiceId || voices[0]?.id || "en_us_001").trim();
+  return voices
+    .map((voice, index) => {
+      const label = `${index + 1}. ${voice.name}${voice.category ? ` (${voice.category})` : ""}`;
+      return `<option value="${escapeHtml(voice.id)}" ${voice.id === normalizedSelectedVoiceId ? "selected" : ""}>${escapeHtml(label)}</option>`;
+    })
+    .join("");
+}
+
+function renderEventActionTikTokVoiceOptions(ruleId = "") {
+  const selector = ruleId
+    ? document.querySelector(`[data-rule-tiktok-tts-voice="${ruleId}"]`)
+    : null;
+  if (!selector) {
+    return;
+  }
+
+  const previousValue = String(selector.value || "en_us_001").trim();
+  selector.innerHTML = getEventActionTikTokVoiceOptionsMarkup(previousValue);
+  const voices = Array.isArray(state.eventActionTikTokVoices) ? state.eventActionTikTokVoices : [];
+  const hasPreviousValue = voices.some((voice) => voice.id === previousValue);
+  if (voices.length) {
+    selector.value = hasPreviousValue ? previousValue : voices[0].id;
+  }
+}
+
+async function loadEventActionTikTokVoices({ silent = false } = {}) {
+  if (typeof app.getTtsVoices !== "function") {
+    return [];
+  }
+
+  if (!silent) {
+    setStatusMessage(customRuleStatus, "info", "Loading TikTok TTS voices...");
+  }
+
+  try {
+    const voices = await app.getTtsVoices({ provider: "tiktok" });
+    state.eventActionTikTokVoices = Array.isArray(voices) ? voices : [];
+    document.querySelectorAll("[data-rule-tiktok-tts-voice]").forEach((selector) => {
+      renderEventActionTikTokVoiceOptions(selector.dataset.ruleTiktokTtsVoice);
+    });
+    if (!silent) {
+      setStatusMessage(
+        customRuleStatus,
+        state.eventActionTikTokVoices.length ? "success" : "info",
+        state.eventActionTikTokVoices.length
+          ? `Loaded ${state.eventActionTikTokVoices.length} TikTok TTS voices.`
+          : "No TikTok TTS voices were returned."
+      );
+    }
+    return state.eventActionTikTokVoices;
+  } catch (error) {
+    state.eventActionTikTokVoices = [];
+    document.querySelectorAll("[data-rule-tiktok-tts-voice]").forEach((selector) => {
+      renderEventActionTikTokVoiceOptions(selector.dataset.ruleTiktokTtsVoice);
+    });
+    setStatusMessage(customRuleStatus, "error", error.message || "Unable to load TikTok TTS voices.");
+    return [];
+  }
+}
+
+function getEventActionTikTokVoiceSelection(voiceId = "") {
+  const voices = Array.isArray(state.eventActionTikTokVoices) ? state.eventActionTikTokVoices : [];
+  const selectedValue = String(voiceId || voices[0]?.id || "en_us_001").trim();
+  const selectedVoice = voices.find((voice) => voice.id === selectedValue) ?? voices[0] ?? {
+    id: selectedValue || "en_us_001",
+    name: "TikTok TTS",
+    category: ""
+  };
+  const baseLabel = `${selectedVoice.name}${selectedVoice.category ? ` (${selectedVoice.category})` : ""}`;
+  return {
+    value: selectedVoice.id,
+    label: baseLabel,
+    baseLabel,
+    providerKey: "tiktok",
+    voice: selectedVoice
+  };
+}
+
+async function testEventActionTikTokTts(ruleId) {
+  const textInput = document.querySelector(`[data-rule-tiktok-tts-text="${ruleId}"]`);
+  const voiceInput = document.querySelector(`[data-rule-tiktok-tts-voice="${ruleId}"]`);
+  const text = String(textInput?.value ?? "").trim();
+  if (!text) {
+    showToast("Enter text to read with TikTok TTS.", "error");
+    textInput?.focus();
+    return;
+  }
+
+  if (!state.eventActionTikTokVoices.length) {
+    await loadEventActionTikTokVoices({ silent: true });
+  }
+
+  const voiceSelection = getEventActionTikTokVoiceSelection(voiceInput?.value);
+  enqueueSpeech(text, {
+    provider: "tiktok",
+    voiceSelection,
+    queueId: ttsQueueSelect?.value || 1
+  });
+  showToast(`Queued TikTok TTS using ${voiceSelection.baseLabel}.`, "success");
+}
+
 function resolveTtsProviderKeyForVoiceValue(voiceValue, fallbackProviderKey = getCurrentTtsProviderKey()) {
   const normalizedVoiceValue = String(voiceValue ?? "").trim();
   if (/^xtts:/i.test(normalizedVoiceValue)) {
@@ -8402,6 +8524,8 @@ function getMetricThresholdLabel(metric) {
       return "Minimum coins value";
     case "specificGift":
       return "Number of selected gifts";
+    case "treasureBox":
+      return "Number of treasure boxes";
     case "subEmote":
       return "Number of selected sub emotes";
     case "fanEmote":
@@ -8429,6 +8553,8 @@ function getMetricDisplayLabel(metric) {
       return "gift coins";
     case "specificGift":
       return "specific gift";
+    case "treasureBox":
+      return "treasure boxes";
     case "subEmote":
       return "sub emote";
     case "fanEmote":
@@ -9080,7 +9206,7 @@ function getSpecificGiftCount(rule) {
 
 function getAudienceQualifiedMetricValue(rule) {
   const metric = rule?.metric;
-  if (!["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(metric)) {
+  if (!["follows", "likes", "shares", "coins", "specificGift", "treasureBox", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(metric)) {
     return 0;
   }
 
@@ -11081,6 +11207,7 @@ function resetSessionMetrics() {
     comments: 0,
     shares: 0,
     coins: 0,
+    treasureBox: 0,
     subEmote: 0,
     fanEmote: 0
   };
@@ -11092,6 +11219,7 @@ function resetSessionMetrics() {
     comments: new Map(),
     shares: new Map(),
     coins: new Map(),
+    treasureBox: new Map(),
     subEmote: new Map(),
     fanEmote: new Map()
   };
@@ -11719,12 +11847,15 @@ function getEffectiveCustomRule(ruleId) {
   const enabledToggle = document.querySelector(`[data-rule-enabled-toggle="${ruleId}"]`)
     || document.querySelector(`[data-custom-toggle="${ruleId}"]`);
   const soundSelect = document.querySelector(`[data-rule-sound-select="${ruleId}"]`);
+  const soundVolumeInput = document.querySelector(`[data-rule-sound-volume="${ruleId}"]`);
   const queueSelect = document.querySelector(`[data-rule-queue="${ruleId}"]`);
   const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${ruleId}"]`);
   const feedbackOverlayEnabledInput = document.querySelector(`[data-rule-feedback-overlay-enabled="${ruleId}"]`);
   const feedbackOverlayTitleInput = document.querySelector(`[data-rule-feedback-overlay-title="${ruleId}"]`);
   const feedbackOverlayMessageInput = document.querySelector(`[data-rule-feedback-overlay-message="${ruleId}"]`);
   const feedbackOverlayAccentColorInput = document.querySelector(`[data-rule-feedback-overlay-accent="${ruleId}"]`);
+  const tiktokTtsTextInput = document.querySelector(`[data-rule-tiktok-tts-text="${ruleId}"]`);
+  const tiktokTtsVoiceInput = document.querySelector(`[data-rule-tiktok-tts-voice="${ruleId}"]`);
   const triggerAudienceInput = document.querySelector(`[data-rule-trigger-audience="${ruleId}"]`);
   const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${ruleId}"]`);
   const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${ruleId}"]`);
@@ -11741,11 +11872,14 @@ function getEffectiveCustomRule(ruleId) {
     enabled: enabledToggle?.checked ?? rule.enabled,
     queueId: normalizeQueueId(queueSelect?.value ?? rule.queueId, 1),
     soundId: soundSelect?.value ?? rule.soundId,
+    soundVolume: normalizeRuleSoundVolume(soundVolumeInput?.value ?? rule.soundVolume),
     webhookUrl: webhookUrlInput?.value?.trim() ?? rule.webhookUrl,
     feedbackOverlayEnabled: feedbackOverlayEnabledInput?.checked ?? rule.feedbackOverlayEnabled,
     feedbackOverlayTitle: feedbackOverlayTitleInput?.value?.trim() ?? rule.feedbackOverlayTitle,
     feedbackOverlayMessage: feedbackOverlayMessageInput?.value?.trim() ?? rule.feedbackOverlayMessage,
     feedbackOverlayAccentColor: normalizeOverlayAccentColor(feedbackOverlayAccentColorInput?.value ?? rule.feedbackOverlayAccentColor),
+    tiktokTtsText: String(tiktokTtsTextInput?.value ?? rule.tiktokTtsText ?? "").trim(),
+    tiktokTtsVoice: String(tiktokTtsVoiceInput?.value ?? rule.tiktokTtsVoice ?? "").trim(),
     triggerAudience: triggerAudienceInput?.value ?? rule.triggerAudience,
     triggerUsername: normalizeUserKey(triggerUsernameInput?.value ?? rule.triggerUsername),
     triggerEmoteName: String(document.querySelector(`[data-rule-emote-name-input="${ruleId}"]`)?.value ?? rule.triggerEmoteName ?? "").trim(),
@@ -11765,6 +11899,8 @@ function getCustomRuleSearchHaystack(rule) {
     rule.triggerEmoteId,
     rule.triggerEmoteName,
     rule.triggerGiftName,
+    rule.tiktokTtsText,
+    rule.tiktokTtsVoice ? "TikTok TTS" : "",
     getMetricThresholdLabel(rule.metric),
     rule.userCooldownSeconds ? `${rule.userCooldownSeconds} second cooldown` : "",
     rule.userCooldownSeconds ? `cooldown ${rule.userCooldownSeconds}s` : "",
@@ -11827,6 +11963,10 @@ function resolveCustomRuleSearchCriteria(searchText = "") {
     ["gift coins", "coins"],
     ["gift value", "coins"],
     ["specific gift", "specificGift"],
+    ["treasure", "treasureBox"],
+    ["treasure box", "treasureBox"],
+    ["treasure boxes", "treasureBox"],
+    ["treasurebox", "treasureBox"],
     ["sub emote", "subEmote"],
     ["sub emotes", "subEmote"],
     ["fan emote", "fanEmote"],
@@ -11887,8 +12027,8 @@ async function previewCustomRuleAction(ruleId) {
     return;
   }
 
-  if (!rule.soundId && !rule.webhookUrl && !hasCustomActionFeedbackOverlay(rule)) {
-    showToast("Choose a sound, enter a webhook URL, or enable a feedback overlay to test this action.", "info");
+  if (!rule.soundId && !rule.webhookUrl && !hasCustomActionFeedbackOverlay(rule) && !rule.tiktokTtsText) {
+    showToast("Choose a sound, enter a webhook URL, add TikTok TTS text, or enable a feedback overlay to test this action.", "info");
     searchInput?.focus();
     return;
   }
@@ -11930,7 +12070,7 @@ async function previewCustomRuleSound(ruleId) {
   try {
     await enqueuePlaybackTask(rule.queueId, async () => {
       const { audioUrl } = await app.resolveSoundAlertAudio(rule.soundId);
-      await playAudioUrl(audioUrl, 1);
+      await playAudioUrl(audioUrl, normalizeRuleSoundVolume(rule.soundVolume) / 100);
     }, { label: `Sound preview: ${rule.name}`, kind: "action" });
   } catch (error) {
     if (error?.cleared) {
@@ -11950,12 +12090,14 @@ async function triggerCustomRule(rule, options = {}) {
   }
 
   const hasFeedbackOverlay = hasCustomActionFeedbackOverlay(rule);
+  const tiktokTtsText = String(rule?.tiktokTtsText ?? "").trim();
+  const hasTikTokTts = Boolean(tiktokTtsText);
   const spinWheelSettings = getSpinWheelSettings();
   const shouldTriggerSpinWheel = !options.fromSpinWheel
     && spinWheelSettings.enabled
     && spinWheelSettings.eventRuleId
     && spinWheelSettings.eventRuleId === rule?.id;
-  if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay && !shouldTriggerSpinWheel) {
+  if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay && !hasTikTokTts && !shouldTriggerSpinWheel) {
     return false;
   }
 
@@ -11967,7 +12109,7 @@ async function triggerCustomRule(rule, options = {}) {
     showCustomActionFeedbackOverlay(rule, sourceItem);
   }
 
-  if (!rule?.soundId && !rule?.webhookUrl) {
+  if (!rule?.soundId && !rule?.webhookUrl && !hasTikTokTts) {
     return true;
   }
 
@@ -11979,7 +12121,7 @@ async function triggerCustomRule(rule, options = {}) {
         (async () => {
           try {
             const { audioUrl } = await app.resolveSoundAlertAudio(rule.soundId);
-            await playAudioUrl(audioUrl, 1);
+            await playAudioUrl(audioUrl, normalizeRuleSoundVolume(rule.soundVolume) / 100);
           } catch (error) {
             showToast(error.message || `Unable to play the sound for "${rule.name}".`, "error");
           }
@@ -12016,6 +12158,29 @@ async function triggerCustomRule(rule, options = {}) {
           } catch (error) {
             showToast(error.message || `Unable to trigger the webhook for "${rule.name}".`, "error");
           }
+        })()
+      );
+    }
+
+    if (hasTikTokTts) {
+      triggerTasks.push(
+        (async () => {
+          const replacements = getCustomActionOverlayTokenReplacements(rule, sourceItem);
+          const text = formatNamedTemplate(tiktokTtsText, replacements);
+          if (!text) {
+            return;
+          }
+          if (!state.eventActionTikTokVoices.length) {
+            await loadEventActionTikTokVoices({ silent: true });
+          }
+          enqueueSpeech(text, {
+            provider: "tiktok",
+            voiceSelection: getEventActionTikTokVoiceSelection(rule.tiktokTtsVoice),
+            queueId: normalizeQueueId(rule.queueId, 1),
+            sourceUser: sourceItem?.user || "",
+            sourceNickname: sourceItem?.nickname || "",
+            sourceProfilePictureUrl: sourceItem?.profilePictureUrl || ""
+          });
         })()
       );
     }
@@ -12081,6 +12246,7 @@ function renderCustomRules() {
       const actionSummary = [
         hasSound ? `sound: ${selectedSoundTitle || "selected sound"}` : "",
         hasWebhook ? "webhook enabled" : "",
+        rule.tiktokTtsText ? "TikTok TTS" : "",
         hasCustomActionFeedbackOverlay(rule) ? "feedback overlay" : "",
         getQueueLabel(rule.queueId),
         rule.userCooldownSeconds > 0 ? `user cooldown ${rule.userCooldownSeconds}s` : "",
@@ -12185,6 +12351,7 @@ function renderCustomRules() {
                   <option value="likes" ${rule.metric === "likes" ? "selected" : ""}>Sending likes (taps)</option>
                   <option value="coins" ${rule.metric === "coins" ? "selected" : ""}>Sending a gift with min. coins value</option>
                   <option value="specificGift" ${rule.metric === "specificGift" ? "selected" : ""}>Sending a specific gift</option>
+                  <option value="treasureBox" ${rule.metric === "treasureBox" ? "selected" : ""}>Treasure box</option>
                   <option value="subEmote" ${rule.metric === "subEmote" ? "selected" : ""}>Sub emote</option>
                   <option value="fanEmote" ${rule.metric === "fanEmote" ? "selected" : ""}>Fan emote</option>
                 </select>
@@ -12293,6 +12460,19 @@ function renderCustomRules() {
             </label>
 
             <label class="field">
+              <span>Sound volume <strong data-rule-sound-volume-value="${escapeHtml(rule.id)}">${Math.round(normalizeRuleSoundVolume(rule.soundVolume))}%</strong></span>
+              <input
+                data-rule-sound-volume="${escapeHtml(rule.id)}"
+                type="range"
+                min="0"
+                max="200"
+                step="1"
+                value="${escapeHtml(String(normalizeRuleSoundVolume(rule.soundVolume)))}"
+              />
+              <small class="field-hint">This volume only applies to this event action sound.</small>
+            </label>
+
+            <label class="field">
               <span>Queue</span>
               <select data-rule-queue="${escapeHtml(rule.id)}">
                 ${Array.from({ length: 10 }, (_, index) => {
@@ -12312,6 +12492,35 @@ function renderCustomRules() {
                 autocomplete="off"
               />
             </label>
+
+            <fieldset class="field field-span-2 event-builder-group">
+              <div class="event-builder-label">
+                <span>TikTok TTS action</span>
+              </div>
+              <div class="event-action-tts-tester">
+                <label class="field event-action-tts-text-field">
+                  <span>Text to read</span>
+                  <input
+                    data-rule-tiktok-tts-text="${escapeHtml(rule.id)}"
+                    type="text"
+                    placeholder="Optional TikTok TTS message for this event action"
+                    value="${escapeHtml(rule.tiktokTtsText || "")}"
+                    autocomplete="off"
+                  />
+                  <small class="field-hint">Tokens: <code>{username}</code>, <code>{gift sent}</code>, <code>{user total likes}</code>, <code>{Cool down time}</code>, <code>{rule name}</code></small>
+                </label>
+                <label class="field event-action-tts-voice-field">
+                  <span>TikTok voice</span>
+                  <select data-rule-tiktok-tts-voice="${escapeHtml(rule.id)}">
+                    ${getEventActionTikTokVoiceOptionsMarkup(rule.tiktokTtsVoice)}
+                  </select>
+                </label>
+                <div class="event-action-tts-actions">
+                  <button type="button" class="ghost compact-button" data-rule-tiktok-tts-refresh="${escapeHtml(rule.id)}">Refresh voices</button>
+                  <button type="button" class="ghost compact-button" data-rule-tiktok-tts-preview="${escapeHtml(rule.id)}">Preview TTS</button>
+                </div>
+              </div>
+            </fieldset>
 
             <fieldset class="field field-span-2 event-builder-group">
               <div class="event-builder-label">
@@ -13602,7 +13811,7 @@ function incrementViewerStatsAllTime(userId, metric, amount) {
 }
 
 function incrementUserMetric(metric, userId, amount) {
-  const normalizedMetric = ["follows", "likes", "comments", "shares", "coins", "subEmote", "fanEmote", "join", "firstActivity"].includes(metric) ? metric : null;
+  const normalizedMetric = ["follows", "likes", "comments", "shares", "coins", "treasureBox", "subEmote", "fanEmote", "join", "firstActivity"].includes(metric) ? metric : null;
   const normalizedUserId = normalizeUserKey(userId);
   const safeAmount = Number(amount) || 0;
 
@@ -13741,6 +13950,8 @@ function createFirstActivityItem(item) {
     state.sessionUserMetrics.shares.get(userId) ?? 0
   ) + Number(
     state.sessionUserMetrics.coins.get(userId) ?? 0
+  ) + Number(
+    state.sessionUserMetrics.treasureBox.get(userId) ?? 0
   ) + Number(
     state.sessionUserMetrics.subEmote.get(userId) ?? 0
   ) + Number(
@@ -13889,6 +14100,9 @@ function doesItemMatchRuleMetric(rule, item) {
   }
   if (metric === "coins" || metric === "specificGift") {
     return item.type === "gift";
+  }
+  if (metric === "treasureBox") {
+    return item.type === "treasureBox" || item.type === "envelope";
   }
   if (metric === "subEmote") {
     return item.type === "subEmote" || (item.type === "chat" && Array.isArray(item.emotes) && item.emotes.length > 0 && Boolean(item.isSubscriber));
@@ -15961,6 +16175,11 @@ async function handleIncomingChat(payload) {
       giftCount,
       speechBubble: `+${Math.round(totalCoins * Math.max(0, Number(getLikeRace().giftMultiplier) || 0))}`
     });
+  }
+
+  if (item.type === "treasureBox" || item.type === "envelope") {
+    state.sessionMetrics.treasureBox += 1;
+    incrementUserMetric("treasureBox", item.user, 1);
   }
 
   if (item.type === "follow") {
@@ -18838,6 +19057,19 @@ function wireCustomRuleEvents() {
       return;
     }
 
+    const refreshTikTokTtsRuleId = target.dataset.ruleTiktokTtsRefresh;
+    if (refreshTikTokTtsRuleId) {
+      await loadEventActionTikTokVoices();
+      renderEventActionTikTokVoiceOptions(refreshTikTokTtsRuleId);
+      return;
+    }
+
+    const previewTikTokTtsRuleId = target.dataset.ruleTiktokTtsPreview;
+    if (previewTikTokTtsRuleId) {
+      await testEventActionTikTokTts(previewTikTokTtsRuleId);
+      return;
+    }
+
     const browseSoundId = target.dataset.customBrowseSound;
     if (browseSoundId) {
       try {
@@ -18920,12 +19152,15 @@ function wireCustomRuleEvents() {
       const disableWindowStartInput = document.querySelector(`[data-rule-disable-window-start="${saveId}"]`);
       const disableWindowEndInput = document.querySelector(`[data-rule-disable-window-end="${saveId}"]`);
       const soundSelect = document.querySelector(`[data-rule-sound-select="${saveId}"]`);
+      const soundVolumeInput = document.querySelector(`[data-rule-sound-volume="${saveId}"]`);
       const queueSelect = document.querySelector(`[data-rule-queue="${saveId}"]`);
       const webhookUrlInput = document.querySelector(`[data-rule-webhook-url="${saveId}"]`);
       const feedbackOverlayEnabledInput = document.querySelector(`[data-rule-feedback-overlay-enabled="${saveId}"]`);
       const feedbackOverlayTitleInput = document.querySelector(`[data-rule-feedback-overlay-title="${saveId}"]`);
       const feedbackOverlayMessageInput = document.querySelector(`[data-rule-feedback-overlay-message="${saveId}"]`);
       const feedbackOverlayAccentInput = document.querySelector(`[data-rule-feedback-overlay-accent="${saveId}"]`);
+      const tiktokTtsTextInput = document.querySelector(`[data-rule-tiktok-tts-text="${saveId}"]`);
+      const tiktokTtsVoiceInput = document.querySelector(`[data-rule-tiktok-tts-voice="${saveId}"]`);
       const triggerAudienceInput = document.querySelector(`[data-rule-trigger-audience="${saveId}"]`);
       const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${saveId}"]`);
       const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${saveId}"]`);
@@ -18946,6 +19181,8 @@ function wireCustomRuleEvents() {
       const feedbackOverlayTitle = String(feedbackOverlayTitleInput?.value ?? "").trim();
       const feedbackOverlayMessage = String(feedbackOverlayMessageInput?.value ?? "").trim();
       const feedbackOverlayAccentColor = normalizeOverlayAccentColor(feedbackOverlayAccentInput?.value ?? "");
+      const tiktokTtsText = String(tiktokTtsTextInput?.value ?? "").trim();
+      const tiktokTtsVoice = String(tiktokTtsVoiceInput?.value ?? "").trim();
       const disableWindowStartTime = normalizeRuleTimeValue(disableWindowStartInput?.value ?? "");
       const disableWindowEndTime = normalizeRuleTimeValue(disableWindowEndInput?.value ?? "");
 
@@ -18988,11 +19225,14 @@ function wireCustomRuleEvents() {
           ?? (state.settings.customEventRules[ruleIndex]?.enabled !== false),
         queueId: normalizeQueueId(queueSelect?.value ?? 1, 1),
         soundId: soundSelect?.value ?? "",
+        soundVolume: normalizeRuleSoundVolume(soundVolumeInput?.value ?? 100),
         webhookUrl,
         feedbackOverlayEnabled,
         feedbackOverlayTitle: feedbackOverlayEnabled ? feedbackOverlayTitle : "",
         feedbackOverlayMessage: feedbackOverlayEnabled ? feedbackOverlayMessage : "",
         feedbackOverlayAccentColor: feedbackOverlayEnabled ? feedbackOverlayAccentColor : "#53dcff",
+        tiktokTtsText,
+        tiktokTtsVoice,
         triggerAudience,
         triggerUsername,
         triggerEmoteId: metric === "subEmote" || metric === "fanEmote" ? triggerEmoteId : "",
@@ -19020,6 +19260,15 @@ function wireCustomRuleEvents() {
   });
 
   customRuleList.addEventListener("input", (event) => {
+    const soundVolumeRuleId = event.target.dataset.ruleSoundVolume;
+    if (soundVolumeRuleId) {
+      const valueLabel = document.querySelector(`[data-rule-sound-volume-value="${soundVolumeRuleId}"]`);
+      if (valueLabel) {
+        valueLabel.textContent = `${Math.round(normalizeRuleSoundVolume(event.target.value))}%`;
+      }
+      return;
+    }
+
     const searchId = event.target.dataset.ruleSoundSearch;
     if (searchId) {
       updateRuleSoundSelectionFromSearch(searchId);
@@ -19536,6 +19785,7 @@ async function initializeApp() {
 
   await Promise.all([
     loadVoices(),
+    loadEventActionTikTokVoices({ silent: true }),
     ensureSoundCatalog(),
     loadOverlayInfoBundle(),
     loadOverlayDesignerInfo(),

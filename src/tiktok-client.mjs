@@ -758,6 +758,27 @@ function bindConnectionEvents(connection, normalizedUsername, listeners) {
     });
   });
 
+  if (WebcastEvent.ENVELOPE) {
+    connection.on(WebcastEvent.ENVELOPE, (data) => {
+      const roleFlags = getRoleFlags(data);
+      listeners.onChat({
+        id: data.msgId ?? data.common?.msgId ?? randomUUID(),
+        type: "treasureBox",
+        user: data.user?.uniqueId ?? data.uniqueId ?? "unknown",
+        nickname:
+          data.user?.nickname ??
+          data.nickname ??
+          data.user?.uniqueId ??
+          data.uniqueId ??
+          "unknown",
+        profilePictureUrl: getUserProfilePictureUrl(data),
+        ...roleFlags,
+        message: "sent a treasure box",
+        timestamp: new Date().toISOString()
+      });
+    });
+  }
+
   if (WebcastEvent.MEMBER) {
     connection.on(WebcastEvent.MEMBER, (data) => {
       const roleFlags = getRoleFlags(data);

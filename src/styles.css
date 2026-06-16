@@ -1350,6 +1350,35 @@ button.danger:focus-visible {
   width: 100%;
 }
 
+.event-action-tts-tester {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.65fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 10px;
+  padding: 12px;
+  border: 1px solid rgba(83, 220, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(83, 220, 255, 0.05);
+}
+
+.event-action-tts-text-field,
+.event-action-tts-voice-field {
+  margin: 0;
+}
+
+.event-action-tts-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.event-action-tts-actions .compact-button {
+  white-space: nowrap;
+}
+
 .queue-filter-field {
   margin: 0;
 }
@@ -4472,6 +4501,15 @@ button.ghost {
     grid-template-columns: minmax(240px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr);
   }
 
+  .event-action-tts-tester {
+    grid-template-columns: minmax(240px, 1fr) minmax(180px, 0.8fr);
+  }
+
+  .event-action-tts-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
   .profile-select-field,
   .profile-select-field select,
   .remember-field,
@@ -4571,6 +4609,7 @@ button.ghost {
     .filter-grid,
     .gift-trigger-options-list,
     .header-connect-row,
+    .event-action-tts-tester,
     .custom-rule-grid,
     .custom-rule-actions {
       grid-template-columns: 1fr;

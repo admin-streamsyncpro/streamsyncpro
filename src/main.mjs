@@ -1520,9 +1520,12 @@ function normalizeCustomEventRules(source = []) {
         id: String(rule?.id ?? `rule-${index + 1}`),
         enabled: rule?.enabled !== false,
         name: String(rule?.name ?? `Custom rule ${index + 1}`).trim() || `Custom rule ${index + 1}`,
-        metric: ["follows", "likes", "shares", "coins", "specificGift", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule?.metric) ? rule.metric : "follows",
+        metric: ["follows", "likes", "shares", "coins", "specificGift", "treasureBox", "subEmote", "fanEmote", "join", "firstActivity", "anyComment"].includes(rule?.metric) ? rule.metric : "follows",
         threshold: Math.max(1, Number(rule?.threshold) || 1),
         soundId: String(rule?.soundId ?? "").trim(),
+        soundVolume: Number.isFinite(Number(rule?.soundVolume))
+          ? Math.min(200, Math.max(0, Number(rule.soundVolume)))
+          : 100,
         webhookUrl: String(rule?.webhookUrl ?? "").trim(),
         queueId: Math.min(10, Math.max(1, Number(rule?.queueId) || 1)),
         userCooldownSeconds: Math.max(0, Number(rule?.userCooldownSeconds) || 0),
@@ -1540,7 +1543,9 @@ function normalizeCustomEventRules(source = []) {
         feedbackOverlayEnabled: Boolean(rule?.feedbackOverlayEnabled),
         feedbackOverlayTitle: String(rule?.feedbackOverlayTitle ?? "").trim(),
         feedbackOverlayMessage: String(rule?.feedbackOverlayMessage ?? "").trim(),
-        feedbackOverlayAccentColor: String(rule?.feedbackOverlayAccentColor ?? "").trim()
+        feedbackOverlayAccentColor: String(rule?.feedbackOverlayAccentColor ?? "").trim(),
+        tiktokTtsText: String(rule?.tiktokTtsText ?? "").trim(),
+        tiktokTtsVoice: String(rule?.tiktokTtsVoice ?? "").trim()
       }))
       .slice(0, 50);
   }
