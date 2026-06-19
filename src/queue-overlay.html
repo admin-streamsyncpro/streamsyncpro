@@ -274,6 +274,61 @@
         gap: 8px;
       }
 
+      .queue-item-media,
+      .compact-media,
+      .queue-media-layer-card {
+        overflow: hidden;
+        border-radius: 16px;
+        border: 1px solid rgba(84, 208, 255, 0.18);
+        background: rgba(0, 0, 0, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      .queue-item-media img,
+      .queue-item-media video,
+      .compact-media img,
+      .compact-media video,
+      .queue-media-layer-card img,
+      .queue-media-layer-card video {
+        display: block;
+        width: 100%;
+        max-height: 280px;
+        object-fit: contain;
+      }
+
+      .queue-media-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        pointer-events: none;
+      }
+
+      .queue-media-layer[hidden] {
+        display: none;
+      }
+
+      .queue-media-layer-card {
+        width: min(86vw, 720px);
+        max-height: 82vh;
+        background: rgba(0, 0, 0, 0.36);
+        box-shadow:
+          0 20px 54px rgba(0, 0, 0, 0.42),
+          0 0 34px rgba(83, 220, 255, 0.18);
+      }
+
+      .queue-media-layer-card img,
+      .queue-media-layer-card video {
+        max-height: 82vh;
+      }
+
+      body.mode-compact .compact-media img,
+      body.mode-compact .compact-media video {
+        max-height: 420px;
+      }
+
       .meta-pill {
         display: inline-flex;
         align-items: center;
@@ -378,6 +433,7 @@
     </style>
   </head>
   <body>
+    <div id="queue-media-layer" class="queue-media-layer" hidden></div>
     <section class="overlay-shell">
       <header class="overlay-head">
         <p class="eyebrow">Queue Overlay</p>
@@ -426,6 +482,7 @@
       const queueCount = document.getElementById("queue-count");
       const queueTag = document.getElementById("queue-tag");
       const queueList = document.getElementById("queue-list");
+      const queueMediaLayer = document.getElementById("queue-media-layer");
       const updatedAt = document.getElementById("updated-at");
       const overlayTitle = document.querySelector(".overlay-title");
       const queueLane = Math.min(10, Math.max(1, Number(new URLSearchParams(window.location.search).get("queue")) || 1));
@@ -456,6 +513,7 @@
         const items = Array.isArray(state?.items)
           ? state.items.filter((item) => Number(item?.queueId) === queueLane)
           : [];
+        renderQueueMediaLayer(items);
         const runningCount = items.filter((item) => item.status === "running").length;
         const totalCount = items.length;
 
@@ -482,6 +540,7 @@
           const remainingCount = Math.max(0, items.length - 1);
           const kindLabel = currentItem.kind === "tts" ? "TTS" : "Action";
           const statusLabel = currentItem.status === "running" ? "Playing now" : "Up next";
+          const mediaHtml = renderQueueMedia(currentItem?.media, "compact-media");
 
           queueList.innerHTML = `
             <div class="compact-now-playing">
@@ -489,6 +548,7 @@
                 <strong>${escapeHtml(statusLabel)}</strong>
                 <span class="meta-pill kind-${escapeHtml(currentItem.kind)}">${escapeHtml(kindLabel)}</span>
               </div>
+              ${mediaHtml}
               <div class="compact-main">${escapeHtml(currentItem.label)}</div>
               <div class="compact-sub">
                 <span class="meta-pill">Queue ${escapeHtml(String(currentItem.queueId))}</span>
@@ -503,8 +563,10 @@
         queueList.innerHTML = items.map((item) => {
           const kindLabel = item.kind === "tts" ? "TTS" : "Action";
           const statusLabel = item.status === "running" ? "Playing" : "Waiting";
+          const mediaHtml = renderQueueMedia(item?.media, "queue-item-media");
           return `
             <article class="queue-item ${item.status === "running" ? "running" : ""}">
+              ${mediaHtml}
               <div class="queue-item-title">${escapeHtml(item.label)}</div>
               <div class="queue-item-meta">
                 <span class="meta-pill kind-${escapeHtml(item.kind)}">${escapeHtml(kindLabel)}</span>
@@ -516,6 +578,42 @@
         }).join("");
       }
 
+      function renderQueueMedia(media, className) {
+        if (!media || !media.url) {
+          return "";
+        }
+
+        const mediaName = escapeHtml(media.name || "Queue media");
+        const mediaUrl = escapeAttribute(media.url);
+        if (media.type === "video") {
+          return `
+            <div class="${escapeHtml(className)}">
+              <video src="${mediaUrl}" muted autoplay loop playsinline title="${mediaName}"></video>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="${escapeHtml(className)}">
+            <img src="${mediaUrl}" alt="${mediaName}" />
+          </div>
+        `;
+      }
+
+      function renderQueueMediaLayer(items) {
+        const activeItem = Array.isArray(items)
+          ? (items.find((item) => item?.status === "running" && item?.media?.url) || null)
+          : null;
+        if (!activeItem) {
+          queueMediaLayer.hidden = true;
+          queueMediaLayer.innerHTML = "";
+          return;
+        }
+
+        queueMediaLayer.innerHTML = renderQueueMedia(activeItem.media, "queue-media-layer-card");
+        queueMediaLayer.hidden = false;
+      }
+
       function escapeHtml(value) {
         return String(value ?? "")
           .replaceAll("&", "&amp;")
@@ -523,6 +621,10 @@
           .replaceAll(">", "&gt;")
           .replaceAll("\"", "&quot;")
           .replaceAll("'", "&#39;");
+      }
+
+      function escapeAttribute(value) {
+        return escapeHtml(value).replaceAll("`", "&#96;");
       }
 
       async function loadQueueState() {

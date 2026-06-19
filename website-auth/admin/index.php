@@ -14,7 +14,7 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
-define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.16'));
+define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.18'));
 $message = '';
 $messageType = 'info';
 
@@ -264,6 +264,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statement->execute([':id' => $promoId]);
             $message = 'Promo code deleted successfully.';
             $messageType = 'success';
+        } elseif ($action === 'update-feedback-report') {
+            $reportId = (int) ($_POST['feedback_id'] ?? 0);
+            $status = trim((string) ($_POST['feedback_status'] ?? 'open'));
+            $adminNotes = trim((string) ($_POST['feedback_admin_notes'] ?? ''));
+            if (!in_array($status, ['open', 'reviewing', 'resolved'], true)) {
+                $status = 'open';
+            }
+            $statement = $pdo->prepare(
+                'UPDATE auth_beta_feedback_reports
+                 SET status = :status,
+                     admin_notes = :admin_notes
+                 WHERE id = :id'
+            );
+            $statement->execute([
+                ':status' => $status,
+                ':admin_notes' => $adminNotes !== '' ? $adminNotes : null,
+                ':id' => $reportId,
+            ]);
+            $message = 'Feedback report updated successfully.';
+            $messageType = 'success';
         }
     }
 }
@@ -283,11 +303,12 @@ $auditSort = trim((string) ($_GET['audit_sort'] ?? 'desc'));
 $auditGroup = trim((string) ($_GET['audit_group'] ?? 'day'));
 $billingSettings = fetchBillingSettings($pdo, $config);
 $promoCodes = fetchPromoCodes($pdo);
+$feedbackReports = fetchBetaFeedbackReports($pdo);
 $users = fetchUsers($pdo, $searchQuery, $statusFilter);
 $auditedUser = $auditUserId > 0 ? findUserById($pdo, $auditUserId) : null;
 $auditLogs = $auditUserId > 0 ? fetchAuditLogs($pdo, $auditUserId, $auditFrom, $auditTo, $auditType, $auditSort) : [];
 $auditChart = $auditUserId > 0 ? fetchAuditChartData($pdo, $auditUserId, $auditFrom, $auditTo, $auditType, $auditGroup) : ['periods' => [], 'legend' => []];
-renderDashboard($users, $message, $messageType, $searchQuery, $statusFilter, $auditUserId, $auditedUser, $auditLogs, $auditFrom, $auditTo, $auditType, $auditSort, $auditGroup, $auditChart, $billingSettings, $promoCodes);
+renderDashboard($users, $message, $messageType, $searchQuery, $statusFilter, $auditUserId, $auditedUser, $auditLogs, $auditFrom, $auditTo, $auditType, $auditSort, $auditGroup, $auditChart, $billingSettings, $promoCodes, $feedbackReports);
 
 function isAdminAuthenticated(): bool
 {
@@ -391,6 +412,27 @@ function ensureSchema(PDO $pdo, array $config = []): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS auth_beta_feedback_reports (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NULL,
+            category VARCHAR(80) NOT NULL,
+            severity VARCHAR(40) NOT NULL,
+            contact VARCHAR(255) NULL,
+            app_version VARCHAR(40) NULL,
+            report_body LONGTEXT NOT NULL,
+            diagnostics_json LONGTEXT NULL,
+            status VARCHAR(40) NOT NULL DEFAULT "open",
+            admin_notes TEXT NULL,
+            ip_address VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_feedback_status_created (status, created_at),
+            INDEX idx_feedback_user_created (user_id, created_at),
+            CONSTRAINT fk_admin_feedback_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
     ensureColumn($pdo, 'auth_users', 'is_locked', 'ALTER TABLE auth_users ADD COLUMN is_locked TINYINT(1) NOT NULL DEFAULT 0 AFTER is_verified');
     ensureColumn($pdo, 'auth_users', 'debug_enabled', 'ALTER TABLE auth_users ADD COLUMN debug_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER is_locked');
     ensureColumn($pdo, 'auth_users', 'credits', 'ALTER TABLE auth_users ADD COLUMN credits INT NOT NULL DEFAULT 0 AFTER debug_enabled');
@@ -402,6 +444,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_users', 'forced_logout_token_hash', 'ALTER TABLE auth_users ADD COLUMN forced_logout_token_hash VARCHAR(255) NULL AFTER active_connection_started_at');
     ensureColumn($pdo, 'auth_users', 'forced_logout_reason', 'ALTER TABLE auth_users ADD COLUMN forced_logout_reason VARCHAR(64) NULL AFTER forced_logout_token_hash');
     ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_reason');
+    ensureColumn($pdo, 'auth_beta_feedback_reports', 'admin_notes', 'ALTER TABLE auth_beta_feedback_reports ADD COLUMN admin_notes TEXT NULL AFTER status');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
 
@@ -482,6 +525,21 @@ function fetchPromoCodes(PDO $pdo): array
         'SELECT id, code, discount_type, discount_value, minimum_credits, maximum_redemptions, redeemed_count, is_active, expires_at, created_at
          FROM auth_promo_codes
          ORDER BY created_at DESC, id DESC'
+    );
+    return $statement->fetchAll();
+}
+
+function fetchBetaFeedbackReports(PDO $pdo): array
+{
+    $statement = $pdo->query(
+        'SELECT r.id, r.user_id, r.category, r.severity, r.contact, r.app_version,
+                r.report_body, r.diagnostics_json, r.status, r.admin_notes, r.ip_address,
+                r.created_at, r.updated_at,
+                u.email, u.display_name
+         FROM auth_beta_feedback_reports r
+         LEFT JOIN auth_users u ON u.id = r.user_id
+         ORDER BY FIELD(r.status, "open", "reviewing", "resolved"), r.created_at DESC
+         LIMIT 50'
     );
     return $statement->fetchAll();
 }
@@ -899,7 +957,7 @@ function renderLogin(string $message, string $messageType): void
 <?php
 }
 
-function renderDashboard(array $users, string $message, string $messageType, string $searchQuery, string $statusFilter, int $auditUserId, ?array $auditedUser, array $auditLogs, string $auditFrom, string $auditTo, string $auditType, string $auditSort, string $auditGroup, array $auditChart, array $billingSettings, array $promoCodes): void
+function renderDashboard(array $users, string $message, string $messageType, string $searchQuery, string $statusFilter, int $auditUserId, ?array $auditedUser, array $auditLogs, string $auditFrom, string $auditTo, string $auditType, string $auditSort, string $auditGroup, array $auditChart, array $billingSettings, array $promoCodes, array $feedbackReports): void
 {
     ?>
 <!doctype html>
@@ -1017,6 +1075,12 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .audit-cell strong{display:block;color:#eef4ff;font-size:15px;line-height:1.45;font-weight:700}
     .audit-cell--description{grid-column:1 / -1;margin-top:10px;color:#e5eefc;font-size:14px;line-height:1.55}
     .audit-empty{padding:18px}
+    .feedback-list{display:grid;gap:14px}
+    .feedback-card{padding:16px;border:1px solid rgba(89,170,255,.14);border-radius:20px;background:rgba(8,14,27,.72);display:grid;gap:12px}
+    .feedback-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+    .feedback-meta{display:flex;gap:8px;flex-wrap:wrap}
+    .feedback-body{white-space:pre-wrap;line-height:1.55;color:#e5eefc;background:rgba(255,255,255,.035);border:1px solid rgba(89,170,255,.1);border-radius:14px;padding:12px;max-height:260px;overflow:auto}
+    .feedback-card textarea{min-height:64px;border-radius:12px;border:1px solid rgba(89,170,255,.18);background:#081224;color:#fff;padding:10px 12px;min-width:260px;resize:vertical}
     code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
     @media (max-width:1180px){.actions,.action-form,.row{flex-wrap:wrap}}
     @media (max-width:900px){.top{flex-direction:column}.toolbar form,.admin-panel form,.audit-filters{display:grid}.toolbar .search,input,select{min-width:100%}.wrap{padding:20px 14px 40px}.panel-body{padding:18px}.table-panel .panel-body{padding:0 0 18px}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border-bottom:1px solid rgba(89,170,255,.12)}td{padding:10px 14px}.table-panel{display:grid}.accounts-table-wrap{border-radius:0;border-left:none;border-right:none}.actions,.action-form,.row{flex-wrap:wrap}.audit-head{display:none}.audit-row{grid-template-columns:1fr 1fr}.audit-cell strong{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9eb9df}.audit-cell--description{grid-column:1 / -1}.audit-bar-row{grid-template-columns:1fr}.audit-bar-total{text-align:right}}
@@ -1037,6 +1101,63 @@ function renderDashboard(array $users, string $message, string $messageType, str
     <?php if ($message !== ''): ?>
       <div class="msg <?php echo htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
+
+      <div class="admin-panel panel" id="feedback-panel">
+        <div class="panel-head"><span class="eyebrow">Beta Feedback</span></div>
+        <div class="panel-body">
+          <div class="subtitle" style="margin-top:0">Latest beta tester reports sent directly from the desktop app.</div>
+          <?php if (!$feedbackReports): ?>
+            <div class="muted">No beta feedback reports have been submitted yet.</div>
+          <?php else: ?>
+            <div class="feedback-list">
+              <?php foreach ($feedbackReports as $report): ?>
+                <article class="feedback-card">
+                  <div class="feedback-card-head">
+                    <div>
+                      <strong>#<?php echo (int) $report['id']; ?> <?php echo htmlspecialchars((string) $report['category'], ENT_QUOTES, 'UTF-8'); ?></strong>
+                      <div class="muted" style="font-size:13px;margin-top:4px;">
+                        <?php echo htmlspecialchars((string) ($report['display_name'] ?? 'Unknown user'), ENT_QUOTES, 'UTF-8'); ?>
+                        <?php if (!empty($report['email'])): ?>
+                          &middot; <?php echo htmlspecialchars((string) $report['email'], ENT_QUOTES, 'UTF-8'); ?>
+                        <?php endif; ?>
+                        &middot; <?php echo htmlspecialchars((string) $report['created_at'], ENT_QUOTES, 'UTF-8'); ?>
+                      </div>
+                    </div>
+                    <div class="feedback-meta">
+                      <span class="pill <?php echo $report['status'] === 'resolved' ? 'ok' : ($report['status'] === 'reviewing' ? 'live' : 'locked'); ?>"><?php echo htmlspecialchars((string) $report['status'], ENT_QUOTES, 'UTF-8'); ?></span>
+                      <span class="pill session"><?php echo htmlspecialchars((string) $report['severity'], ENT_QUOTES, 'UTF-8'); ?></span>
+                      <?php if (!empty($report['app_version'])): ?>
+                        <span class="pill off">v<?php echo htmlspecialchars((string) $report['app_version'], ENT_QUOTES, 'UTF-8'); ?></span>
+                      <?php endif; ?>
+                    </div>
+                  </div>
+                  <?php if (!empty($report['contact'])): ?>
+                    <div class="muted">Contact: <?php echo htmlspecialchars((string) $report['contact'], ENT_QUOTES, 'UTF-8'); ?></div>
+                  <?php endif; ?>
+                  <div class="feedback-body"><?php echo htmlspecialchars((string) $report['report_body'], ENT_QUOTES, 'UTF-8'); ?></div>
+                  <form method="post">
+                    <input type="hidden" name="action" value="update-feedback-report" />
+                    <input type="hidden" name="feedback_id" value="<?php echo (int) $report['id']; ?>" />
+                    <label>
+                      Status
+                      <select name="feedback_status">
+                        <option value="open" <?php echo $report['status'] === 'open' ? 'selected' : ''; ?>>Open</option>
+                        <option value="reviewing" <?php echo $report['status'] === 'reviewing' ? 'selected' : ''; ?>>Reviewing</option>
+                        <option value="resolved" <?php echo $report['status'] === 'resolved' ? 'selected' : ''; ?>>Resolved</option>
+                      </select>
+                    </label>
+                    <label>
+                      Admin notes
+                      <textarea name="feedback_admin_notes" placeholder="Internal note"><?php echo htmlspecialchars((string) ($report['admin_notes'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
+                    </label>
+                    <button type="submit" class="unlock">Update Report</button>
+                  </form>
+                </article>
+              <?php endforeach; ?>
+            </div>
+          <?php endif; ?>
+        </div>
+      </div>
 
       <div class="admin-panel panel panel-collapsed" id="security-panel">
         <div class="panel-head panel-head--toggle">

@@ -6,7 +6,7 @@
   <title>Stream Sync Pro LIVE</title>
   <meta
     name="description"
-    content="Smarter live engagement starts here. Stream Sync Pro LIVE helps creators automate TikTok LIVE chat, alerts, translation, and voice interactions."
+    content="Stream Sync Pro LIVE is a TikTok LIVE desktop toolkit for overlays, TTS, event actions, games, Spotify control, viewer points, and creator automation."
   />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -14,7 +14,7 @@
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
-  <link rel="stylesheet" href="./styles.css?v=20260602a" />
+  <link rel="stylesheet" href="./styles.css?v=20260619a" />
 </head>
 <body>
   <div class="site-shell">
@@ -46,7 +46,7 @@
           <h1 class="hero-title">Smarter live engagement without the chaos.</h1>
           <p class="hero-lead">
             Stream Sync Pro LIVE gives creators one polished workspace for TikTok LIVE chat, TTS, overlays,
-            event actions, translations, mini-games, and viewer automation.
+            event actions, translations, mini-games, Spotify control, viewer points, and hosted overlays.
           </p>
           <div class="hero-inline-band">
             <p class="beta-copy">
@@ -65,9 +65,9 @@
           <div class="hero-actions">
             <a
               class="button button-primary"
-              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.13.exe"
+              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.18.exe"
             >
-              Download v1.0.13
+              Download v1.0.18
             </a>
             <a class="button button-secondary" href="./contact.html">Ask about beta access</a>
             <span class="download-caption">Windows installer for early access creators</span>
@@ -107,29 +107,52 @@
               <div class="product-row">
                 <span class="product-icon">T</span>
                 <div>
-                  <strong>TTS queue</strong>
-                  <span>Custom voices, filters, cache, and moderation controls</span>
+              <strong>TTS queue</strong>
+                  <span>TikTok TTS, ElevenLabs fallback, XTTS voices, cache, filters, and moderation</span>
                 </div>
                 <span class="product-pill">Live</span>
               </div>
               <div class="product-row">
                 <span class="product-icon">O</span>
                 <div>
-                  <strong>Hosted overlays</strong>
-                  <span>Browser-source friendly overlays for OBS, TikTok, and Streamlabs</span>
+              <strong>Hosted overlays</strong>
+                  <span>Overlay Hub, designer templates, progress bars, gift alerts, chat, stats, and queue views</span>
                 </div>
-                <span class="product-pill">Public URL</span>
+                <span class="product-pill">Static URLs</span>
               </div>
               <div class="product-row">
                 <span class="product-icon">G</span>
                 <div>
-                  <strong>Audience games</strong>
-                  <span>Like Race, voting, leaderboards, and viewer-driven moments</span>
+              <strong>Audience games</strong>
+                  <span>Like Race, voting, Spin Wheel actions, leaderboards, and viewer-driven moments</span>
                 </div>
                 <span class="product-pill">Interactive</span>
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="release-strip card" aria-label="Latest release highlights">
+        <div class="card-header">
+          <span class="eyebrow">Latest Release</span>
+        </div>
+        <div class="card-body release-grid">
+          <article>
+            <span class="mini-label">v1.0.18</span>
+            <strong>More polished creator workspace</strong>
+            <p>New Overlay Hub, guided Event Actions builder, cleaner navigation, compact cards, and better live testing flows.</p>
+          </article>
+          <article>
+            <span class="mini-label">Overlays</span>
+            <strong>Hosted URLs for OBS, TikTok, and Streamlabs</strong>
+            <p>Queue, chat, gift, likes, viewer stats, voting, progress bars, Like Race, and Spin Wheel overlays now share a clearer setup path.</p>
+          </article>
+          <article>
+            <span class="mini-label">Automation</span>
+            <strong>Sounds, OBS, Voicemod, TTS, media, and webhooks</strong>
+            <p>Event rules can trigger sounds, TikTok TTS messages, OBS scenes/sources, Voicemod voices, queue media, custom overlays, and webhooks.</p>
+          </article>
         </div>
       </section>
 
@@ -140,10 +163,10 @@
           </div>
           <div class="card-body">
             <h2 class="card-title">Live Chat Control</h2>
-            <p>Monitor incoming TikTok LIVE messages in a clean desktop feed with fast filtering, saved viewer notes, likes totals, and fast status controls.</p>
+            <p>Monitor incoming TikTok LIVE messages, joins, follows, shares, likes, gifts, treasure boxes, emotes, and viewer activity in a clean desktop feed.</p>
             <ul class="feature-list">
-              <li>Incoming chat, follows, shares, likes, gifts, and viewer notes in one place.</li>
-              <li>Compact controls designed for live use, not admin spreadsheets.</li>
+              <li>Viewer notes, birthdays, profile pictures, first and last activity timestamps.</li>
+              <li>User Points table with ranks, stats, filters, sorting, and manual point adjustments.</li>
             </ul>
           </div>
         </article>
@@ -154,10 +177,10 @@
           </div>
           <div class="card-body">
             <h2 class="card-title">Voice And Translation</h2>
-            <p>Read chat aloud, translate comments into your selected language, and route TTS through selectable queues so voice playback stays ordered and clear.</p>
+            <p>Read chat aloud, translate comments, moderate abuse, lock voices to viewers, and route TTS through selectable queues so playback stays ordered.</p>
             <ul class="feature-list">
-              <li>Built-in, ElevenLabs, and XTTS-style custom voice workflows.</li>
-              <li>Moderation tools, blocked words, cooldowns, voice locks, and cache support.</li>
+              <li>TikTok TTS, ElevenLabs with TikTok fallback, and XTTS custom voices with import/export, samples, tuning, cache, rate, and pitch.</li>
+              <li>Moderator commands, blocked words, unsafe prompt filters, cooldowns, slowmode, muted users, and audit logs.</li>
             </ul>
           </div>
         </article>
@@ -168,10 +191,52 @@
           </div>
           <div class="card-body">
             <h2 class="card-title">Smart Event Actions</h2>
-            <p>Create custom event actions for follows, likes, shares, and coins with queue selection, webhook triggers, audience targeting, and sound previews.</p>
+            <p>Create custom event actions with a guided builder for follows, likes, comments, shares, joins, gifts, coins, emotes, birthdays, and treasure boxes.</p>
             <ul class="feature-list">
-              <li>Trigger sounds, overlays, webhooks, and cooldown-aware automations.</li>
-              <li>Target everyone, subscribers, moderators, specific users, or gift events.</li>
+              <li>Trigger sounds, TikTok TTS, overlays, webhooks, OBS scenes/sources, Voicemod voices, queue media, and cooldown-aware automations.</li>
+              <li>Target everyone, followers, subscribers, moderators, top gifters, specific users, birthday viewers, or selected gifts/emotes.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="card feature-card">
+          <div class="card-header">
+            <span class="eyebrow">Feature 04</span>
+          </div>
+          <div class="card-body">
+            <h2 class="card-title">Overlay Hub And Designer</h2>
+            <p>Manage hosted browser-source overlays from one hub, copy static public URLs, open previews, test overlays, and customise templates visually.</p>
+            <ul class="feature-list">
+              <li>Queue, chat, gift, like leaderboard, viewer stats, command feedback, voting, progress bars, Like Race, and Spin Wheel overlays.</li>
+              <li>Drag-and-drop designer with text, images, videos, widgets, voting templates, colours, fonts, animations, reset, import, and export.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="card feature-card">
+          <div class="card-header">
+            <span class="eyebrow">Feature 05</span>
+          </div>
+          <div class="card-body">
+            <h2 class="card-title">Creator Games And Goals</h2>
+            <p>Turn engagement into on-screen moments with voting, progress goals, a wheel of actions, and a TikTok LIVE Like Race mini-game.</p>
+            <ul class="feature-list">
+              <li>Like Race uses likes, gifts, avatars, profile pictures, overlays, TTS commentary, countdown sounds, and finish sounds.</li>
+              <li>Progress bars can duplicate, preview, hide background/text, animate goal completion, double/increase goals, or hide when complete.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="card feature-card">
+          <div class="card-header">
+            <span class="eyebrow">Feature 06</span>
+          </div>
+          <div class="card-body">
+            <h2 class="card-title">Music And Integrations</h2>
+            <p>Connect creator tools around the live stream, including Spotify control, OBS scene/source actions, Voicemod voice changes, and webhooks.</p>
+            <ul class="feature-list">
+              <li>Spotify sign-in, playlist requests with <code>!play artist song</code>, skip controls, role permissions, and explicit-content filtering.</li>
+              <li>OBS and Voicemod actions can trigger from Event Actions and optionally revert after a configured delay.</li>
             </ul>
           </div>
         </article>
@@ -198,7 +263,7 @@
             <article class="step">
               <span class="step-number">03</span>
               <h3>Turn Attention Into Interaction</h3>
-              <p>Use voice alerts, translations, custom triggers, viewer notes, queue management, and webhook actions to keep your community active and entertained.</p>
+              <p>Use voice alerts, hosted overlays, custom triggers, viewer notes, points, games, Spotify requests, OBS actions, and webhook automations to keep your community active.</p>
             </article>
           </div>
         </div>
@@ -214,7 +279,7 @@
             <p class="download-copy">
               Download the latest Windows installer and start building a more interactive, automated livestream experience.
             </p>
-            <p class="download-note">Current highlighted version: <strong>1.0.13</strong></p>
+            <p class="download-note">Current highlighted version: <strong>1.0.18</strong></p>
             <p class="download-warning">
               Beta release: if Windows shows a SmartScreen warning, use <strong>More info</strong> and then
               <strong>Run anyway</strong> to continue.
@@ -224,7 +289,7 @@
           <div class="download-actions">
             <a
               class="button button-primary"
-              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.13.exe"
+              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.18.exe"
             >
               Download Installer
             </a>

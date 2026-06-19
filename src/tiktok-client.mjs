@@ -144,6 +144,34 @@ function getUserProfilePictureUrl(data) {
 }
 
 function getGiftImageUrl(data) {
+  const extractUrl = (candidate) => {
+    if (!candidate) {
+      return "";
+    }
+    if (typeof candidate === "string") {
+      return candidate.trim().replace(/^http:\/\//i, "https://");
+    }
+    if (Array.isArray(candidate)) {
+      return candidate.map(extractUrl).find(Boolean) || "";
+    }
+    if (typeof candidate === "object") {
+      const directCandidates = [
+        candidate.url,
+        candidate.uri,
+        candidate.urlList,
+        candidate.url_list,
+        candidate.urls,
+        candidate.url_list?.[0],
+        candidate.urlList?.[0],
+        candidate.urls?.[0],
+        candidate.thumb,
+        candidate.medium,
+        candidate.large
+      ];
+      return directCandidates.map(extractUrl).find(Boolean) || "";
+    }
+    return "";
+  };
   const candidates = [
     data.giftPictureUrl,
     data.giftImage?.url?.[0],
@@ -192,7 +220,7 @@ function getGiftImageUrl(data) {
   ];
 
   for (const candidate of candidates) {
-    const value = String(candidate ?? "").trim().replace(/^http:\/\//i, "https://");
+    const value = extractUrl(candidate);
     if (value) {
       return value;
     }

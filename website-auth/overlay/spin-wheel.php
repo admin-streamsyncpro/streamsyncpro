@@ -15,6 +15,17 @@ $overlayAccessQuery = $overlayId !== ''
   <style>
     :root {
       --wheel-size: min(82vmin, 820px);
+      --wheel-font-size: 24px;
+      --wheel-result-font-size: 32px;
+      --wheel-border-width: 18px;
+      --wheel-inner-ring-width: 8px;
+      --wheel-outer-ring-width: 24px;
+      --wheel-outer-glow-width: 34px;
+      --wheel-center-size: 118px;
+      --wheel-center-border-width: 7px;
+      --wheel-center-initials-size: 42px;
+      --wheel-center-name-size: 20px;
+      --wheel-center-name-offset: 74px;
       --gold-1: #fff1a8;
       --gold-2: #ffc83d;
       --gold-3: #b5521e;
@@ -42,7 +53,9 @@ $overlayAccessQuery = $overlayId !== ''
       opacity: 0;
       transform: scale(0.9);
       transition: opacity 240ms ease, transform 240ms ease;
-      filter: drop-shadow(0 28px 42px rgba(0, 0, 0, 0.34));
+      filter:
+        drop-shadow(0 34px 46px rgba(0, 0, 0, 0.46))
+        drop-shadow(0 0 26px rgba(104, 216, 255, 0.16));
     }
 
     .wheel-stage.visible {
@@ -55,13 +68,18 @@ $overlayAccessQuery = $overlayId !== ''
       inset: 6%;
       border-radius: 50%;
       overflow: hidden;
-      border: calc(var(--wheel-size) * 0.035) solid rgba(255, 210, 72, 0.95);
-      background: transparent;
+      border: var(--wheel-border-width) solid rgba(255, 210, 72, 0.95);
+      background:
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.52), transparent 18%),
+        radial-gradient(circle at 50% 58%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.34) 82%),
+        linear-gradient(135deg, #ffe87a 0%, #f6a91f 32%, #b75016 70%, #ffe27a 100%);
       box-shadow:
-        inset 0 0 38px rgba(255, 255, 255, 0.18),
-        inset 0 0 0 calc(var(--wheel-size) * 0.014) rgba(255, 255, 255, 0.16),
-        0 0 0 calc(var(--wheel-size) * 0.045) rgba(239, 159, 30, 0.88),
-        0 0 0 calc(var(--wheel-size) * 0.062) rgba(255, 221, 94, 0.8);
+        inset 0 14px 26px rgba(255, 255, 255, 0.36),
+        inset 0 -28px 34px rgba(96, 34, 0, 0.34),
+        inset 0 0 0 var(--wheel-inner-ring-width) rgba(255, 255, 255, 0.2),
+        0 0 0 var(--wheel-outer-ring-width) rgba(239, 159, 30, 0.9),
+        0 0 0 var(--wheel-outer-glow-width) rgba(255, 221, 94, 0.78),
+        0 24px 42px rgba(80, 28, 0, 0.46);
       transition: transform 5s cubic-bezier(0.11, 0.78, 0.16, 1);
     }
 
@@ -74,8 +92,9 @@ $overlayAccessQuery = $overlayId !== ''
     }
 
     .wheel-segment {
-      stroke: rgba(255, 255, 255, 0.12);
-      stroke-width: 0.25;
+      stroke: rgba(255, 255, 255, 0.2);
+      stroke-width: 0.34;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
     }
 
     .wheel::before {
@@ -84,8 +103,22 @@ $overlayAccessQuery = $overlayId !== ''
       inset: 0;
       border-radius: inherit;
       background:
-        radial-gradient(circle at 48% 30%, rgba(255, 255, 255, 0.38), transparent 18%),
-        radial-gradient(circle at 50% 52%, transparent 0 16%, rgba(0, 0, 0, 0.16) 100%);
+        radial-gradient(ellipse at 32% 20%, rgba(255, 255, 255, 0.58), transparent 22%),
+        radial-gradient(circle at 50% 50%, transparent 0 36%, rgba(255, 255, 255, 0.12) 44%, transparent 50%),
+        radial-gradient(circle at 50% 54%, transparent 0 18%, rgba(0, 0, 0, 0.2) 75%, rgba(0, 0, 0, 0.44) 100%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .wheel::after {
+      content: "";
+      position: absolute;
+      inset: 3%;
+      border-radius: inherit;
+      background:
+        conic-gradient(from -20deg, rgba(255, 255, 255, 0.18), transparent 12%, rgba(0, 0, 0, 0.14) 25%, transparent 38%, rgba(255, 255, 255, 0.14) 52%, transparent 72%, rgba(0, 0, 0, 0.2) 88%, rgba(255, 255, 255, 0.18)),
+        radial-gradient(circle at 50% 50%, transparent 0 58%, rgba(255, 255, 255, 0.22) 63%, rgba(0, 0, 0, 0.28) 100%);
+      opacity: 0.84;
       pointer-events: none;
     }
 
@@ -93,18 +126,24 @@ $overlayAccessQuery = $overlayId !== ''
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 42%;
+      width: 32%;
       transform-origin: 0 50%;
       color: #ffffff;
-      font-size: clamp(14px, 2.2vmin, 24px);
+      font-size: var(--wheel-font-size);
       font-weight: 950;
+      line-height: 1.05;
       letter-spacing: 0.02em;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
-      white-space: nowrap;
+      white-space: normal;
       overflow: hidden;
-      text-overflow: ellipsis;
-      text-align: right;
-      padding-right: 8%;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+      text-align: center;
+      padding-right: 0;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      max-height: 2.25em;
       box-sizing: border-box;
     }
 
@@ -134,9 +173,13 @@ $overlayAccessQuery = $overlayId !== ''
       position: absolute;
       width: 17%;
       height: 11%;
-      background: linear-gradient(90deg, #d67616, #fff2a6 34%, #fff6c7 70%, #f7b833);
-      filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.32));
-      z-index: 4;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.72), transparent 42%),
+        linear-gradient(90deg, #b9570c, #fff0a3 32%, #fff9d5 54%, #f5b42d 76%, #b9560b);
+      filter:
+        drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42))
+        drop-shadow(0 0 12px rgba(255, 225, 82, 0.42));
+      z-index: 9;
     }
 
     .pointer.right {
@@ -177,15 +220,26 @@ $overlayAccessQuery = $overlayId !== ''
 
     .hub {
       position: absolute;
-      inset: 43%;
+      inset: auto;
+      top: 50%;
+      left: 50%;
+      width: var(--wheel-center-size);
+      height: var(--wheel-center-size);
+      transform: translate(-50%, -50%);
       z-index: 5;
       display: grid;
       place-items: center;
       border-radius: 50%;
-      border: 6px solid #f3b53b;
-      background: radial-gradient(circle, #ffffff 0 48%, #fff2b5 50%, #f1a726 100%);
+      border: var(--wheel-center-border-width) solid #f3b53b;
+      background:
+        radial-gradient(circle at 34% 26%, #ffffff 0 18%, transparent 28%),
+        radial-gradient(circle, #ffffff 0 42%, #fff2b5 53%, #d98612 100%);
       color: #e6a312;
-      box-shadow: 0 0 20px rgba(0, 0, 0, 0.22);
+      box-shadow:
+        inset 0 8px 16px rgba(255, 255, 255, 0.5),
+        inset 0 -12px 18px rgba(104, 54, 0, 0.28),
+        0 0 20px rgba(0, 0, 0, 0.3),
+        0 0 0 8px rgba(255, 207, 72, 0.22);
       overflow: hidden;
     }
 
@@ -195,9 +249,10 @@ $overlayAccessQuery = $overlayId !== ''
       display: grid;
       place-items: center;
       color: #e6a312;
-      font-size: clamp(20px, 4.5vmin, 48px);
+      font-size: var(--wheel-center-initials-size);
       font-weight: 950;
-      background: radial-gradient(circle, rgba(255,255,255,0.96), rgba(255,242,181,0.98));
+      background:
+        radial-gradient(circle at 36% 24%, rgba(255,255,255,0.98), rgba(255,242,181,0.98) 46%, rgba(232, 161, 29, 0.92));
     }
 
     .hub-avatar img {
@@ -210,16 +265,16 @@ $overlayAccessQuery = $overlayId !== ''
     .trigger-name {
       position: absolute;
       left: 50%;
-      top: 56%;
+      top: calc(50% + var(--wheel-center-name-offset));
       z-index: 7;
-      max-width: 38%;
+      max-width: 70%;
       transform: translateX(-50%);
       padding: 7px 14px;
       border-radius: 999px;
       border: 2px solid rgba(255, 226, 88, 0.72);
       background: rgba(8, 13, 31, 0.78);
       color: #fff7cf;
-      font-size: clamp(13px, 2.1vmin, 24px);
+      font-size: var(--wheel-center-name-size);
       font-weight: 950;
       text-align: center;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
@@ -250,7 +305,7 @@ $overlayAccessQuery = $overlayId !== ''
       background: rgba(8, 13, 31, 0.78);
       color: #fff7cf;
       text-align: center;
-      font-size: clamp(18px, 3vmin, 34px);
+      font-size: var(--wheel-result-font-size);
       font-weight: 950;
       text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
       transition: opacity 240ms ease, transform 240ms ease;
@@ -385,6 +440,29 @@ $overlayAccessQuery = $overlayId !== ''
       }));
     }
 
+    function hexToRgb(hex) {
+      const value = String(hex || "#ffffff").replace("#", "");
+      return {
+        r: parseInt(value.slice(0, 2), 16),
+        g: parseInt(value.slice(2, 4), 16),
+        b: parseInt(value.slice(4, 6), 16)
+      };
+    }
+
+    function rgbToHex({ r, g, b }) {
+      return `#${[r, g, b].map((channel) => Math.max(0, Math.min(255, Math.round(channel))).toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    function mixHex(hex, mixWith, amount) {
+      const base = hexToRgb(hex);
+      const target = hexToRgb(mixWith);
+      return rgbToHex({
+        r: base.r + ((target.r - base.r) * amount),
+        g: base.g + ((target.g - base.g) * amount),
+        b: base.b + ((target.b - base.b) * amount)
+      });
+    }
+
     function renderWheel(segments) {
       const slice = 360 / segments.length;
       const halfSlice = slice / 2;
@@ -393,20 +471,41 @@ $overlayAccessQuery = $overlayId !== ''
       svg.setAttribute("class", "wheel-svg");
       svg.setAttribute("viewBox", "0 0 100 100");
       svg.setAttribute("aria-hidden", "true");
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
       segments.forEach((segment, index) => {
+        const gradientId = `segmentGradient-${index}`;
+        const gradient = document.createElementNS("http://www.w3.org/2000/svg", "radialGradient");
+        gradient.setAttribute("id", gradientId);
+        gradient.setAttribute("cx", "34%");
+        gradient.setAttribute("cy", "24%");
+        gradient.setAttribute("r", "86%");
+        [
+          ["0%", mixHex(segment.color, "#ffffff", 0.58)],
+          ["34%", mixHex(segment.color, "#ffffff", 0.14)],
+          ["70%", segment.color],
+          ["100%", mixHex(segment.color, "#000000", 0.46)]
+        ].forEach(([offset, color]) => {
+          const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+          stop.setAttribute("offset", offset);
+          stop.setAttribute("stop-color", color);
+          gradient.appendChild(stop);
+        });
+        defs.appendChild(gradient);
         const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
         path.setAttribute("class", "wheel-segment");
-        path.setAttribute("fill", segment.color);
+        path.setAttribute("fill", `url(#${gradientId})`);
         path.setAttribute("d", buildSegmentPath((index * slice) - halfSlice, (index * slice) + halfSlice));
         svg.appendChild(path);
       });
+      svg.prepend(defs);
       wheel.prepend(svg);
       wheel.querySelectorAll(".segment-label").forEach((node) => node.remove());
       segments.forEach((segment, index) => {
         const label = document.createElement("div");
         label.className = "segment-label";
         label.textContent = segment.label;
-        label.style.transform = `rotate(${index * slice}deg) translate(5%, -50%)`;
+        label.title = segment.label;
+        label.style.transform = `rotate(${index * slice}deg) translate(36%, -50%)`;
         wheel.appendChild(label);
       });
       bulbs.innerHTML = "";
@@ -420,6 +519,22 @@ $overlayAccessQuery = $overlayId !== ''
     }
 
     function applyState(state) {
+      const fontSize = Math.max(14, Math.min(48, Number(state?.fontSize) || 24));
+      const borderThickness = Math.max(1, Math.min(10, Number(state?.borderThickness) || 4));
+      const centerSize = Math.max(72, Math.min(240, Number(state?.centerSize) || 118));
+      const centerNameSize = Math.max(12, Math.min(40, Number(state?.centerNameSize) || 20));
+      const borderWidth = 6 + (borderThickness * 3);
+      document.documentElement.style.setProperty("--wheel-font-size", `${fontSize}px`);
+      document.documentElement.style.setProperty("--wheel-result-font-size", `${Math.min(58, fontSize + 8)}px`);
+      document.documentElement.style.setProperty("--wheel-border-width", `${borderWidth}px`);
+      document.documentElement.style.setProperty("--wheel-inner-ring-width", `${Math.max(2, borderWidth * 0.38)}px`);
+      document.documentElement.style.setProperty("--wheel-outer-ring-width", `${Math.max(4, borderWidth * 1.25)}px`);
+      document.documentElement.style.setProperty("--wheel-outer-glow-width", `${Math.max(6, borderWidth * 1.7)}px`);
+      document.documentElement.style.setProperty("--wheel-center-size", `${centerSize}px`);
+      document.documentElement.style.setProperty("--wheel-center-border-width", `${Math.max(4, Math.min(12, centerSize * 0.06))}px`);
+      document.documentElement.style.setProperty("--wheel-center-initials-size", `${Math.max(22, Math.min(76, centerSize * 0.35))}px`);
+      document.documentElement.style.setProperty("--wheel-center-name-size", `${centerNameSize}px`);
+      document.documentElement.style.setProperty("--wheel-center-name-offset", `${Math.max(46, centerSize * 0.52 + 12)}px`);
       const segments = sanitizeSegments(state?.segments);
       const arrowPosition = applyPointerPosition(state?.arrowPosition);
       applyTriggerUser(state?.triggerUser);

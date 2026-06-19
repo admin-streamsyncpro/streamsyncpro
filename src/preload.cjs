@@ -34,6 +34,15 @@ contextBridge.exposeInMainWorld("desktopApp", {
   spotifyGetMe(payload) {
     return ipcRenderer.invoke("spotify:get-me", payload);
   },
+  getVoicemodVoices(payload) {
+    return ipcRenderer.invoke("voicemod:get-voices", payload);
+  },
+  getCurrentVoicemodVoice(payload) {
+    return ipcRenderer.invoke("voicemod:get-current-voice", payload);
+  },
+  setVoicemodVoice(payload) {
+    return ipcRenderer.invoke("voicemod:set-voice", payload);
+  },
   getAppVersion() {
     return ipcRenderer.invoke("app:get-version");
   },
@@ -78,6 +87,9 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   quitApp() {
     return ipcRenderer.invoke("app:quit");
+  },
+  factoryResetAppData(payload) {
+    return ipcRenderer.invoke("app:factory-reset", payload);
   },
   getSettings() {
     return ipcRenderer.invoke("app:get-settings");
@@ -141,6 +153,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   browseLocalSoundFile() {
     return ipcRenderer.invoke("sound-alerts:browse-local-file");
+  },
+  browseEventActionMediaFile() {
+    return ipcRenderer.invoke("event-actions:browse-media-file");
+  },
+  resolveEventActionMedia(mediaId) {
+    return ipcRenderer.invoke("event-actions:resolve-media", { mediaId });
   },
   onChat(callback) {
     const handler = (_event, payload) => callback(payload);

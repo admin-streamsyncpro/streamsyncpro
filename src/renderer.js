@@ -51,6 +51,7 @@ const openEventActionsLayerButton = document.getElementById("open-event-actions-
 const openGamesLayerButton = document.getElementById("open-games-layer-button");
 const openMusicLayerButton = document.getElementById("open-music-layer-button");
 const openUsersLayerButton = document.getElementById("open-users-layer-button");
+const openDiagnosticsLayerButton = document.getElementById("open-diagnostics-layer-button");
 const topupCreditsButton = document.getElementById("topup-credits-button");
 
 // Connection controls
@@ -99,6 +100,7 @@ const layoutCustomizerCloseButton = document.getElementById("layout-customizer-c
 const layoutCustomizerSaveButton = document.getElementById("layout-customizer-save");
 const layoutShowWelcomeInput = document.getElementById("layout-show-welcome");
 const layoutShowIncomingChatInput = document.getElementById("layout-show-incoming-chat");
+const layoutShowLiveControlInput = document.getElementById("layout-show-live-control");
 const layoutMainCardOptions = document.getElementById("layout-main-card-options");
 const dashboardAddonCards = document.getElementById("dashboard-addon-cards");
 
@@ -109,15 +111,48 @@ const gamesTabButton = document.getElementById("games-tab-button");
 const musicTabButton = document.getElementById("music-tab-button");
 const usersTabButton = document.getElementById("users-tab-button");
 const eventActionsTabButton = document.getElementById("event-actions-tab-button");
+const diagnosticsTabButton = document.getElementById("diagnostics-tab-button");
 const controlsTabPanel = document.getElementById("controls-tab-panel");
 const overlaysTabPanel = document.getElementById("overlays-tab-panel");
 const gamesTabPanel = document.getElementById("games-tab-panel");
 const musicTabPanel = document.getElementById("music-tab-panel");
 const usersTabPanel = document.getElementById("users-tab-panel");
 const eventActionsTabPanel = document.getElementById("event-actions-tab-panel");
+const diagnosticsTabPanel = document.getElementById("diagnostics-tab-panel");
 const sidebarLayer = document.getElementById("sidebar-layer");
 const sidebarLayerCloseButton = document.getElementById("sidebar-layer-close");
 const sidebarLayerTitle = document.getElementById("sidebar-layer-title");
+const diagnosticsRefreshButton = document.getElementById("diagnostics-refresh-button");
+const diagnosticsSummary = document.getElementById("diagnostics-summary");
+const diagnosticsGrid = document.getElementById("diagnostics-grid");
+const setupWizardList = document.getElementById("setup-wizard-list");
+const setupWizardProgressBar = document.getElementById("setup-wizard-progress-bar");
+const setupWizardProgressLabel = document.getElementById("setup-wizard-progress-label");
+const liveControlAlerts = document.getElementById("live-control-alerts");
+const liveControlSafeModeButton = document.getElementById("live-control-safe-mode");
+const liveControlTtsStatus = document.getElementById("live-control-tts-status");
+const liveControlEventsStatus = document.getElementById("live-control-events-status");
+const liveControlMusicStatus = document.getElementById("live-control-music-status");
+const liveControlLikeRaceStatus = document.getElementById("live-control-like-race-status");
+const liveControlSpinWheelStatus = document.getElementById("live-control-spin-wheel-status");
+const factoryResetOpenButton = document.getElementById("factory-reset-open");
+const factoryResetModal = document.getElementById("factory-reset-modal");
+const factoryResetCloseButton = document.getElementById("factory-reset-close");
+const factoryResetCancelButton = document.getElementById("factory-reset-cancel");
+const factoryResetExportButton = document.getElementById("factory-reset-export");
+const factoryResetRunButton = document.getElementById("factory-reset-run");
+const factoryResetConfirmationInput = document.getElementById("factory-reset-confirmation");
+const factoryResetStatus = document.getElementById("factory-reset-status");
+const feedbackCategoryInput = document.getElementById("feedback-category");
+const feedbackSeverityInput = document.getElementById("feedback-severity");
+const feedbackContactInput = document.getElementById("feedback-contact");
+const feedbackMessageInput = document.getElementById("feedback-message");
+const feedbackIncludeDiagnosticsInput = document.getElementById("feedback-include-diagnostics");
+const feedbackReportPreview = document.getElementById("feedback-report-preview");
+const feedbackSendReportButton = document.getElementById("feedback-send-report");
+const feedbackCopyReportButton = document.getElementById("feedback-copy-report");
+const feedbackEmailReportButton = document.getElementById("feedback-email-report");
+const feedbackStatus = document.getElementById("feedback-status");
 
 // Stats
 const statViewers = document.getElementById("stat-viewers");
@@ -575,6 +610,10 @@ const spinWheelTestButton = document.getElementById("spin-wheel-test-button");
 const spinWheelDurationInput = document.getElementById("spin-wheel-duration");
 const spinWheelResultDurationInput = document.getElementById("spin-wheel-result-duration");
 const spinWheelArrowPositionInput = document.getElementById("spin-wheel-arrow-position");
+const spinWheelFontSizeInput = document.getElementById("spin-wheel-font-size");
+const spinWheelBorderThicknessInput = document.getElementById("spin-wheel-border-thickness");
+const spinWheelCenterSizeInput = document.getElementById("spin-wheel-center-size");
+const spinWheelCenterNameSizeInput = document.getElementById("spin-wheel-center-name-size");
 const spinWheelGiftNameInput = document.getElementById("spin-wheel-gift-name");
 const spinWheelGiftDropdown = document.getElementById("spin-wheel-gift-dropdown");
 const spinWheelGiftSelected = document.getElementById("spin-wheel-gift-selected");
@@ -1474,6 +1513,8 @@ const PROFILE_SETTING_KEYS = [
   "cardCollapseState",
   "dashboardCardVisibility",
   "mainScreenPinnedCards",
+  "obsWebSocketUrl",
+  "obsWebSocketPassword",
   "customEventRules"
 ];
 
@@ -1609,6 +1650,9 @@ const state = {
       customRuleSearchText: "",
       customRuleAudienceFilter: "all",
       customRuleTriggerFilter: "all",
+      obsScenes: [],
+      obsSources: [],
+      voicemodVoices: [],
       forceClosing: false,
     sessionTerminationReason: "",
     authSessionCheckStatus: "waiting",
@@ -1921,10 +1965,13 @@ function createDefaultSettings() {
     overlayDesignerAssignments: normalizeOverlayDesignerAssignments(),
     cardCollapseState: {},
     dashboardCardVisibility: {
+      "live-control": true,
       welcome: true,
       "incoming-chat": true
     },
     mainScreenPinnedCards: {},
+    obsWebSocketUrl: "ws://127.0.0.1:4455",
+    obsWebSocketPassword: "",
     customEventRules: []
   };
 }
@@ -1947,6 +1994,8 @@ function ensureSettingsShape(source = {}) {
     ...activeProfileSettings,
     activeSettingsProfileId,
     settingsProfiles: normalizedProfiles,
+    obsWebSocketUrl: normalizeObsWebSocketUrl(activeProfileSettings?.obsWebSocketUrl ?? source?.obsWebSocketUrl ?? defaults.obsWebSocketUrl),
+    obsWebSocketPassword: String(activeProfileSettings?.obsWebSocketPassword ?? source?.obsWebSocketPassword ?? defaults.obsWebSocketPassword ?? ""),
     ttsXttsVoices: globalTtsVoiceSettings.ttsXttsVoices,
     rememberedUsernames: normalizeRememberedUsernames([activeProfileSettings?.rememberedUsername, ...(activeProfileSettings?.rememberedUsernames ?? [])]),
     userNotes: normalizeUserNotes(activeProfileSettings?.userNotes),
@@ -2109,7 +2158,26 @@ function normalizeRule(rule, index = 0) {
     feedbackOverlayMessage: String(rule.feedbackOverlayMessage ?? "").trim(),
     feedbackOverlayAccentColor: normalizeOverlayAccentColor(rule.feedbackOverlayAccentColor),
     tiktokTtsText: String(rule.tiktokTtsText ?? "").trim(),
-    tiktokTtsVoice: String(rule.tiktokTtsVoice ?? "").trim()
+    tiktokTtsVoice: String(rule.tiktokTtsVoice ?? "").trim(),
+    queueMediaEnabled: Boolean(rule.queueMediaEnabled),
+    queueMediaType: rule.queueMediaType === "video" ? "video" : "image",
+    queueMediaId: String(rule.queueMediaId ?? "").trim(),
+    queueMediaName: String(rule.queueMediaName ?? "").trim(),
+    queueMediaDurationSeconds: Math.min(60, Math.max(1, Number(rule.queueMediaDurationSeconds) || 6)),
+    obsSceneEnabled: Boolean(rule.obsSceneEnabled),
+    obsSceneName: String(rule.obsSceneName ?? "").trim(),
+    obsSceneReturnEnabled: Boolean(rule.obsSceneReturnEnabled),
+    obsSceneReturnSeconds: Math.min(3600, Math.max(1, Number(rule.obsSceneReturnSeconds) || 10)),
+    obsSourceEnabled: Boolean(rule.obsSourceEnabled),
+    obsSourceSceneName: String(rule.obsSourceSceneName ?? "").trim(),
+    obsSourceName: String(rule.obsSourceName ?? "").trim(),
+    obsSourceDeactivateEnabled: Boolean(rule.obsSourceDeactivateEnabled),
+    obsSourceDeactivateSeconds: Math.min(3600, Math.max(1, Number(rule.obsSourceDeactivateSeconds) || 10)),
+    voicemodEnabled: Boolean(rule.voicemodEnabled),
+    voicemodVoiceId: String(rule.voicemodVoiceId ?? "").trim(),
+    voicemodVoiceName: String(rule.voicemodVoiceName ?? "").trim(),
+    voicemodRevertEnabled: Boolean(rule.voicemodRevertEnabled),
+    voicemodRevertSeconds: Math.min(3600, Math.max(1, Number(rule.voicemodRevertSeconds) || 10))
   };
 }
 
@@ -2139,7 +2207,26 @@ function createDraftRule() {
         feedbackOverlayMessage: "{username} triggered {rule name}. Total likes: {user total likes}",
     feedbackOverlayAccentColor: "#53dcff",
     tiktokTtsText: "",
-    tiktokTtsVoice: "en_us_001"
+    tiktokTtsVoice: "en_us_001",
+    queueMediaEnabled: false,
+    queueMediaType: "image",
+    queueMediaId: "",
+    queueMediaName: "",
+    queueMediaDurationSeconds: 6,
+    obsSceneEnabled: false,
+    obsSceneName: "",
+    obsSceneReturnEnabled: false,
+    obsSceneReturnSeconds: 10,
+    obsSourceEnabled: false,
+    obsSourceSceneName: "",
+    obsSourceName: "",
+    obsSourceDeactivateEnabled: false,
+    obsSourceDeactivateSeconds: 10,
+    voicemodEnabled: false,
+    voicemodVoiceId: "",
+    voicemodVoiceName: "",
+    voicemodRevertEnabled: false,
+    voicemodRevertSeconds: 10
   };
 }
 
@@ -2311,12 +2398,16 @@ function renderQueueActionList() {
 }
 
 function getSelectedQueueOverlayUrl() {
+  return getQueueOverlayUrlForLane(state.queueOverlayLane, state.queueOverlayMode);
+}
+
+function getQueueOverlayUrlForLane(queueId, mode = state.queueOverlayMode) {
   if (!state.queueOverlayBaseUrl) {
     return "";
   }
 
-  const queueLane = Math.min(10, Math.max(1, Number(state.queueOverlayLane) || 1));
-  const overlayMode = state.queueOverlayMode === "compact" ? "compact" : "full";
+  const queueLane = Math.min(10, Math.max(1, Number(queueId) || 1));
+  const overlayMode = mode === "compact" ? "compact" : "full";
   const overlayUrl = new URL(state.queueOverlayBaseUrl);
   overlayUrl.searchParams.set("queue", String(queueLane));
   overlayUrl.searchParams.set("mode", overlayMode);
@@ -2793,8 +2884,10 @@ function createOverlayDesignerRuntimeState() {
     ttsNotification: latestFeedback,
     alert: latestGift
       ? {
-          username: latestGift.username,
+          username: latestGift.nickname || latestGift.displayName || latestGift.username,
+          displayName: latestGift.nickname || latestGift.displayName || latestGift.username,
           giftSent: latestGift.giftName,
+          giftImageUrl: latestGift.giftImageUrl,
           totalCoins: latestGift.totalCoins
         }
       : null,
@@ -2830,7 +2923,9 @@ function createOverlayDesignerTestRuntimeState() {
     },
     alert: {
       username: "gifterqueen",
+      displayName: "Gifter Queen",
       giftSent: "Rose x5",
+      giftImageUrl: "https://p16-webcast.tiktokcdn.com/img/maliva/webcast-va/rose.png~tplv-obj.image",
       totalCoins: 5
     },
     counters: {
@@ -3093,7 +3188,7 @@ function formatOverlayDesignerRuntimeText(templateText) {
   const firstVoteOption = Array.isArray(vote.options) ? vote.options[0]?.label ?? "" : "";
 
   return String(templateText ?? "")
-    .replace(/\{username\}/gi, runtime.username || latestChat.username || latestAlert.username || "viewer")
+    .replace(/\{username\}/gi, latestAlert.username || latestChat.username || runtime.username || "viewer")
     .replace(/\{message\}/gi, latestChat.message || "Waiting for chat")
     .replace(/\{giftsent\}/gi, latestAlert.giftSent || "gift")
     .replace(/\{gift sent\}/gi, latestAlert.giftSent || "gift")
@@ -3506,13 +3601,7 @@ async function loadOverlayDesignerInfo() {
 }
 
 function syncQueueOverlayState() {
-  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
-    return;
-  }
-
-  void authRequest("/api/overlay/update-queue-state", {
-    userId: state.authenticatedUser.id,
-    sessionToken: state.authenticatedUser.sessionToken,
+  const payload = {
     connected: state.connected,
     username: state.username,
     queueCount: state.playbackQueueItems.length,
@@ -3523,8 +3612,23 @@ function syncQueueOverlayState() {
       queueId: item.queueId,
       kind: item.kind,
       status: item.status,
-      source: item.source
+      source: item.source,
+      media: item.media ?? null
     }))
+  };
+
+  void app.updateQueueOverlayState(payload).catch(() => {
+    // Keep queue playback independent from local overlay sync.
+  });
+
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-queue-state", {
+    ...payload,
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken
   }).catch(() => {
     // Ignore hosted overlay sync errors so they never interrupt queue playback or UI updates.
   });
@@ -3982,11 +4086,15 @@ function pushChatOverlayItem(item) {
 }
 
 function pushGiftOverlayItem(item) {
+  const username = String(item.user || item.uniqueId || item.username || "").trim();
+  const displayName = String(item.nickname || item.displayName || username || "viewer").trim();
   const overlayItem = {
     id: `gift-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-    username: String(item.user || "").trim(),
+    username,
+    nickname: displayName,
+    displayName,
     giftName: String(item.giftName || "Gift").trim() || "Gift",
-    giftImageUrl: String(item.giftImageUrl || "").trim(),
+    giftImageUrl: resolveGiftOverlayImageUrl(item),
     giftCount: Math.max(1, Number(item.giftCount) || 1),
     totalCoins: Math.max(0, Number(item.totalCoins) || 0),
     message: String(item.text || "").trim()
@@ -5395,6 +5503,18 @@ function renderSpinWheelSettings() {
   if (spinWheelArrowPositionInput) {
     spinWheelArrowPositionInput.value = settings.arrowPosition;
   }
+  if (spinWheelFontSizeInput) {
+    spinWheelFontSizeInput.value = String(settings.fontSize);
+  }
+  if (spinWheelBorderThicknessInput) {
+    spinWheelBorderThicknessInput.value = String(settings.borderThickness);
+  }
+  if (spinWheelCenterSizeInput) {
+    spinWheelCenterSizeInput.value = String(settings.centerSize);
+  }
+  if (spinWheelCenterNameSizeInput) {
+    spinWheelCenterNameSizeInput.value = String(settings.centerNameSize);
+  }
   if (spinWheelEventRuleSelect) {
     spinWheelEventRuleSelect.innerHTML = getCustomRuleOptionsMarkup(settings.eventRuleId, "No event trigger");
     spinWheelEventRuleSelect.value = settings.eventRuleId;
@@ -5442,6 +5562,10 @@ function collectSpinWheelSettingsFromUi(existing = state.settings?.spinWheelSett
     durationMs: Math.max(1, Number(spinWheelDurationInput?.value ?? current.durationMs / 1000) || 5) * 1000,
     resultDurationMs: Math.max(1, Number(spinWheelResultDurationInput?.value ?? current.resultDurationMs / 1000) || 5) * 1000,
     arrowPosition: String(spinWheelArrowPositionInput?.value ?? current.arrowPosition),
+    fontSize: Number(spinWheelFontSizeInput?.value ?? current.fontSize),
+    borderThickness: Number(spinWheelBorderThicknessInput?.value ?? current.borderThickness),
+    centerSize: Number(spinWheelCenterSizeInput?.value ?? current.centerSize),
+    centerNameSize: Number(spinWheelCenterNameSizeInput?.value ?? current.centerNameSize),
     segments
   });
 }
@@ -5467,6 +5591,10 @@ function buildSpinWheelOverlayState() {
     durationMs: settings.durationMs,
     resultDurationMs: settings.resultDurationMs,
     arrowPosition: settings.arrowPosition,
+    fontSize: settings.fontSize,
+    borderThickness: settings.borderThickness,
+    centerSize: settings.centerSize,
+    centerNameSize: settings.centerNameSize,
     selectedIndex: Math.max(0, Number(spinState.selectedIndex) || 0),
     winnerLabel: String(spinState.winnerLabel ?? "").trim(),
     triggeredBy: String(spinState.triggeredBy ?? "").trim(),
@@ -5876,6 +6004,7 @@ function enqueuePlaybackTask(queueId, task, meta = {}) {
       label: String(meta.label ?? `Queued action on ${getQueueLabel(normalizedQueueId)}`),
       kind: meta.kind === "tts" ? "tts" : "action",
       source,
+      media: meta.media ?? null,
       status: "queued",
       execute: task,
       resolve,
@@ -6839,7 +6968,7 @@ function normalizeKnownTikTokGifts(source = []) {
   for (const entry of source) {
     const giftId = String(entry?.giftId ?? entry?.id ?? "").trim();
     const giftName = String(entry?.giftName ?? entry?.name ?? "").trim();
-    const giftImageUrl = String(entry?.giftImageUrl ?? entry?.imageUrl ?? "").trim();
+    const giftImageUrl = normalizeRemoteImageUrl(entry?.giftImageUrl ?? entry?.imageUrl ?? "");
     const coinValue = Math.max(0, Number(entry?.coinValue ?? entry?.diamondCount ?? 0) || 0);
     const sourceTag = ["builtin", "observed", "roomCatalog"].includes(entry?.source) ? entry.source : "observed";
     const key = giftName.toLowerCase();
@@ -7023,6 +7152,7 @@ function normalizeCardCollapseState(source = {}) {
 
 function normalizeDashboardCardVisibility(source = {}) {
   const defaults = {
+    "live-control": true,
     welcome: true,
     "incoming-chat": true
   };
@@ -7032,6 +7162,7 @@ function normalizeDashboardCardVisibility(source = {}) {
   }
 
   return {
+    "live-control": source["live-control"] !== false,
     welcome: source.welcome !== false,
     "incoming-chat": source["incoming-chat"] !== false
   };
@@ -7330,6 +7461,10 @@ function createDefaultSpinWheelSettings() {
     durationMs: 5200,
     resultDurationMs: 5000,
     arrowPosition: "right",
+    fontSize: 24,
+    borderThickness: 4,
+    centerSize: 118,
+    centerNameSize: 20,
     segments: [
       { id: "spin-action-1", label: "Action 1", color: "#15c66f", actionRuleId: "" },
       { id: "spin-action-2", label: "Action 2", color: "#9bd400", actionRuleId: "" },
@@ -7370,6 +7505,10 @@ function normalizeSpinWheelSettings(source = {}) {
     arrowPosition: ["right", "top", "bottom", "left"].includes(String(source?.arrowPosition ?? "").trim().toLowerCase())
       ? String(source.arrowPosition).trim().toLowerCase()
       : defaults.arrowPosition,
+    fontSize: Math.max(14, Math.min(48, Number(source?.fontSize ?? defaults.fontSize) || defaults.fontSize)),
+    borderThickness: Math.max(1, Math.min(10, Number(source?.borderThickness ?? defaults.borderThickness) || defaults.borderThickness)),
+    centerSize: Math.max(72, Math.min(240, Number(source?.centerSize ?? defaults.centerSize) || defaults.centerSize)),
+    centerNameSize: Math.max(12, Math.min(40, Number(source?.centerNameSize ?? defaults.centerNameSize) || defaults.centerNameSize)),
     segments: segments.length ? segments : defaults.segments
   };
 }
@@ -8767,6 +8906,20 @@ function getKnownGiftMetadata(giftName = "") {
   return getKnownTikTokGifts().find((entry) => normalizeGiftKey(entry.giftName) === key) ?? null;
 }
 
+function normalizeRemoteImageUrl(value = "") {
+  return String(value ?? "").trim().replace(/^http:\/\//i, "https://");
+}
+
+function resolveGiftOverlayImageUrl(item) {
+  const directImageUrl = normalizeRemoteImageUrl(item?.giftImageUrl);
+  if (directImageUrl) {
+    return directImageUrl;
+  }
+
+  const knownGift = getKnownGiftMetadata(item?.giftName);
+  return normalizeRemoteImageUrl(knownGift?.giftImageUrl);
+}
+
 function getKnownTikTokGifts() {
   const storedGifts = getStoredKnownTikTokGifts();
   return mergeKnownTikTokGifts(getUnifiedBuiltInGiftCatalog(), storedGifts);
@@ -8874,7 +9027,7 @@ async function rememberKnownTikTokGift(giftName, giftImageUrl = "", coinValue = 
     (normalizedGiftId && String(entry.giftId ?? "").trim() === normalizedGiftId) ||
     normalizeGiftKey(entry.giftName) === normalizeGiftKey(normalizedGiftName)
   );
-  const normalizedImageUrl = String(giftImageUrl ?? "").trim();
+  const normalizedImageUrl = normalizeRemoteImageUrl(giftImageUrl);
   const normalizedCoinValue = Math.max(0, Number(coinValue ?? 0) || 0);
 
   if (existingIndex >= 0) {
@@ -9444,6 +9597,7 @@ async function persistSettings(partial = {}, options = {}) {
         renderRememberedUsernameOptions();
         renderSettingsProfileOptions();
         updateHeaderPills();
+        renderLiveControlDashboard();
         applyDashboardCardVisibility();
         applyMainScreenPinnedCards();
         applySavedCardCollapseState();
@@ -10523,6 +10677,9 @@ function openLayoutCustomizerModal() {
   const pinnedState = normalizeMainScreenPinnedCards(state.settings?.mainScreenPinnedCards);
   layoutShowWelcomeInput.checked = visibilityState.welcome !== false;
   layoutShowIncomingChatInput.checked = visibilityState["incoming-chat"] !== false;
+  if (layoutShowLiveControlInput) {
+    layoutShowLiveControlInput.checked = visibilityState["live-control"] !== false;
+  }
   if (layoutMainCardOptions) {
     layoutMainCardOptions.innerHTML = MAIN_SCREEN_CARD_DEFINITIONS.map(({ key, label }) => `
       <label class="filter-tile">
@@ -10542,8 +10699,74 @@ function closeLayoutCustomizerModal() {
   layoutCustomizerModal.hidden = true;
 }
 
+function openFactoryResetModal() {
+  if (!factoryResetModal) {
+    return;
+  }
+
+  factoryResetConfirmationInput.value = "";
+  factoryResetRunButton.disabled = true;
+  setStatusMessage(factoryResetStatus, "info", "This cannot be undone unless you exported your settings first.");
+  factoryResetModal.hidden = false;
+  factoryResetConfirmationInput?.focus();
+}
+
+function closeFactoryResetModal() {
+  if (!factoryResetModal) {
+    return;
+  }
+
+  factoryResetModal.hidden = true;
+}
+
+function updateFactoryResetConfirmationState() {
+  if (!factoryResetRunButton || !factoryResetConfirmationInput) {
+    return;
+  }
+
+  factoryResetRunButton.disabled = factoryResetConfirmationInput.value.trim().toUpperCase() !== "RESET";
+}
+
+async function exportFactoryResetBackup() {
+  if (factoryResetExportButton) {
+    factoryResetExportButton.disabled = true;
+  }
+  setStatusMessage(factoryResetStatus, "info", "Choose where to save your backup before resetting.");
+
+  try {
+    const result = await exportSettingsBundle({
+      prefix: "factory-reset-backup",
+      successMessage: "Factory reset backup exported successfully."
+    });
+
+    if (result?.canceled) {
+      setStatusMessage(factoryResetStatus, "info", "Backup export cancelled. Reset is still available if you type RESET.");
+      return;
+    }
+
+    setStatusMessage(factoryResetStatus, "success", `Backup saved${result?.filePath ? ` to ${result.filePath}` : ""}. You can reset when ready.`);
+  } finally {
+    if (factoryResetExportButton) {
+      factoryResetExportButton.disabled = false;
+    }
+  }
+}
+
+async function runFactoryReset() {
+  const confirmation = factoryResetConfirmationInput?.value ?? "";
+  if (String(confirmation).trim().toUpperCase() !== "RESET") {
+    setStatusMessage(factoryResetStatus, "error", "Type RESET to confirm the factory reset.");
+    return;
+  }
+
+  factoryResetRunButton.disabled = true;
+  setStatusMessage(factoryResetStatus, "info", "Resetting local app data and relaunching...");
+  await app.factoryResetAppData({ confirmation });
+}
+
 async function saveDashboardLayoutVisibility() {
   const nextVisibility = normalizeDashboardCardVisibility({
+    "live-control": layoutShowLiveControlInput ? layoutShowLiveControlInput.checked : true,
     welcome: layoutShowWelcomeInput.checked,
     "incoming-chat": layoutShowIncomingChatInput.checked
   });
@@ -10639,19 +10862,25 @@ async function deleteSettingsProfile() {
   showToast(`Deleted the ${activeProfile?.name ?? "selected"} profile.`, "info");
 }
 
-async function exportSettingsBundle() {
+async function exportSettingsBundle(options = {}) {
   const activeProfile = getActiveSettingsProfile();
-  const defaultFileName = `${String(activeProfile?.name ?? "stream-sync-pro-settings").trim().replace(/[^a-z0-9]+/gi, "-") || "stream-sync-pro-settings"}.json`;
+  const prefix = String(options.prefix ?? "").trim();
+  const baseName = String(activeProfile?.name ?? "stream-sync-pro-settings").trim().replace(/[^a-z0-9]+/gi, "-") || "stream-sync-pro-settings";
+  const defaultFileName = `${prefix ? `${prefix}-` : ""}${baseName}.json`;
   const result = await app.exportSettingsBundle({
     defaultFileName,
     bundle: buildSettingsExportBundle()
   });
 
   if (result?.canceled) {
-    return;
+    return result;
   }
 
-  showToast("Settings export created successfully.", "success");
+  const successMessage = String(options.successMessage ?? "Settings export created successfully.").trim();
+  if (successMessage) {
+    showToast(successMessage, "success");
+  }
+  return result;
 }
 
 async function importSettingsBundle() {
@@ -10706,19 +10935,64 @@ function normalizeSidebarTabName(tabName) {
   if (tabName === "event-actions") {
     return "event-actions";
   }
+  if (tabName === "diagnostics") {
+    return "diagnostics";
+  }
 
   return "controls";
+}
+
+function getWorkspaceNavButtonForTab(tabName) {
+  switch (normalizeSidebarTabName(tabName)) {
+    case "event-actions":
+      return openEventActionsLayerButton;
+    case "games":
+      return openGamesLayerButton;
+    case "music":
+      return openMusicLayerButton;
+    case "users":
+      return openUsersLayerButton;
+    case "diagnostics":
+      return openDiagnosticsLayerButton;
+    case "controls":
+    default:
+      return openControlsLayerButton;
+  }
+}
+
+function updateWorkspaceNavigationState(tabName) {
+  const hasActiveTab = Boolean(tabName);
+  const activeButton = hasActiveTab ? getWorkspaceNavButtonForTab(tabName) : null;
+  [
+    openControlsLayerButton,
+    openOverlaysLayerButton,
+    openEventActionsLayerButton,
+    openGamesLayerButton,
+    openMusicLayerButton,
+    openUsersLayerButton,
+    openDiagnosticsLayerButton
+  ].forEach((button) => {
+    if (!button) {
+      return;
+    }
+    const isActive = hasActiveTab
+      && (button === activeButton || (normalizeSidebarTabName(tabName) === "controls" && button === openOverlaysLayerButton));
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-current", isActive ? "page" : "false");
+  });
 }
 
 function setActiveTab(tabName) {
   const normalizedTabName = normalizeSidebarTabName(tabName);
   state.activeTab = normalizedTabName;
+  updateWorkspaceNavigationState(normalizedTabName);
 
   const controlsActive = normalizedTabName === "controls";
   const gamesActive = normalizedTabName === "games";
   const musicActive = normalizedTabName === "music";
   const usersActive = normalizedTabName === "users";
   const eventActionsActive = normalizedTabName === "event-actions";
+  const diagnosticsActive = normalizedTabName === "diagnostics";
 
   controlsTabButton?.classList.toggle("active", controlsActive);
   overlaysTabButton?.classList.toggle("active", false);
@@ -10726,12 +11000,14 @@ function setActiveTab(tabName) {
   musicTabButton?.classList.toggle("active", musicActive);
   usersTabButton?.classList.toggle("active", usersActive);
   eventActionsTabButton?.classList.toggle("active", eventActionsActive);
+  diagnosticsTabButton?.classList.toggle("active", diagnosticsActive);
   controlsTabPanel?.classList.toggle("active", controlsActive);
   overlaysTabPanel?.classList.toggle("active", false);
   gamesTabPanel?.classList.toggle("active", gamesActive);
   musicTabPanel?.classList.toggle("active", musicActive);
   usersTabPanel?.classList.toggle("active", usersActive);
   eventActionsTabPanel?.classList.toggle("active", eventActionsActive);
+  diagnosticsTabPanel?.classList.toggle("active", diagnosticsActive);
   if (usersActive) {
     renderViewerPointsLeaderboard();
   }
@@ -10740,6 +11016,9 @@ function setActiveTab(tabName) {
   }
   if (eventActionsActive) {
     ensureEventActionsCardInLayer();
+  }
+  if (diagnosticsActive) {
+    renderDiagnosticsPanel();
   }
 }
 
@@ -10875,6 +11154,8 @@ function getSidebarLayerTitle(tabName) {
       return "Music";
     case "users":
       return "Users and Points";
+    case "diagnostics":
+      return "App Diagnostics";
     case "controls":
     default:
       return "Stream Controls";
@@ -10891,7 +11172,13 @@ function openSidebarLayer(tabName = "controls", options = {}) {
     if (sidebarLayerTitle) {
       sidebarLayerTitle.textContent = options?.title || getSidebarLayerTitle(normalizedTabName);
     }
-    document.body.classList.add("sidebar-layer-open");
+    document.body.classList.remove("sidebar-layer-open");
+    if (options?.scroll !== false) {
+      sidebarLayer.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
   }
 }
 
@@ -10904,6 +11191,7 @@ function closeSidebarLayer() {
     }
     document.body.classList.remove("sidebar-layer-open");
   }
+  updateWorkspaceNavigationState("");
   applyMainScreenPinnedCards();
 }
 
@@ -10931,6 +11219,22 @@ function openFocusedControlsLayer() {
   });
 }
 
+function openFocusedOverlayHubLayer() {
+  openSidebarLayer("controls", {
+    singleView: true,
+    title: "Overlay Hub",
+    scroll: false
+  });
+  window.requestAnimationFrame(() => {
+    const card = document.querySelector('[data-main-screen-card="overlays-hub"]');
+    card?.scrollIntoView({ behavior: "smooth", block: "start" });
+    card?.classList.add("event-builder-section-focus");
+    window.setTimeout(() => {
+      card?.classList.remove("event-builder-section-focus");
+    }, 900);
+  });
+}
+
 function openFocusedGamesLayer() {
   openSidebarLayer("games", {
     singleView: true,
@@ -10949,6 +11253,58 @@ function openFocusedUsersLayer() {
   openSidebarLayer("users", {
     singleView: true,
     title: "Users and Points"
+  });
+}
+
+function openFocusedDiagnosticsLayer() {
+  openSidebarLayer("diagnostics", {
+    singleView: true,
+    title: "App Diagnostics"
+  });
+  renderDiagnosticsPanel();
+}
+
+function getTabNameForMainScreenCard(cardKey = "") {
+  const key = String(cardKey ?? "").trim();
+  if (key.startsWith("games-")) {
+    return "games";
+  }
+  if (key.startsWith("music-")) {
+    return "music";
+  }
+  if (key.startsWith("users-")) {
+    return "users";
+  }
+  if (key.startsWith("event-actions-")) {
+    return "event-actions";
+  }
+  return "controls";
+}
+
+function focusMainScreenCard(cardKey = "") {
+  const key = String(cardKey ?? "").trim();
+  if (!key) {
+    return;
+  }
+
+  const tabName = getTabNameForMainScreenCard(key);
+  openSidebarLayer(tabName, {
+    singleView: true,
+    title: getSidebarLayerTitle(tabName),
+    scroll: false
+  });
+
+  window.requestAnimationFrame(() => {
+    const card = document.querySelector(`[data-main-screen-card="${key}"]`);
+    if (!card) {
+      showToast("That section is not available yet.", "error");
+      return;
+    }
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
+    card.classList.add("event-builder-section-focus");
+    window.setTimeout(() => {
+      card.classList.remove("event-builder-section-focus");
+    }, 900);
   });
 }
 
@@ -10972,7 +11328,681 @@ function openEventActionsWorkspace(options = {}) {
   }
 
   openFocusedEventActionsLayer();
-  return "overlay";
+  return "workspace";
+}
+
+function getDiagnosticsChecks() {
+  const settings = state.settings || {};
+  const music = normalizeMusicSettings(settings.musicSettings);
+  const likeRace = normalizeLikeRaceSettings(settings.likeRaceSettings);
+  const spinWheel = normalizeSpinWheelSettings(settings.spinWheelSettings);
+  const progressBars = normalizeProgressBarOverlays(settings.progressBarOverlays);
+  const customRules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+  const enabledRules = customRules.filter((rule) => rule.enabled !== false);
+  const overlayUrlsReady = Boolean(
+    queueOverlayUrlInput?.value
+    && queueOverlayUrlInput.value !== "Loading..."
+    && queueOverlayUrlInput.value !== "Overlay unavailable"
+  );
+
+  const checks = [
+    {
+      key: "account",
+      title: "Account session",
+      area: "Sign in",
+      status: state.authenticatedUser?.sessionToken ? "ready" : "attention",
+      detail: state.authenticatedUser?.sessionToken
+        ? `Signed in as ${state.authenticatedUser.displayName || state.authenticatedUser.email || "app user"}.`
+        : "Sign in is required for credits, hosted overlays, Spotify, and Voicemod."
+    },
+    {
+      key: "api",
+      title: "Website API",
+      area: "Online service",
+      status: isAuthServiceUnavailableError({ message: state.authSessionCheckMessage }) ? "warning" : "ready",
+      detail: sessionCheckPill?.textContent || "Session check state will appear here after sign-in."
+    },
+    {
+      key: "live",
+      title: "TikTok LIVE",
+      area: "Connection",
+      status: state.connected ? "ready" : settings.rememberedUsername || usernameInput?.value ? "warning" : "attention",
+      detail: state.connected
+        ? `Connected to @${state.username || settings.rememberedUsername || "live user"}.`
+        : "Connect to a TikTok LIVE stream before using live triggers."
+    },
+    {
+      key: "tts",
+      title: "Text to Speech",
+      area: "Voice",
+      status: settings.ttsEnabled ? "ready" : "warning",
+      detail: settings.ttsEnabled
+        ? `TTS is on using ${String(settings.ttsProvider || "builtin").toUpperCase()}.`
+        : "TTS is off. Turn it on if viewers should trigger spoken messages."
+    },
+    {
+      key: "event-actions",
+      title: "Event Actions",
+      area: "Automation",
+      status: enabledRules.length ? "ready" : customRules.length ? "warning" : "attention",
+      detail: enabledRules.length
+        ? `${enabledRules.length} enabled rule${enabledRules.length === 1 ? "" : "s"} ready.`
+        : customRules.length
+          ? "Rules exist, but none are currently enabled."
+          : "Create your first rule to automate sounds, overlays, OBS, or Voicemod."
+    },
+    {
+      key: "overlays",
+      title: "Hosted overlays",
+      area: "OBS/TikTok URL",
+      status: overlayUrlsReady ? "ready" : "warning",
+      detail: overlayUrlsReady
+        ? "Overlay URLs are available for browser sources."
+        : "Open or refresh overlay cards to generate browser source URLs."
+    },
+    {
+      key: "voicemod",
+      title: "Voicemod",
+      area: "Voice changer",
+      status: customRules.some((rule) => rule.voicemodEnabled) ? "warning" : "idle",
+      detail: customRules.some((rule) => rule.voicemodEnabled)
+        ? "Voicemod actions are configured. Use Refresh voices to confirm Voicemod Desktop and server key access."
+        : "No Voicemod actions configured yet."
+    },
+    {
+      key: "spotify",
+      title: "Spotify",
+      area: "Music",
+      status: music.spotifyAccessToken ? "ready" : music.enabled ? "attention" : "idle",
+      detail: music.spotifyAccessToken
+        ? "Spotify is signed in and ready for music controls."
+        : music.enabled
+          ? "Music is enabled, but Spotify is not signed in."
+          : "Music requests are off."
+    },
+    {
+      key: "games",
+      title: "Interactive games",
+      area: "Engagement",
+      status: likeRace.enabled || spinWheel.enabled ? "ready" : "idle",
+      detail: likeRace.enabled || spinWheel.enabled
+        ? `${likeRace.enabled ? "Like Race" : ""}${likeRace.enabled && spinWheel.enabled ? " and " : ""}${spinWheel.enabled ? "Spin Wheel" : ""} enabled.`
+        : "Games are available but currently disabled."
+    },
+    {
+      key: "progress",
+      title: "Progress bars",
+      area: "Goals",
+      status: progressBars.length ? "ready" : "idle",
+      detail: progressBars.length
+        ? `${progressBars.length} progress bar overlay${progressBars.length === 1 ? "" : "s"} configured.`
+        : "No progress bar goals configured yet."
+    },
+    {
+      key: "xtts",
+      title: "XTTS service",
+      area: "Local TTS",
+      status: settings.ttsProvider === "xtts" ? "warning" : "idle",
+      detail: settings.ttsProvider === "xtts"
+        ? "XTTS is selected. Use Check XTTS service in Voice settings if audio fails."
+        : "XTTS is not the active TTS provider."
+    }
+  ];
+
+  return checks;
+}
+
+function getDiagnosticsStatusMeta(status) {
+  switch (status) {
+    case "ready":
+      return { label: "Ready", className: "success" };
+    case "attention":
+      return { label: "Needs setup", className: "warning" };
+    case "warning":
+      return { label: "Check", className: "accent" };
+    case "idle":
+    default:
+      return { label: "Optional", className: "muted" };
+  }
+}
+
+function getSetupWizardSteps(checks = getDiagnosticsChecks()) {
+  const byKey = new Map(checks.map((check) => [check.key, check]));
+  const settings = state.settings || {};
+  const customRules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+  const progressBars = normalizeProgressBarOverlays(settings.progressBarOverlays);
+  const music = normalizeMusicSettings(settings.musicSettings);
+  const likeRace = normalizeLikeRaceSettings(settings.likeRaceSettings);
+  const spinWheel = normalizeSpinWheelSettings(settings.spinWheelSettings);
+  const viewerPoints = normalizeViewerPointsLeaderboard(settings.viewerPointsLeaderboard);
+
+  return [
+    {
+      key: "account",
+      title: "Sign in and profile",
+      detail: byKey.get("account")?.detail || "Sign in before using hosted overlays and cloud features.",
+      ready: byKey.get("account")?.status === "ready",
+      target: "controls",
+      action: "Open controls"
+    },
+    {
+      key: "live",
+      title: "Connect TikTok LIVE",
+      detail: byKey.get("live")?.detail || "Add the TikTok username and connect to the live room.",
+      ready: byKey.get("live")?.status === "ready",
+      target: "controls",
+      action: "Open connection"
+    },
+    {
+      key: "tts",
+      title: "Choose TTS provider and voice",
+      detail: byKey.get("tts")?.detail || "Pick a voice provider, test audio, and confirm who can use TTS.",
+      ready: byKey.get("tts")?.status === "ready",
+      target: "controls-text-to-speech",
+      action: "Open TTS"
+    },
+    {
+      key: "overlays",
+      title: "Prepare overlay URLs",
+      detail: byKey.get("overlays")?.detail || "Copy hosted overlay URLs into OBS, TikTok LIVE Studio, or Streamlabs.",
+      ready: byKey.get("overlays")?.status === "ready",
+      target: "overlays-hub",
+      action: "Open overlays"
+    },
+    {
+      key: "event-actions",
+      title: "Create first automation rule",
+      detail: customRules.length
+        ? byKey.get("event-actions")?.detail || `${customRules.length} event rule${customRules.length === 1 ? "" : "s"} configured.`
+        : "Add a rule for gifts, likes, comments, OBS, Voicemod, overlays, or sounds.",
+      ready: customRules.some((rule) => rule.enabled !== false),
+      target: "event-actions-main",
+      action: "Open rules"
+    },
+    {
+      key: "games",
+      title: "Set up games and goals",
+      detail: likeRace.enabled || spinWheel.enabled || progressBars.length
+        ? `${likeRace.enabled ? "Like Race enabled. " : ""}${spinWheel.enabled ? "Spin Wheel enabled. " : ""}${progressBars.length ? `${progressBars.length} progress bar${progressBars.length === 1 ? "" : "s"} configured.` : ""}`.trim()
+        : "Optional, but great for engagement: Like Race, Spin Wheel, and progress bars.",
+      ready: Boolean(likeRace.enabled || spinWheel.enabled || progressBars.length),
+      target: "games-like-race",
+      action: "Open games"
+    },
+    {
+      key: "music",
+      title: "Connect music controls",
+      detail: music.spotifyAccessToken
+        ? "Spotify is connected for viewer music requests."
+        : "Optional: connect Spotify and choose who can request or skip tracks.",
+      ready: Boolean(music.spotifyAccessToken),
+      target: "music-spotify",
+      action: "Open music"
+    },
+    {
+      key: "users",
+      title: "Review users and points",
+      detail: viewerPoints.users && Object.keys(viewerPoints.users).length
+        ? `${Object.keys(viewerPoints.users).length} viewer profile${Object.keys(viewerPoints.users).length === 1 ? "" : "s"} tracked.`
+        : "Viewer profiles, notes, birthdays, points, and stats appear here after activity.",
+      ready: Boolean(viewerPoints.users && Object.keys(viewerPoints.users).length),
+      target: "users-points",
+      action: "Open users"
+    }
+  ];
+}
+
+function openSetupWizardTarget(targetKey = "") {
+  const key = String(targetKey ?? "").trim();
+  if (!key) {
+    return;
+  }
+
+  if (key === "controls") {
+    openFocusedControlsLayer();
+    return;
+  }
+
+  if (key === "overlays-hub") {
+    openFocusedOverlayHubLayer();
+    return;
+  }
+
+  focusMainScreenCard(key);
+}
+
+function renderSetupWizard(checks = getDiagnosticsChecks()) {
+  if (!setupWizardList || !setupWizardProgressBar || !setupWizardProgressLabel) {
+    return;
+  }
+
+  const steps = getSetupWizardSteps(checks);
+  const readyCount = steps.filter((step) => step.ready).length;
+  const progress = steps.length ? Math.round((readyCount / steps.length) * 100) : 0;
+
+  setupWizardProgressBar.style.width = `${progress}%`;
+  setupWizardProgressLabel.textContent = `${progress}%`;
+  setupWizardProgressLabel.className = `status-pill ${progress >= 100 ? "success" : progress >= 50 ? "accent" : "warning"}`;
+
+  setupWizardList.innerHTML = steps.map((step, index) => `
+    <article class="setup-wizard-step ${step.ready ? "setup-wizard-step-ready" : ""}">
+      <span class="setup-wizard-number">${index + 1}</span>
+      <div class="setup-wizard-copy">
+        <strong>${escapeHtml(step.title)}</strong>
+        <p>${escapeHtml(step.detail)}</p>
+      </div>
+      <span class="setup-wizard-state ${step.ready ? "ready" : "pending"}">${step.ready ? "Ready" : "To do"}</span>
+      <button type="button" class="ghost compact-button" data-setup-wizard-open="${escapeHtml(step.target)}">${escapeHtml(step.action)}</button>
+    </article>
+  `).join("");
+}
+
+function renderDiagnosticsPanel() {
+  if (!diagnosticsGrid || !diagnosticsSummary) {
+    return;
+  }
+
+  const checks = getDiagnosticsChecks();
+  renderSetupWizard(checks);
+  const readyCount = checks.filter((check) => check.status === "ready").length;
+  const attentionCount = checks.filter((check) => check.status === "attention").length;
+  const warningCount = checks.filter((check) => check.status === "warning").length;
+  const summaryStatus = attentionCount ? "attention" : warningCount ? "warning" : "ready";
+  const summaryMeta = getDiagnosticsStatusMeta(summaryStatus);
+
+  diagnosticsSummary.innerHTML = `
+    <div>
+      <span class="diagnostics-summary-kicker">Setup health</span>
+      <strong>${readyCount} of ${checks.length} checks ready</strong>
+      <small>${attentionCount ? `${attentionCount} item${attentionCount === 1 ? "" : "s"} need setup.` : warningCount ? `${warningCount} item${warningCount === 1 ? "" : "s"} to review.` : "Everything important looks ready."}</small>
+    </div>
+    <span class="status-pill ${summaryMeta.className}">${summaryMeta.label}</span>
+  `;
+
+  diagnosticsGrid.innerHTML = checks.map((check) => {
+    const meta = getDiagnosticsStatusMeta(check.status);
+    return `
+      <article class="diagnostics-check diagnostics-check-${escapeHtml(check.status)}">
+        <div class="diagnostics-check-head">
+          <span>${escapeHtml(check.area)}</span>
+          <span class="status-pill ${meta.className}">${escapeHtml(meta.label)}</span>
+        </div>
+        <strong>${escapeHtml(check.title)}</strong>
+        <p>${escapeHtml(check.detail)}</p>
+      </article>
+    `;
+  }).join("");
+  renderFeedbackReportPreview();
+}
+
+function getOverlayReadinessSummary() {
+  const entries = [
+    ["Queue", queueOverlayUrlInput?.value],
+    ["Chat", chatOverlayUrlInput?.value],
+    ["Gift", giftOverlayUrlInput?.value],
+    ["Like leaderboard", likesOverlayUrlInput?.value],
+    ["Viewer stats", viewerStatsOverlayUrlInput?.value],
+    ["Voting", voteOverlayUrlInput?.value],
+    ["Progress bars", progressBarOverlayUrlInput?.value],
+    ["Overlay designer", overlayDesignerUrlInput?.value]
+  ];
+
+  return entries.map(([label, value]) => {
+    const text = String(value ?? "").trim();
+    const ready = /^https?:\/\//i.test(text);
+    return `${label}: ${ready ? "ready" : text || "not ready"}`;
+  });
+}
+
+function buildFeedbackReport() {
+  const settings = state.settings || {};
+  const checks = getDiagnosticsChecks();
+  const includeDiagnostics = feedbackIncludeDiagnosticsInput?.checked !== false;
+  const rules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+  const enabledRules = rules.filter((rule) => rule.enabled !== false);
+  const music = normalizeMusicSettings(settings.musicSettings);
+  const likeRace = normalizeLikeRaceSettings(settings.likeRaceSettings);
+  const spinWheel = normalizeSpinWheelSettings(settings.spinWheelSettings);
+  const progressBars = normalizeProgressBarOverlays(settings.progressBarOverlays);
+  const viewerPoints = normalizeViewerPointsLeaderboard(settings.viewerPointsLeaderboard);
+  const activeProfile = getActiveSettingsProfile();
+  const lines = [
+    "Stream Sync Pro Beta Feedback",
+    "=============================",
+    `Category: ${feedbackCategoryInput?.value || "Bug"}`,
+    `Severity: ${feedbackSeverityInput?.value || "Normal"}`,
+    `Contact: ${String(feedbackContactInput?.value || "").trim() || "Not provided"}`,
+    `Created: ${new Date().toISOString()}`,
+    "",
+    "Message:",
+    String(feedbackMessageInput?.value || "").trim() || "No message provided.",
+    "",
+    "App summary:",
+    `Version: ${state.appVersion || "Unknown"}`,
+    `Profile: ${String(activeProfile?.name ?? getActiveSettingsProfileId()).trim() || "Default"}`,
+    `Signed in: ${state.authenticatedUser ? "yes" : "no"}`,
+    `Connected: ${state.connected ? `yes (@${state.username || "unknown"})` : "no"}`,
+    `Remembered TikTok username: ${settings.rememberedUsername || "none"}`,
+    `TTS: ${settings.ttsEnabled ? "on" : "off"} (${settings.ttsProvider || "builtin"})`,
+    `Event actions: ${enabledRules.length}/${rules.length} enabled`,
+    `Music: ${music.enabled ? "on" : "off"} (${music.spotifyAuth?.refreshToken ? "Spotify connected" : "Spotify not connected"})`,
+    `Like Race: ${likeRace.enabled ? "on" : "off"}`,
+    `Spin Wheel: ${spinWheel.enabled ? "on" : "off"}`,
+    `Progress bars: ${progressBars.length}`,
+    `Viewer records: ${Object.keys(viewerPoints.users || {}).length}`,
+    `Chat messages in memory: ${state.chatItems.length}`,
+    `Queued actions: ${state.queueCount || 0}`
+  ];
+
+  if (includeDiagnostics) {
+    lines.push(
+      "",
+      "Diagnostics:",
+      ...checks.map((check) => `- [${check.status}] ${check.area} / ${check.title}: ${check.detail}`),
+      "",
+      "Overlay URL readiness:",
+      ...getOverlayReadinessSummary().map((item) => `- ${item}`)
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function buildFeedbackDiagnosticsPayload() {
+  const settings = state.settings || {};
+  const checks = getDiagnosticsChecks();
+  const rules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+  const music = normalizeMusicSettings(settings.musicSettings);
+  const likeRace = normalizeLikeRaceSettings(settings.likeRaceSettings);
+  const spinWheel = normalizeSpinWheelSettings(settings.spinWheelSettings);
+  const progressBars = normalizeProgressBarOverlays(settings.progressBarOverlays);
+  const viewerPoints = normalizeViewerPointsLeaderboard(settings.viewerPointsLeaderboard);
+
+  return {
+    appVersion: state.appVersion || "",
+    connected: Boolean(state.connected),
+    username: state.username || "",
+    profileId: getActiveSettingsProfileId(),
+    profileName: String(getActiveSettingsProfile()?.name ?? "").trim(),
+    signedIn: Boolean(state.authenticatedUser),
+    ttsProvider: settings.ttsProvider || "builtin",
+    ttsEnabled: Boolean(settings.ttsEnabled),
+    eventRulesTotal: rules.length,
+    eventRulesEnabled: rules.filter((rule) => rule.enabled !== false).length,
+    musicEnabled: Boolean(music.enabled),
+    spotifyConnected: Boolean(music.spotifyAuth?.refreshToken || music.spotifyAccessToken),
+    likeRaceEnabled: Boolean(likeRace.enabled),
+    spinWheelEnabled: Boolean(spinWheel.enabled),
+    progressBars: progressBars.length,
+    viewerRecords: Object.keys(viewerPoints.users || {}).length,
+    chatItems: state.chatItems.length,
+    queueCount: state.queueCount || 0,
+    checks: checks.map((check) => ({
+      key: check.key,
+      title: check.title,
+      area: check.area,
+      status: check.status,
+      detail: check.detail
+    })),
+    overlays: getOverlayReadinessSummary()
+  };
+}
+
+function renderFeedbackReportPreview() {
+  if (!feedbackReportPreview) {
+    return;
+  }
+
+  feedbackReportPreview.value = buildFeedbackReport();
+}
+
+async function copyFeedbackReport() {
+  const report = buildFeedbackReport();
+  await navigator.clipboard.writeText(report);
+  renderFeedbackReportPreview();
+  setStatusMessage(feedbackStatus, "success", "Feedback report copied. You can paste it into email, Discord, or a support ticket.");
+  showToast("Feedback report copied.", "success");
+}
+
+async function sendFeedbackReport() {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    setStatusMessage(feedbackStatus, "error", "Sign in before sending a beta report. You can still copy or email it.");
+    return;
+  }
+
+  const report = buildFeedbackReport();
+  if (String(feedbackMessageInput?.value || "").trim().length < 10) {
+    setStatusMessage(feedbackStatus, "error", "Add a short description of what happened before sending.");
+    return;
+  }
+
+  if (feedbackSendReportButton) {
+    feedbackSendReportButton.disabled = true;
+  }
+  setStatusMessage(feedbackStatus, "info", "Sending beta feedback report...");
+
+  try {
+    const result = await authRequest("/api/feedback/submit", {
+      userId: state.authenticatedUser.id,
+      sessionToken: state.authenticatedUser.sessionToken,
+      category: feedbackCategoryInput?.value || "Bug",
+      severity: feedbackSeverityInput?.value || "Normal",
+      contact: String(feedbackContactInput?.value || "").trim(),
+      appVersion: state.appVersion || "",
+      report,
+      diagnostics: feedbackIncludeDiagnosticsInput?.checked === false ? null : buildFeedbackDiagnosticsPayload()
+    });
+
+    setStatusMessage(feedbackStatus, "success", result?.message || "Beta feedback report sent successfully.");
+    showToast(result?.message || "Beta feedback report sent.", "success");
+  } finally {
+    if (feedbackSendReportButton) {
+      feedbackSendReportButton.disabled = false;
+    }
+  }
+}
+
+async function emailFeedbackReport() {
+  const report = buildFeedbackReport();
+  renderFeedbackReportPreview();
+  const subject = encodeURIComponent(`[Stream Sync Pro Beta] ${feedbackCategoryInput?.value || "Feedback"} - ${feedbackSeverityInput?.value || "Normal"}`);
+  const body = encodeURIComponent(report);
+  await app.openExternal(`mailto:support@streamsyncpro.co.uk?subject=${subject}&body=${body}`);
+  setStatusMessage(feedbackStatus, "info", "Opened your email app with the report. If it does not open, use Copy report instead.");
+}
+
+function getLiveControlState() {
+  const settings = state.settings || {};
+  const customRules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+  const enabledRules = customRules.filter((rule) => rule.enabled !== false);
+  const music = normalizeMusicSettings(settings.musicSettings);
+  const likeRace = normalizeLikeRaceSettings(settings.likeRaceSettings);
+  const spinWheel = normalizeSpinWheelSettings(settings.spinWheelSettings);
+
+  return {
+    ttsEnabled: Boolean(settings.ttsEnabled),
+    hasEventRules: Boolean(customRules.length),
+    enabledRulesCount: enabledRules.length,
+    totalRulesCount: customRules.length,
+    musicEnabled: Boolean(music.enabled),
+    musicConnected: Boolean(music.spotifyAuth?.refreshToken || music.spotifyAccessToken),
+    likeRaceEnabled: Boolean(likeRace.enabled),
+    spinWheelEnabled: Boolean(spinWheel.enabled)
+  };
+}
+
+function setLiveControlTileState(toggleName, enabled) {
+  const tile = document.querySelector(`[data-live-control-toggle="${toggleName}"]`);
+  if (!tile) {
+    return;
+  }
+  tile.classList.toggle("active", Boolean(enabled));
+  tile.setAttribute("aria-pressed", enabled ? "true" : "false");
+}
+
+function getLiveControlAlerts() {
+  const checks = getDiagnosticsChecks();
+  return checks
+    .filter((check) => check.status === "attention" || check.status === "warning")
+    .slice(0, 4)
+    .map((check) => ({
+      title: check.title,
+      detail: check.detail,
+      status: check.status
+    }));
+}
+
+function renderLiveControlDashboard() {
+  const snapshot = getLiveControlState();
+
+  if (liveControlTtsStatus) {
+    liveControlTtsStatus.textContent = snapshot.ttsEnabled ? "On and ready to speak" : "Off";
+  }
+  if (liveControlEventsStatus) {
+    liveControlEventsStatus.textContent = snapshot.totalRulesCount
+      ? `${snapshot.enabledRulesCount} of ${snapshot.totalRulesCount} rules enabled`
+      : "No rules created";
+  }
+  if (liveControlMusicStatus) {
+    liveControlMusicStatus.textContent = snapshot.musicEnabled
+      ? snapshot.musicConnected ? "Enabled and connected" : "Enabled, sign in needed"
+      : "Off";
+  }
+  if (liveControlLikeRaceStatus) {
+    liveControlLikeRaceStatus.textContent = snapshot.likeRaceEnabled ? "Enabled" : "Off";
+  }
+  if (liveControlSpinWheelStatus) {
+    liveControlSpinWheelStatus.textContent = snapshot.spinWheelEnabled ? "Enabled" : "Off";
+  }
+
+  setLiveControlTileState("tts", snapshot.ttsEnabled);
+  setLiveControlTileState("events", snapshot.enabledRulesCount > 0);
+  setLiveControlTileState("music", snapshot.musicEnabled);
+  setLiveControlTileState("like-race", snapshot.likeRaceEnabled);
+  setLiveControlTileState("spin-wheel", snapshot.spinWheelEnabled);
+
+  if (liveControlAlerts) {
+    const alerts = getLiveControlAlerts();
+    liveControlAlerts.innerHTML = alerts.length
+      ? alerts.map((alert) => `
+        <article class="live-control-alert live-control-alert-${escapeHtml(alert.status)}">
+          <strong>${escapeHtml(alert.title)}</strong>
+          <span>${escapeHtml(alert.detail)}</span>
+        </article>
+      `).join("")
+      : `
+        <article class="live-control-alert live-control-alert-ready">
+          <strong>Ready for stream</strong>
+          <span>No urgent setup issues detected.</span>
+        </article>
+      `;
+  }
+}
+
+async function toggleLiveControlFeature(featureName = "") {
+  const feature = String(featureName ?? "").trim();
+  const settings = state.settings || {};
+
+  if (feature === "tts") {
+    const ttsEnabled = !settings.ttsEnabled;
+    if (ttsEnabledInput) {
+      ttsEnabledInput.checked = ttsEnabled;
+    }
+    await persistSettings({ ttsEnabled });
+    showToast(`TTS ${ttsEnabled ? "enabled" : "disabled"}.`, "success");
+    renderLiveControlDashboard();
+    return;
+  }
+
+  if (feature === "events") {
+    const rules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
+    if (!rules.length) {
+      openFocusedEventActionsLayer();
+      showToast("Create an event action before enabling rules.", "info");
+      return;
+    }
+    const hasEnabledRules = rules.some((rule) => rule.enabled !== false);
+    const customEventRules = rules.map((rule) => ({ ...rule, enabled: !hasEnabledRules }));
+    await persistSettings({ customEventRules });
+    showToast(`Event actions ${hasEnabledRules ? "disabled" : "enabled"}.`, "success");
+    renderLiveControlDashboard();
+    return;
+  }
+
+  if (feature === "music") {
+    const musicSettings = normalizeMusicSettings({
+      ...settings.musicSettings,
+      enabled: !normalizeMusicSettings(settings.musicSettings).enabled
+    });
+    await persistSettings({ musicSettings });
+    renderMusicSettings();
+    showToast(`Music requests ${musicSettings.enabled ? "enabled" : "disabled"}.`, "success");
+    renderLiveControlDashboard();
+    return;
+  }
+
+  if (feature === "like-race") {
+    const likeRaceSettings = normalizeLikeRaceSettings({
+      ...settings.likeRaceSettings,
+      enabled: !normalizeLikeRaceSettings(settings.likeRaceSettings).enabled
+    });
+    await persistSettings({ likeRaceSettings });
+    renderLikeRaceSettings();
+    showToast(`Like Race ${likeRaceSettings.enabled ? "enabled" : "disabled"}.`, "success");
+    renderLiveControlDashboard();
+    return;
+  }
+
+  if (feature === "spin-wheel") {
+    const spinWheelSettings = normalizeSpinWheelSettings({
+      ...settings.spinWheelSettings,
+      enabled: !normalizeSpinWheelSettings(settings.spinWheelSettings).enabled
+    });
+    await persistSettings({ spinWheelSettings });
+    renderSpinWheelSettings();
+    showToast(`Spin Wheel ${spinWheelSettings.enabled ? "enabled" : "disabled"}.`, "success");
+    renderLiveControlDashboard();
+  }
+}
+
+async function enableStreamSafeMode() {
+  const settings = state.settings || {};
+  const customEventRules = Array.isArray(settings.customEventRules)
+    ? settings.customEventRules.map((rule) => ({ ...rule, enabled: false }))
+    : [];
+  const musicSettings = normalizeMusicSettings({ ...settings.musicSettings, enabled: false, skipEnabled: false });
+  const likeRaceSettings = normalizeLikeRaceSettings({ ...settings.likeRaceSettings, enabled: false });
+  const spinWheelSettings = normalizeSpinWheelSettings({ ...settings.spinWheelSettings, enabled: false });
+
+  if (ttsEnabledInput) {
+    ttsEnabledInput.checked = false;
+  }
+
+  await persistSettings({
+    ttsEnabled: false,
+    customEventRules,
+    musicSettings,
+    likeRaceSettings,
+    spinWheelSettings
+  });
+  renderMusicSettings();
+  renderLikeRaceSettings();
+  renderSpinWheelSettings();
+  renderLiveControlDashboard();
+  showToast("Stream-safe mode enabled. Viewer-triggered TTS, rules, music, and games are off.", "success");
+}
+
+function openLiveControlTarget(targetKey = "") {
+  const key = String(targetKey ?? "").trim();
+  if (key === "diagnostics") {
+    openFocusedDiagnosticsLayer();
+    return;
+  }
+  if (key === "overlays-hub") {
+    openFocusedOverlayHubLayer();
+    return;
+  }
+  focusMainScreenCard(key);
 }
 
 function escapeHtml(value) {
@@ -11856,6 +12886,25 @@ function getEffectiveCustomRule(ruleId) {
   const feedbackOverlayAccentColorInput = document.querySelector(`[data-rule-feedback-overlay-accent="${ruleId}"]`);
   const tiktokTtsTextInput = document.querySelector(`[data-rule-tiktok-tts-text="${ruleId}"]`);
   const tiktokTtsVoiceInput = document.querySelector(`[data-rule-tiktok-tts-voice="${ruleId}"]`);
+  const queueMediaEnabledInput = document.querySelector(`[data-rule-queue-media-enabled="${ruleId}"]`);
+  const queueMediaTypeInput = document.querySelector(`[data-rule-queue-media-type="${ruleId}"]`);
+  const queueMediaIdInput = document.querySelector(`[data-rule-queue-media-id="${ruleId}"]`);
+  const queueMediaNameInput = document.querySelector(`[data-rule-queue-media-name="${ruleId}"]`);
+  const queueMediaDurationInput = document.querySelector(`[data-rule-queue-media-duration="${ruleId}"]`);
+  const obsSceneEnabledInput = document.querySelector(`[data-rule-obs-scene-enabled="${ruleId}"]`);
+  const obsSceneNameInput = document.querySelector(`[data-rule-obs-scene-name="${ruleId}"]`);
+  const obsSceneReturnInput = document.querySelector(`[data-rule-obs-scene-return="${ruleId}"]`);
+  const obsSceneReturnSecondsInput = document.querySelector(`[data-rule-obs-scene-return-seconds="${ruleId}"]`);
+  const obsSourceEnabledInput = document.querySelector(`[data-rule-obs-source-enabled="${ruleId}"]`);
+  const obsSourceSceneNameInput = document.querySelector(`[data-rule-obs-source-scene-name="${ruleId}"]`);
+  const obsSourceNameInput = document.querySelector(`[data-rule-obs-source-name="${ruleId}"]`);
+  const obsSourceDeactivateInput = document.querySelector(`[data-rule-obs-source-deactivate="${ruleId}"]`);
+  const obsSourceDeactivateSecondsInput = document.querySelector(`[data-rule-obs-source-deactivate-seconds="${ruleId}"]`);
+  const voicemodEnabledInput = document.querySelector(`[data-rule-voicemod-enabled="${ruleId}"]`);
+  const voicemodVoiceIdInput = document.querySelector(`[data-rule-voicemod-voice-id="${ruleId}"]`);
+  const voicemodVoiceNameInput = document.querySelector(`[data-rule-voicemod-voice-name="${ruleId}"]`);
+  const voicemodRevertInput = document.querySelector(`[data-rule-voicemod-revert="${ruleId}"]`);
+  const voicemodRevertSecondsInput = document.querySelector(`[data-rule-voicemod-revert-seconds="${ruleId}"]`);
   const triggerAudienceInput = document.querySelector(`[data-rule-trigger-audience="${ruleId}"]`);
   const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${ruleId}"]`);
   const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${ruleId}"]`);
@@ -11880,6 +12929,25 @@ function getEffectiveCustomRule(ruleId) {
     feedbackOverlayAccentColor: normalizeOverlayAccentColor(feedbackOverlayAccentColorInput?.value ?? rule.feedbackOverlayAccentColor),
     tiktokTtsText: String(tiktokTtsTextInput?.value ?? rule.tiktokTtsText ?? "").trim(),
     tiktokTtsVoice: String(tiktokTtsVoiceInput?.value ?? rule.tiktokTtsVoice ?? "").trim(),
+    queueMediaEnabled: queueMediaEnabledInput?.checked ?? rule.queueMediaEnabled,
+    queueMediaType: queueMediaTypeInput?.value ?? rule.queueMediaType,
+    queueMediaId: String(queueMediaIdInput?.value ?? rule.queueMediaId ?? "").trim(),
+    queueMediaName: String(queueMediaNameInput?.value ?? rule.queueMediaName ?? "").trim(),
+    queueMediaDurationSeconds: Number(queueMediaDurationInput?.value ?? rule.queueMediaDurationSeconds),
+    obsSceneEnabled: obsSceneEnabledInput?.checked ?? rule.obsSceneEnabled,
+    obsSceneName: String(obsSceneNameInput?.value ?? rule.obsSceneName ?? "").trim(),
+    obsSceneReturnEnabled: obsSceneReturnInput?.checked ?? rule.obsSceneReturnEnabled,
+    obsSceneReturnSeconds: Number(obsSceneReturnSecondsInput?.value ?? rule.obsSceneReturnSeconds),
+    obsSourceEnabled: obsSourceEnabledInput?.checked ?? rule.obsSourceEnabled,
+    obsSourceSceneName: String(obsSourceSceneNameInput?.value ?? rule.obsSourceSceneName ?? "").trim(),
+    obsSourceName: String(obsSourceNameInput?.value ?? rule.obsSourceName ?? "").trim(),
+    obsSourceDeactivateEnabled: obsSourceDeactivateInput?.checked ?? rule.obsSourceDeactivateEnabled,
+    obsSourceDeactivateSeconds: Number(obsSourceDeactivateSecondsInput?.value ?? rule.obsSourceDeactivateSeconds),
+    voicemodEnabled: voicemodEnabledInput?.checked ?? rule.voicemodEnabled,
+    voicemodVoiceId: String(voicemodVoiceIdInput?.value ?? rule.voicemodVoiceId ?? "").trim(),
+    voicemodVoiceName: String(voicemodVoiceNameInput?.value ?? rule.voicemodVoiceName ?? "").trim(),
+    voicemodRevertEnabled: voicemodRevertInput?.checked ?? rule.voicemodRevertEnabled,
+    voicemodRevertSeconds: Number(voicemodRevertSecondsInput?.value ?? rule.voicemodRevertSeconds),
     triggerAudience: triggerAudienceInput?.value ?? rule.triggerAudience,
     triggerUsername: normalizeUserKey(triggerUsernameInput?.value ?? rule.triggerUsername),
     triggerEmoteName: String(document.querySelector(`[data-rule-emote-name-input="${ruleId}"]`)?.value ?? rule.triggerEmoteName ?? "").trim(),
@@ -11901,6 +12969,9 @@ function getCustomRuleSearchHaystack(rule) {
     rule.triggerGiftName,
     rule.tiktokTtsText,
     rule.tiktokTtsVoice ? "TikTok TTS" : "",
+    rule.obsSceneEnabled ? `OBS scene ${rule.obsSceneName}` : "",
+    rule.obsSourceEnabled ? `OBS source ${rule.obsSourceName}` : "",
+    rule.voicemodEnabled ? `Voicemod ${rule.voicemodVoiceName || rule.voicemodVoiceId}` : "",
     getMetricThresholdLabel(rule.metric),
     rule.userCooldownSeconds ? `${rule.userCooldownSeconds} second cooldown` : "",
     rule.userCooldownSeconds ? `cooldown ${rule.userCooldownSeconds}s` : "",
@@ -12027,9 +13098,15 @@ async function previewCustomRuleAction(ruleId) {
     return;
   }
 
-  if (!rule.soundId && !rule.webhookUrl && !hasCustomActionFeedbackOverlay(rule) && !rule.tiktokTtsText) {
-    showToast("Choose a sound, enter a webhook URL, add TikTok TTS text, or enable a feedback overlay to test this action.", "info");
+  if (!rule.soundId && !rule.webhookUrl && !hasCustomActionFeedbackOverlay(rule) && !rule.tiktokTtsText && !isCustomActionQueueMediaEnabled(rule) && !hasObsRuleAction(rule) && !hasVoicemodRuleAction(rule)) {
+    showToast("Choose a sound, enter a webhook URL, add TikTok TTS text, enable a feedback overlay, add queue overlay media, add an OBS action, or add a Voicemod action to test this action.", "info");
     searchInput?.focus();
+    return;
+  }
+
+  if (isCustomActionQueueMediaEnabled(rule) && !hasCustomActionQueueMedia(rule)) {
+    showToast("Queue overlay media is enabled. Choose a picture or video before testing this action.", "info");
+    document.querySelector(`[data-rule-browse-queue-media="${ruleId}"]`)?.focus();
     return;
   }
 
@@ -12080,6 +13157,432 @@ async function previewCustomRuleSound(ruleId) {
   }
 }
 
+function waitForMilliseconds(durationMs) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, Math.max(0, Number(durationMs) || 0));
+  });
+}
+
+function normalizeObsWebSocketUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "ws://127.0.0.1:4455";
+  }
+  if (/^wss?:\/\//i.test(raw)) {
+    return raw;
+  }
+  return `ws://${raw}`;
+}
+
+function getObsConnectionSettings() {
+  const urlInput = document.querySelector("[data-obs-websocket-url]");
+  const passwordInput = document.querySelector("[data-obs-websocket-password]");
+  return {
+    url: normalizeObsWebSocketUrl(urlInput?.value ?? state.settings?.obsWebSocketUrl),
+    password: String(passwordInput?.value ?? state.settings?.obsWebSocketPassword ?? "")
+  };
+}
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  new Uint8Array(bytes).forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary);
+}
+
+async function sha256Base64(value) {
+  const bytes = new TextEncoder().encode(String(value ?? ""));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return bytesToBase64(digest);
+}
+
+async function createObsAuthentication(password, salt, challenge) {
+  if (!password) {
+    return "";
+  }
+  const secret = await sha256Base64(`${password}${salt}`);
+  return sha256Base64(`${secret}${challenge}`);
+}
+
+function createObsClient(settings = getObsConnectionSettings()) {
+  const url = normalizeObsWebSocketUrl(settings.url);
+  const password = String(settings.password ?? "");
+  let socket = null;
+  let requestId = 0;
+  const pendingRequests = new Map();
+
+  const close = () => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.close();
+    }
+  };
+
+  const request = (requestType, requestData = {}) => {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return Promise.reject(new Error("OBS WebSocket is not connected."));
+    }
+    requestId += 1;
+    const id = `ssp-${Date.now()}-${requestId}`;
+    socket.send(JSON.stringify({
+      op: 6,
+      d: {
+        requestType,
+        requestId: id,
+        requestData
+      }
+    }));
+    return new Promise((resolve, reject) => {
+      pendingRequests.set(id, { resolve, reject });
+    });
+  };
+
+  const connect = () => new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error instanceof Error ? error : new Error(String(error || "Unable to connect to OBS.")));
+    };
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve({ request, close });
+    };
+
+    try {
+      socket = new WebSocket(url);
+    } catch (error) {
+      fail(error);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      fail(new Error(`Unable to connect to OBS at ${url}. Check OBS WebSocket is enabled.`));
+      close();
+    }, 6000);
+
+    socket.addEventListener("open", () => {
+      // OBS sends Hello first; Identify is sent after the Hello payload arrives.
+    });
+
+    socket.addEventListener("error", () => {
+      window.clearTimeout(timeout);
+      fail(new Error(`Unable to connect to OBS at ${url}. Check OBS WebSocket is enabled.`));
+    });
+
+    socket.addEventListener("close", () => {
+      window.clearTimeout(timeout);
+      for (const { reject: rejectRequest } of pendingRequests.values()) {
+        rejectRequest(new Error("OBS WebSocket closed before the request completed."));
+      }
+      pendingRequests.clear();
+      if (!settled) {
+        fail(new Error("OBS WebSocket closed before identifying."));
+      }
+    });
+
+    socket.addEventListener("message", async (event) => {
+      let message = null;
+      try {
+        message = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      if (message?.op === 0) {
+        const auth = message.d?.authentication;
+        const authentication = auth
+          ? await createObsAuthentication(password, auth.salt, auth.challenge)
+          : "";
+        socket.send(JSON.stringify({
+          op: 1,
+          d: {
+            rpcVersion: 1,
+            ...(authentication ? { authentication } : {})
+          }
+        }));
+        return;
+      }
+
+      if (message?.op === 2) {
+        window.clearTimeout(timeout);
+        finish();
+        return;
+      }
+
+      if (message?.op === 7) {
+        const id = message.d?.requestId;
+        const pending = pendingRequests.get(id);
+        if (!pending) {
+          return;
+        }
+        pendingRequests.delete(id);
+        if (message.d?.requestStatus?.result) {
+          pending.resolve(message.d?.responseData ?? {});
+        } else {
+          pending.reject(new Error(message.d?.requestStatus?.comment || "OBS request failed."));
+        }
+      }
+    });
+  });
+
+  return { connect };
+}
+
+async function refreshObsCatalog(ruleId = "") {
+  const settings = getObsConnectionSettings();
+  state.settings.obsWebSocketUrl = settings.url;
+  state.settings.obsWebSocketPassword = settings.password;
+
+  const client = createObsClient(settings);
+  const connection = await client.connect();
+  try {
+    const sceneResponse = await connection.request("GetSceneList");
+    const scenes = Array.isArray(sceneResponse.scenes)
+      ? sceneResponse.scenes.map((scene) => String(scene.sceneName ?? "").trim()).filter(Boolean)
+      : [];
+    const sources = new Set();
+    for (const sceneName of scenes) {
+      try {
+        const itemResponse = await connection.request("GetSceneItemList", { sceneName });
+        (itemResponse.sceneItems ?? []).forEach((item) => {
+          const sourceName = String(item.sourceName ?? "").trim();
+          if (sourceName) {
+            sources.add(sourceName);
+          }
+        });
+      } catch {
+        // Some OBS scenes can fail if removed during refresh; keep the rest.
+      }
+    }
+    state.obsScenes = scenes;
+    state.obsSources = Array.from(sources).sort((a, b) => a.localeCompare(b));
+    if (ruleId) {
+      const effectiveRule = getEffectiveCustomRule(ruleId);
+      if (effectiveRule) {
+        state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
+          rule.id === ruleId ? effectiveRule : rule
+        );
+      }
+    }
+    await persistSettings({
+      obsWebSocketUrl: state.settings.obsWebSocketUrl,
+      obsWebSocketPassword: state.settings.obsWebSocketPassword,
+      customEventRules: state.settings.customEventRules
+    }, { render: false });
+    renderCustomRules();
+    showToast(`Loaded ${state.obsScenes.length} OBS scenes and ${state.obsSources.length} sources.`, "success");
+  } finally {
+    connection.close();
+  }
+}
+
+function getObsSceneOptionsMarkup(selectedValue = "") {
+  const selected = String(selectedValue ?? "").trim();
+  return state.obsScenes
+    .map((sceneName) => `<option value="${escapeHtml(sceneName)}"${sceneName === selected ? " selected" : ""}>${escapeHtml(sceneName)}</option>`)
+    .join("");
+}
+
+function getObsSourceOptionsMarkup(selectedValue = "") {
+  const selected = String(selectedValue ?? "").trim();
+  return state.obsSources
+    .map((sourceName) => `<option value="${escapeHtml(sourceName)}"${sourceName === selected ? " selected" : ""}>${escapeHtml(sourceName)}</option>`)
+    .join("");
+}
+
+async function refreshVoicemodVoices(ruleId = "") {
+  const response = await app.getVoicemodVoices(getVoicemodAuthPayload());
+  state.voicemodVoices = Array.isArray(response?.voices) ? response.voices : [];
+  if (ruleId) {
+    const effectiveRule = getEffectiveCustomRule(ruleId);
+    if (effectiveRule) {
+      state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
+        rule.id === ruleId ? effectiveRule : rule
+      );
+    }
+  }
+  await persistSettings({
+    customEventRules: state.settings.customEventRules
+  }, { render: false });
+  renderCustomRules();
+  showToast(`Loaded ${state.voicemodVoices.length} Voicemod voices.`, "success");
+}
+
+function getVoicemodVoiceOptionsMarkup(selectedValue = "") {
+  const selected = String(selectedValue ?? "").trim();
+  const voices = [...state.voicemodVoices];
+  if (selected && !voices.some((voice) => voice.id === selected)) {
+    voices.unshift({ id: selected, name: "Saved Voicemod voice" });
+  }
+  return voices
+    .map((voice) => `<option value="${escapeHtml(voice.id)}"${voice.id === selected ? " selected" : ""}>${escapeHtml(voice.name || voice.id)}</option>`)
+    .join("");
+}
+
+function syncVoicemodVoiceName(ruleId, voiceId) {
+  const selectedVoice = state.voicemodVoices.find((voice) => voice.id === String(voiceId ?? "").trim());
+  const nameInput = document.querySelector(`[data-rule-voicemod-voice-name="${ruleId}"]`);
+  if (selectedVoice && nameInput) {
+    nameInput.value = selectedVoice.name || selectedVoice.id;
+  }
+}
+
+function hasVoicemodRuleAction(rule) {
+  return Boolean(rule?.voicemodEnabled && String(rule?.voicemodVoiceId ?? "").trim());
+}
+
+function getVoicemodAuthPayload() {
+  return {
+    authApiBaseUrl: getAuthApiBaseUrl(),
+    userId: state.authenticatedUser?.id || state.settings?.authUser?.id || 0,
+    sessionToken: state.authenticatedUser?.sessionToken || state.settings?.authUser?.sessionToken || ""
+  };
+}
+
+async function setVoicemodVoice(voiceId) {
+  await app.setVoicemodVoice({
+    ...getVoicemodAuthPayload(),
+    voiceId
+  });
+}
+
+async function executeVoicemodRuleAction(rule, options = {}) {
+  if (!hasVoicemodRuleAction(rule)) {
+    return;
+  }
+
+  const previousVoiceId = rule.voicemodRevertEnabled
+    ? String((await app.getCurrentVoicemodVoice(getVoicemodAuthPayload()))?.voiceId ?? "").trim()
+    : "";
+  await setVoicemodVoice(rule.voicemodVoiceId);
+  if (rule.voicemodRevertEnabled && previousVoiceId && previousVoiceId !== rule.voicemodVoiceId) {
+    window.setTimeout(() => {
+      void setVoicemodVoice(previousVoiceId).catch((error) => {
+        showToast(error.message || "Unable to revert Voicemod voice after the delay.", "error");
+      });
+    }, Math.max(1, Number(rule.voicemodRevertSeconds) || 10) * 1000);
+  }
+  if (options.testMode) {
+    showToast(`Changed Voicemod voice${rule.voicemodVoiceName ? ` to ${rule.voicemodVoiceName}` : ""}.`, "success");
+  }
+}
+
+function hasObsRuleAction(rule) {
+  return Boolean(
+    (rule?.obsSceneEnabled && String(rule?.obsSceneName ?? "").trim())
+    || (rule?.obsSourceEnabled && String(rule?.obsSourceName ?? "").trim())
+  );
+}
+
+async function setObsScene(sceneName, settings = getObsConnectionSettings()) {
+  const client = createObsClient(settings);
+  const connection = await client.connect();
+  try {
+    await connection.request("SetCurrentProgramScene", { sceneName });
+  } finally {
+    connection.close();
+  }
+}
+
+async function executeObsRuleActions(rule, options = {}) {
+  if (!hasObsRuleAction(rule)) {
+    return;
+  }
+
+  const settings = getObsConnectionSettings();
+  state.settings.obsWebSocketUrl = settings.url;
+  state.settings.obsWebSocketPassword = settings.password;
+
+  const client = createObsClient(settings);
+  const connection = await client.connect();
+  try {
+    let previousSceneName = "";
+    if (rule.obsSceneEnabled && rule.obsSceneName) {
+      const currentScene = await connection.request("GetCurrentProgramScene").catch(() => null);
+      previousSceneName = String(currentScene?.currentProgramSceneName ?? "").trim();
+      await connection.request("SetCurrentProgramScene", { sceneName: rule.obsSceneName });
+      if (rule.obsSceneReturnEnabled && previousSceneName && previousSceneName !== rule.obsSceneName) {
+        window.setTimeout(() => {
+          void setObsScene(previousSceneName, settings).catch((error) => {
+            showToast(error.message || "Unable to switch OBS back to the previous scene.", "error");
+          });
+        }, Math.max(1, Number(rule.obsSceneReturnSeconds) || 10) * 1000);
+      }
+    }
+
+    if (rule.obsSourceEnabled && rule.obsSourceName) {
+      const currentScene = await connection.request("GetCurrentProgramScene").catch(() => null);
+      const sceneName = String(rule.obsSourceSceneName || currentScene?.currentProgramSceneName || rule.obsSceneName || "").trim();
+      if (!sceneName) {
+        throw new Error("Choose an OBS scene for the source action, or make sure OBS has a current scene.");
+      }
+      const item = await connection.request("GetSceneItemId", {
+        sceneName,
+        sourceName: rule.obsSourceName
+      });
+      const sceneItemId = Number(item.sceneItemId);
+      await connection.request("SetSceneItemEnabled", {
+        sceneName,
+        sceneItemId,
+        sceneItemEnabled: true
+      });
+      if (rule.obsSourceDeactivateEnabled) {
+        window.setTimeout(() => {
+          const delayedClient = createObsClient(settings);
+          void delayedClient.connect().then(async (delayedConnection) => {
+            try {
+              await delayedConnection.request("SetSceneItemEnabled", {
+                sceneName,
+                sceneItemId,
+                sceneItemEnabled: false
+              });
+            } finally {
+              delayedConnection.close();
+            }
+          }).catch((error) => {
+            showToast(error.message || "Unable to disable OBS source after the delay.", "error");
+          });
+        }, Math.max(1, Number(rule.obsSourceDeactivateSeconds) || 10) * 1000);
+      }
+    }
+
+    if (options.testMode) {
+      showToast(`Triggered OBS action for "${rule.name}".`, "success");
+    }
+  } finally {
+    connection.close();
+  }
+}
+
+function hasCustomActionQueueMedia(rule) {
+  return Boolean(rule?.queueMediaEnabled && String(rule?.queueMediaId ?? "").trim());
+}
+
+function isCustomActionQueueMediaEnabled(rule) {
+  return Boolean(rule?.queueMediaEnabled);
+}
+
+async function buildCustomActionQueueMediaPayload(rule) {
+  if (!hasCustomActionQueueMedia(rule)) {
+    return null;
+  }
+
+  const mediaId = String(rule.queueMediaId ?? "").trim();
+  const result = await app.resolveEventActionMedia(mediaId);
+  return {
+    type: rule.queueMediaType === "video" ? "video" : "image",
+    url: String(result?.mediaUrl ?? "").trim(),
+    name: String(rule.queueMediaName || "Queue overlay media").trim(),
+    durationMs: Math.min(60000, Math.max(1000, Number(rule.queueMediaDurationSeconds) * 1000 || 6000))
+  };
+}
+
 async function triggerCustomRule(rule, options = {}) {
   const { testMode = false, sourceItem = null } = options;
   if (rule?.enabled === false && !options.force) {
@@ -12090,14 +13593,17 @@ async function triggerCustomRule(rule, options = {}) {
   }
 
   const hasFeedbackOverlay = hasCustomActionFeedbackOverlay(rule);
+  const hasQueueMedia = hasCustomActionQueueMedia(rule);
   const tiktokTtsText = String(rule?.tiktokTtsText ?? "").trim();
   const hasTikTokTts = Boolean(tiktokTtsText);
+  const hasObsAction = hasObsRuleAction(rule);
+  const hasVoicemodAction = hasVoicemodRuleAction(rule);
   const spinWheelSettings = getSpinWheelSettings();
   const shouldTriggerSpinWheel = !options.fromSpinWheel
     && spinWheelSettings.enabled
     && spinWheelSettings.eventRuleId
     && spinWheelSettings.eventRuleId === rule?.id;
-  if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay && !hasTikTokTts && !shouldTriggerSpinWheel) {
+  if (!rule?.soundId && !rule?.webhookUrl && !hasFeedbackOverlay && !hasTikTokTts && !hasQueueMedia && !hasObsAction && !hasVoicemodAction && !shouldTriggerSpinWheel) {
     return false;
   }
 
@@ -12109,7 +13615,28 @@ async function triggerCustomRule(rule, options = {}) {
     showCustomActionFeedbackOverlay(rule, sourceItem);
   }
 
-  if (!rule?.soundId && !rule?.webhookUrl && !hasTikTokTts) {
+  let queueMediaPayload = null;
+  if (hasQueueMedia) {
+    try {
+      queueMediaPayload = await buildCustomActionQueueMediaPayload(rule);
+    } catch (error) {
+      showToast(error.message || `Unable to load media for "${rule.name}".`, "error");
+    }
+  }
+
+  if (hasObsAction) {
+    void executeObsRuleActions(rule, { testMode }).catch((error) => {
+      showToast(error.message || `Unable to run OBS action for "${rule.name}".`, "error");
+    });
+  }
+
+  if (hasVoicemodAction) {
+    void executeVoicemodRuleAction(rule, { testMode }).catch((error) => {
+      showToast(error.message || `Unable to run Voicemod action for "${rule.name}".`, "error");
+    });
+  }
+
+  if (!rule?.soundId && !rule?.webhookUrl && !hasTikTokTts && !queueMediaPayload) {
     return true;
   }
 
@@ -12185,11 +13712,16 @@ async function triggerCustomRule(rule, options = {}) {
       );
     }
 
+    if (queueMediaPayload) {
+      triggerTasks.push(waitForMilliseconds(queueMediaPayload.durationMs));
+    }
+
     await Promise.allSettled(triggerTasks);
   }, {
     label: `${testMode ? "Test action" : "Event action"}: ${rule.name}`,
     kind: "action",
-    sourceItem
+    sourceItem,
+    media: queueMediaPayload
   });
 
   if (testMode) {
@@ -12197,6 +13729,51 @@ async function triggerCustomRule(rule, options = {}) {
   }
 
   return true;
+}
+
+function getCustomRuleBuilderReviewMarkup(rule, selectedSoundTitle = "", scheduleSummary = "") {
+  const triggerLabel = rule.metric === "specificGift"
+    ? `${rule.triggerGiftName || "Selected gift"} x ${rule.threshold}`
+    : ["subEmote", "fanEmote"].includes(rule.metric)
+      ? `${rule.triggerEmoteName || getMetricDisplayLabel(rule.metric)} x ${rule.threshold}`
+      : `${getMetricDisplayLabel(rule.metric)} x ${rule.threshold}`;
+  const actionLabels = [
+    selectedSoundTitle ? `Sound: ${selectedSoundTitle}` : "",
+    rule.tiktokTtsText ? "TikTok TTS message" : "",
+    rule.webhookUrl ? "Webhook" : "",
+    hasCustomActionQueueMedia(rule) ? `${rule.queueMediaType === "video" ? "Video" : "Picture"} in ${getQueueLabel(rule.queueId)}` : "",
+    hasObsRuleAction(rule) ? "OBS action" : "",
+    hasVoicemodRuleAction(rule) ? `Voicemod${rule.voicemodVoiceName ? `: ${rule.voicemodVoiceName}` : ""}` : "",
+    hasCustomActionFeedbackOverlay(rule) ? "Trigger overlay" : ""
+  ].filter(Boolean);
+  const timingLabels = [
+    scheduleSummary || "Always active",
+    rule.userCooldownSeconds > 0 ? `${rule.userCooldownSeconds}s user cooldown` : "No user cooldown"
+  ];
+  const items = [
+    ["Audience", getTriggerAudienceLabel(rule)],
+    ["Trigger", triggerLabel],
+    ["Actions", actionLabels.length ? actionLabels.join(" + ") : "No action selected yet"],
+    ["Timing", timingLabels.join(" + ")]
+  ];
+
+  return `
+    <aside class="event-rule-review" data-rule-step-section="${escapeHtml(rule.id)}:review">
+      <div>
+        <span class="event-rule-review-eyebrow">Review before save</span>
+        <strong>${escapeHtml(rule.name || "New event action")}</strong>
+        <p class="helper-text">Use the step buttons to jump around this rule, then save when the review looks right.</p>
+      </div>
+      <div class="event-rule-review-grid">
+        ${items.map(([label, value]) => `
+          <span class="event-rule-review-item">
+            <small>${escapeHtml(label)}</small>
+            <strong>${escapeHtml(value)}</strong>
+          </span>
+        `).join("")}
+      </div>
+    </aside>
+  `;
 }
 
 function renderCustomRules() {
@@ -12231,14 +13808,33 @@ function renderCustomRules() {
     return;
   }
 
+  const listHeader = `
+    <div class="custom-rule-list-header" role="row" aria-label="Event action rule columns">
+      <span>On/Off</span>
+      <span>Name</span>
+      <span>Description</span>
+      <span>Controls</span>
+    </div>
+  `;
+
   const cards = filteredRules.map((rule) => {
     const isEditing = state.activeCustomRuleId === rule.id;
     const soundOptionsMarkup = buildSoundDataListOptionsMarkup(rule.soundId, "");
     const selectedSoundTitle = getSoundDisplayTitle(rule.soundId);
     const scheduleSummary = getRuleScheduleSummary(rule);
     const schedulePaused = rule.enabled && isRuleWithinDisabledTimeWindow(rule);
-    const ruleStatusText = !rule.enabled ? "Disabled" : schedulePaused ? "Scheduled off" : "Enabled";
     const ruleStatusClass = !rule.enabled ? "muted" : schedulePaused ? "warning" : "success";
+    const builderReviewMarkup = getCustomRuleBuilderReviewMarkup(rule, selectedSoundTitle, scheduleSummary);
+    const ruleToggleTitle = !rule.enabled
+      ? "Disabled - click to enable this rule"
+      : schedulePaused
+        ? "Scheduled off - this rule is enabled but paused by its schedule. Click to disable it."
+        : "Enabled - click to disable this rule";
+    const ruleToggleSrText = !rule.enabled
+      ? `Enable ${rule.name}`
+      : schedulePaused
+        ? `${rule.name} is scheduled off. Click to disable it.`
+        : `Disable ${rule.name}`;
 
     if (!isEditing) {
       const hasSound = Boolean(rule.soundId);
@@ -12247,6 +13843,10 @@ function renderCustomRules() {
         hasSound ? `sound: ${selectedSoundTitle || "selected sound"}` : "",
         hasWebhook ? "webhook enabled" : "",
         rule.tiktokTtsText ? "TikTok TTS" : "",
+        hasCustomActionQueueMedia(rule) ? `${rule.queueMediaType === "video" ? "video" : "picture"} overlay` : "",
+        rule.obsSceneEnabled && rule.obsSceneName ? `OBS scene: ${rule.obsSceneName}` : "",
+        rule.obsSourceEnabled && rule.obsSourceName ? `OBS source: ${rule.obsSourceName}` : "",
+        rule.voicemodEnabled && rule.voicemodVoiceId ? `Voicemod voice: ${rule.voicemodVoiceName || rule.voicemodVoiceId}` : "",
         hasCustomActionFeedbackOverlay(rule) ? "feedback overlay" : "",
         getQueueLabel(rule.queueId),
         rule.userCooldownSeconds > 0 ? `user cooldown ${rule.userCooldownSeconds}s` : "",
@@ -12259,17 +13859,16 @@ function renderCustomRules() {
           : `Trigger when ${escapeHtml(getMetricDisplayLabel(rule.metric))} reaches ${escapeHtml(String(rule.threshold))} for ${escapeHtml(getTriggerAudienceLabel(rule))}`;
       return `
         <article class="custom-rule-card custom-rule-card-compact" data-rule-id="${escapeHtml(rule.id)}">
-          <div class="custom-rule-compact-summary">
-            <strong>${escapeHtml(rule.name)}</strong>
-            <span class="helper-text custom-rule-inline-text">${triggerSummary}${actionSummary ? ` with ${escapeHtml(actionSummary)}.` : "."}</span>
-          </div>
-          <div class="custom-rule-top-actions">
-            <label class="toggle-switch compact-switch custom-inline-toggle" title="Enable or disable this rule">
-              <input type="checkbox" data-custom-toggle="${escapeHtml(rule.id)}" ${rule.enabled ? "checked" : ""} />
+          <div class="custom-rule-state-group">
+            <label class="toggle-switch compact-switch custom-inline-toggle custom-rule-toggle custom-rule-toggle-${ruleStatusClass}" title="${escapeHtml(ruleToggleTitle)}">
+              <input type="checkbox" data-custom-toggle="${escapeHtml(rule.id)}" aria-label="${escapeHtml(ruleToggleTitle)}" ${rule.enabled ? "checked" : ""} />
               <span class="switch-ui"></span>
-              <span class="sr-only">${rule.enabled ? "Disable" : "Enable"} ${escapeHtml(rule.name)}</span>
+              <span class="sr-only">${escapeHtml(ruleToggleSrText)}</span>
             </label>
-            <span class="status-pill ${ruleStatusClass}">${ruleStatusText}</span>
+          </div>
+          <strong class="custom-rule-compact-name">${escapeHtml(rule.name)}</strong>
+          <span class="helper-text custom-rule-inline-text">${triggerSummary}${actionSummary ? ` with ${escapeHtml(actionSummary)}.` : "."}</span>
+          <div class="custom-rule-top-actions">
             <div class="custom-rule-actions custom-rule-actions-compact">
               <button type="button" class="ghost icon-button compact-icon-button" data-custom-edit="${escapeHtml(rule.id)}" title="Edit rule" aria-label="Edit rule">&#9998;</button>
               <button type="button" class="ghost icon-button compact-icon-button" data-custom-duplicate="${escapeHtml(rule.id)}" title="Duplicate rule" aria-label="Duplicate rule">&#10697;</button>
@@ -12284,28 +13883,60 @@ function renderCustomRules() {
     return `
       <article class="custom-rule-card" data-rule-id="${escapeHtml(rule.id)}">
           <div class="custom-rule-top">
-            <div>
+            <div class="custom-rule-state-group">
+              <label class="toggle-switch compact-switch custom-inline-toggle custom-rule-toggle custom-rule-toggle-${ruleStatusClass}" title="${escapeHtml(ruleToggleTitle)}">
+                <input type="checkbox" data-rule-enabled-toggle="${escapeHtml(rule.id)}" aria-label="${escapeHtml(ruleToggleTitle)}" ${rule.enabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="sr-only">${escapeHtml(ruleToggleSrText)}</span>
+              </label>
+            </div>
+            <div class="custom-rule-edit-title">
               <strong>Editing custom action</strong>
-              <p class="helper-text">Set the threshold, sound, and enabled state before saving this rule.</p>
+              <p class="helper-text">Follow the steps, choose what triggers it, then attach the actions this rule should run.</p>
             </div>
             <div class="custom-rule-top-actions">
-              <label class="toggle-switch compact-switch custom-inline-toggle" title="Enable or disable this rule">
-                <input type="checkbox" data-rule-enabled-toggle="${escapeHtml(rule.id)}" ${rule.enabled ? "checked" : ""} />
-                <span class="switch-ui"></span>
-                <span class="sr-only">${rule.enabled ? "Disable" : "Enable"} ${escapeHtml(rule.name)}</span>
-              </label>
-              <span class="status-pill ${ruleStatusClass}">${ruleStatusText}</span>
               <button type="button" class="ghost icon-button" data-custom-collapse="${escapeHtml(rule.id)}" title="Close editor" aria-label="Close editor">&#10005;</button>
             </div>
           </div>
 
+          <div class="event-rule-builder-shell">
+            <nav class="event-rule-stepper" aria-label="Custom action builder steps">
+              <button type="button" class="event-rule-step" data-rule-step-jump="${escapeHtml(rule.id)}:basics">
+                <span>1</span>
+                <strong>Basics</strong>
+                <small>Name + enabled</small>
+              </button>
+              <button type="button" class="event-rule-step" data-rule-step-jump="${escapeHtml(rule.id)}:trigger">
+                <span>2</span>
+                <strong>Trigger</strong>
+                <small>Audience + event</small>
+              </button>
+              <button type="button" class="event-rule-step" data-rule-step-jump="${escapeHtml(rule.id)}:actions">
+                <span>3</span>
+                <strong>Actions</strong>
+                <small>Sound, overlay, OBS</small>
+              </button>
+              <button type="button" class="event-rule-step" data-rule-step-jump="${escapeHtml(rule.id)}:timing">
+                <span>4</span>
+                <strong>Timing</strong>
+                <small>Cooldown + schedule</small>
+              </button>
+              <button type="button" class="event-rule-step" data-rule-step-jump="${escapeHtml(rule.id)}:review">
+                <span>5</span>
+                <strong>Review</strong>
+                <small>Check before save</small>
+              </button>
+            </nav>
+            ${builderReviewMarkup}
+          </div>
+
         <div class="custom-rule-grid">
-          <label class="field">
+          <label class="field event-builder-section" data-rule-step-section="${escapeHtml(rule.id)}:basics">
             <span>Rule name</span>
             <input data-rule-name="${escapeHtml(rule.id)}" value="${escapeHtml(rule.name)}" autocomplete="off" />
           </label>
 
-          <fieldset class="field field-span-2 event-builder-group">
+          <fieldset class="field field-span-2 event-builder-group event-builder-section" data-rule-step-section="${escapeHtml(rule.id)}:trigger">
             <div class="event-builder-label">
               <span>Who is able to trigger the event?</span>
             </div>
@@ -12340,22 +13971,28 @@ function renderCustomRules() {
               <span>By what will the event be triggered?</span>
             </div>
             <div class="event-builder-options">
-              <label class="field">
-                <span>Trigger type</span>
-                <select data-rule-metric="${escapeHtml(rule.id)}">
-                  <option value="join" ${rule.metric === "join" ? "selected" : ""}>Join</option>
-                  <option value="firstActivity" ${rule.metric === "firstActivity" ? "selected" : ""}>First user activity</option>
-                  <option value="anyComment" ${rule.metric === "anyComment" ? "selected" : ""}>Any comment</option>
-                  <option value="follows" ${rule.metric === "follows" ? "selected" : ""}>Follow</option>
-                  <option value="shares" ${rule.metric === "shares" ? "selected" : ""}>Share</option>
-                  <option value="likes" ${rule.metric === "likes" ? "selected" : ""}>Sending likes (taps)</option>
-                  <option value="coins" ${rule.metric === "coins" ? "selected" : ""}>Sending a gift with min. coins value</option>
-                  <option value="specificGift" ${rule.metric === "specificGift" ? "selected" : ""}>Sending a specific gift</option>
-                  <option value="treasureBox" ${rule.metric === "treasureBox" ? "selected" : ""}>Treasure box</option>
-                  <option value="subEmote" ${rule.metric === "subEmote" ? "selected" : ""}>Sub emote</option>
-                  <option value="fanEmote" ${rule.metric === "fanEmote" ? "selected" : ""}>Fan emote</option>
-                </select>
-              </label>
+              <div class="event-trigger-threshold-row">
+                <label class="field">
+                  <span>Trigger type</span>
+                  <select data-rule-metric="${escapeHtml(rule.id)}">
+                    <option value="join" ${rule.metric === "join" ? "selected" : ""}>Join</option>
+                    <option value="firstActivity" ${rule.metric === "firstActivity" ? "selected" : ""}>First user activity</option>
+                    <option value="anyComment" ${rule.metric === "anyComment" ? "selected" : ""}>Any comment</option>
+                    <option value="follows" ${rule.metric === "follows" ? "selected" : ""}>Follow</option>
+                    <option value="shares" ${rule.metric === "shares" ? "selected" : ""}>Share</option>
+                    <option value="likes" ${rule.metric === "likes" ? "selected" : ""}>Sending likes (taps)</option>
+                    <option value="coins" ${rule.metric === "coins" ? "selected" : ""}>Sending a gift with min. coins value</option>
+                    <option value="specificGift" ${rule.metric === "specificGift" ? "selected" : ""}>Sending a specific gift</option>
+                    <option value="treasureBox" ${rule.metric === "treasureBox" ? "selected" : ""}>Treasure box</option>
+                    <option value="subEmote" ${rule.metric === "subEmote" ? "selected" : ""}>Sub emote</option>
+                    <option value="fanEmote" ${rule.metric === "fanEmote" ? "selected" : ""}>Fan emote</option>
+                  </select>
+                </label>
+                <label class="field event-trigger-threshold-field" data-rule-threshold-wrapper="${escapeHtml(rule.id)}">
+                  <span data-rule-threshold-label="${escapeHtml(rule.id)}">${escapeHtml(getMetricThresholdLabel(rule.metric))}</span>
+                  <input data-rule-threshold="${escapeHtml(rule.id)}" type="number" min="1" step="1" value="${escapeHtml(String(rule.threshold))}" />
+                </label>
+              </div>
               <div class="gift-trigger-picker ${rule.metric === "specificGift" ? "" : "is-hidden"}" data-rule-gift-picker-wrapper="${escapeHtml(rule.id)}">
                 <input type="hidden" data-rule-gift-name="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerGiftName || "")}" />
                 <input type="hidden" data-rule-gift-image-url="${escapeHtml(rule.id)}" value="${escapeHtml(rule.triggerGiftImageUrl || "")}" />
@@ -12415,16 +14052,12 @@ function renderCustomRules() {
                   </details>
                 </label>
               </div>
-              <label class="field" data-rule-threshold-wrapper="${escapeHtml(rule.id)}">
-                <span data-rule-threshold-label="${escapeHtml(rule.id)}">${escapeHtml(getMetricThresholdLabel(rule.metric))}</span>
-                <input data-rule-threshold="${escapeHtml(rule.id)}" type="number" min="1" step="1" value="${escapeHtml(String(rule.threshold))}" />
-              </label>
               <label class="field">
                 <span>User cooldown (seconds)</span>
                 <input data-rule-user-cooldown="${escapeHtml(rule.id)}" type="number" min="0" step="1" value="${escapeHtml(String(Math.max(0, Number(rule.userCooldownSeconds) || 0)))}" />
                 <small class="field-hint">Prevents the same user from triggering this rule again until the cooldown expires.</small>
               </label>
-              <div class="field-grid field-span-2 custom-rule-time-window">
+              <div class="field-grid field-span-2 custom-rule-time-window event-builder-section" data-rule-step-section="${escapeHtml(rule.id)}:timing">
                 <label class="field">
                   <span>Auto-disable start time</span>
                   <input data-rule-disable-window-start="${escapeHtml(rule.id)}" type="time" value="${escapeHtml(normalizeRuleTimeValue(rule.disableWindowStartTime))}" />
@@ -12439,7 +14072,7 @@ function renderCustomRules() {
             </div>
           </fieldset>
 
-            <label class="field">
+            <label class="field event-builder-section" data-rule-step-section="${escapeHtml(rule.id)}:actions">
               <span>Sound</span>
               <input type="hidden" data-rule-sound-select="${escapeHtml(rule.id)}" value="${escapeHtml(rule.soundId || "")}" />
               <div class="inline-sound-picker searchable-sound-picker custom-rule-sound-picker">
@@ -12481,6 +14114,170 @@ function renderCustomRules() {
                 }).join("")}
               </select>
             </label>
+
+            <fieldset class="field field-span-2 event-builder-group">
+              <div class="event-builder-label">
+                <span>Video / Picture queue overlay</span>
+              </div>
+              <label class="toggle-switch compact-switch">
+                <input type="checkbox" data-rule-queue-media-enabled="${escapeHtml(rule.id)}" ${rule.queueMediaEnabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="switch-copy">
+                  <strong>Display media in selected queue overlay</strong>
+                  <small>Shows a picture or video in ${escapeHtml(getQueueLabel(rule.queueId))} while this event action is running.</small>
+                </span>
+              </label>
+              <div class="field-grid ${rule.queueMediaEnabled ? "" : "is-hidden"}" data-rule-queue-media-fields="${escapeHtml(rule.id)}">
+                <label class="field">
+                  <span>Media type</span>
+                  <select data-rule-queue-media-type="${escapeHtml(rule.id)}">
+                    <option value="image" ${rule.queueMediaType === "image" ? "selected" : ""}>Picture</option>
+                    <option value="video" ${rule.queueMediaType === "video" ? "selected" : ""}>Video</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Display duration (seconds)</span>
+                  <input data-rule-queue-media-duration="${escapeHtml(rule.id)}" type="number" min="1" max="60" step="1" value="${escapeHtml(String(rule.queueMediaDurationSeconds || 6))}" />
+                </label>
+                <label class="field field-span-2">
+                  <span>Selected media file</span>
+                  <input type="hidden" data-rule-queue-media-id="${escapeHtml(rule.id)}" value="${escapeHtml(rule.queueMediaId || "")}" />
+                  <input type="hidden" data-rule-queue-media-name="${escapeHtml(rule.id)}" value="${escapeHtml(rule.queueMediaName || "")}" />
+                  <div class="inline-sound-picker custom-rule-media-picker">
+                    <input data-rule-queue-media-display="${escapeHtml(rule.id)}" type="text" readonly value="${escapeHtml(rule.queueMediaName || "No media selected")}" />
+                    <button type="button" class="ghost icon-button inline-preview-button" data-rule-browse-queue-media="${escapeHtml(rule.id)}" title="Browse picture or video" aria-label="Browse picture or video">&#128193;</button>
+                    <button type="button" class="ghost icon-button inline-preview-button danger-icon-button" data-rule-clear-queue-media="${escapeHtml(rule.id)}" title="Clear selected media" aria-label="Clear selected media">&#10005;</button>
+                  </div>
+                  <small class="field-hint">Supports PNG, JPG, GIF, WebP, SVG, MP4, WebM, MOV, and MKV. Large video files may take longer to appear in the overlay.</small>
+                </label>
+                <label class="field field-span-2">
+                  <span>Overlay URL for this rule queue</span>
+                  <div class="overlay-inline-url-row">
+                    <input data-rule-queue-overlay-url="${escapeHtml(rule.id)}" type="text" readonly value="${escapeHtml(getQueueOverlayUrlForLane(rule.queueId) || "Queue overlay unavailable")}" />
+                    <div class="overlay-inline-icon-actions" role="group" aria-label="Rule queue overlay actions">
+                      <button type="button" class="ghost icon-button compact-icon-button" data-rule-copy-queue-overlay="${escapeHtml(rule.id)}" title="Copy selected queue overlay URL" aria-label="Copy selected queue overlay URL">&#10697;</button>
+                      <button type="button" class="ghost icon-button compact-icon-button" data-rule-open-queue-overlay="${escapeHtml(rule.id)}" title="Open selected queue overlay" aria-label="Open selected queue overlay">&#8599;</button>
+                    </div>
+                  </div>
+                  <small class="field-hint">This opens the overlay for the same queue selected in this rule, so media appears in the correct browser source.</small>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="field field-span-2 event-builder-group">
+              <div class="event-builder-label">
+                <span>OBS scene / source actions</span>
+              </div>
+              <div class="field-grid">
+                <label class="field">
+                  <span>OBS WebSocket URL</span>
+                  <input data-obs-websocket-url type="text" value="${escapeHtml(state.settings?.obsWebSocketUrl || "ws://127.0.0.1:4455")}" placeholder="ws://127.0.0.1:4455" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>OBS WebSocket password</span>
+                  <input data-obs-websocket-password type="password" value="${escapeHtml(state.settings?.obsWebSocketPassword || "")}" placeholder="Optional OBS password" autocomplete="off" />
+                </label>
+                <div class="field field-span-2">
+                  <button type="button" class="ghost compact-button" data-rule-obs-refresh="${escapeHtml(rule.id)}">Refresh OBS scenes and sources</button>
+                  <small class="field-hint">Requires OBS Studio WebSocket v5 to be enabled. Default OBS port is usually <code>4455</code>.</small>
+                </div>
+              </div>
+
+              <label class="toggle-switch compact-switch">
+                <input type="checkbox" data-rule-obs-scene-enabled="${escapeHtml(rule.id)}" ${rule.obsSceneEnabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="switch-copy">
+                  <strong>Switch OBS scene</strong>
+                  <small>Change to a selected OBS scene when this rule triggers.</small>
+                </span>
+              </label>
+              <div class="field-grid ${rule.obsSceneEnabled ? "" : "is-hidden"}" data-rule-obs-scene-fields="${escapeHtml(rule.id)}">
+                <label class="field">
+                  <span>Scene to switch to</span>
+                  <input data-rule-obs-scene-name="${escapeHtml(rule.id)}" list="obs-scenes-${escapeHtml(rule.id)}" value="${escapeHtml(rule.obsSceneName || "")}" placeholder="Choose or type scene name" autocomplete="off" />
+                  <datalist id="obs-scenes-${escapeHtml(rule.id)}">${getObsSceneOptionsMarkup(rule.obsSceneName)}</datalist>
+                </label>
+                <label class="field">
+                  <span>Return after seconds</span>
+                  <input data-rule-obs-scene-return-seconds="${escapeHtml(rule.id)}" type="number" min="1" max="3600" step="1" value="${escapeHtml(String(rule.obsSceneReturnSeconds || 10))}" />
+                </label>
+                <label class="tts-mini-toggle field-span-2">
+                  <input data-rule-obs-scene-return="${escapeHtml(rule.id)}" type="checkbox" ${rule.obsSceneReturnEnabled ? "checked" : ""} />
+                  <span>Switch back to the previous OBS scene after the delay</span>
+                </label>
+              </div>
+
+              <label class="toggle-switch compact-switch">
+                <input type="checkbox" data-rule-obs-source-enabled="${escapeHtml(rule.id)}" ${rule.obsSourceEnabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="switch-copy">
+                  <strong>Activate OBS source</strong>
+                  <small>Enable a selected source in OBS when this rule triggers.</small>
+                </span>
+              </label>
+              <div class="field-grid ${rule.obsSourceEnabled ? "" : "is-hidden"}" data-rule-obs-source-fields="${escapeHtml(rule.id)}">
+                <label class="field">
+                  <span>Scene containing source</span>
+                  <input data-rule-obs-source-scene-name="${escapeHtml(rule.id)}" list="obs-source-scenes-${escapeHtml(rule.id)}" value="${escapeHtml(rule.obsSourceSceneName || "")}" placeholder="Blank = current scene" autocomplete="off" />
+                  <datalist id="obs-source-scenes-${escapeHtml(rule.id)}">${getObsSceneOptionsMarkup(rule.obsSourceSceneName)}</datalist>
+                </label>
+                <label class="field">
+                  <span>Source to activate</span>
+                  <input data-rule-obs-source-name="${escapeHtml(rule.id)}" list="obs-sources-${escapeHtml(rule.id)}" value="${escapeHtml(rule.obsSourceName || "")}" placeholder="Choose or type source name" autocomplete="off" />
+                  <datalist id="obs-sources-${escapeHtml(rule.id)}">${getObsSourceOptionsMarkup(rule.obsSourceName)}</datalist>
+                </label>
+                <label class="field">
+                  <span>Disable after seconds</span>
+                  <input data-rule-obs-source-deactivate-seconds="${escapeHtml(rule.id)}" type="number" min="1" max="3600" step="1" value="${escapeHtml(String(rule.obsSourceDeactivateSeconds || 10))}" />
+                </label>
+                <label class="tts-mini-toggle">
+                  <input data-rule-obs-source-deactivate="${escapeHtml(rule.id)}" type="checkbox" ${rule.obsSourceDeactivateEnabled ? "checked" : ""} />
+                  <span>Disable source after the delay</span>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset class="field field-span-2 event-builder-group">
+              <div class="event-builder-label">
+                <span>Voicemod voice changer</span>
+              </div>
+              <div class="field-grid compact-grid">
+                <div class="field field-span-2">
+                  <button type="button" class="ghost compact-button" data-rule-voicemod-refresh="${escapeHtml(rule.id)}">Auto-connect and refresh voices</button>
+                  <small class="field-hint">Uses the local Voicemod Desktop connection automatically. If Voicemod asks for permission, approve Stream Sync Pro in Voicemod.</small>
+                </div>
+              </div>
+
+              <label class="toggle-switch compact-switch">
+                <input type="checkbox" data-rule-voicemod-enabled="${escapeHtml(rule.id)}" ${rule.voicemodEnabled ? "checked" : ""} />
+                <span class="switch-ui"></span>
+                <span class="switch-copy">
+                  <strong>Change Voicemod voice</strong>
+                  <small>Switch the active Voicemod voice/effect when this rule triggers.</small>
+                </span>
+              </label>
+              <div class="field-grid ${rule.voicemodEnabled ? "" : "is-hidden"}" data-rule-voicemod-fields="${escapeHtml(rule.id)}">
+                <label class="field">
+                  <span>Voicemod voice</span>
+                  <select data-rule-voicemod-voice-id="${escapeHtml(rule.id)}">
+                    <option value="">Choose a Voicemod voice</option>
+                    ${getVoicemodVoiceOptionsMarkup(rule.voicemodVoiceId)}
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Voice display name</span>
+                  <input data-rule-voicemod-voice-name="${escapeHtml(rule.id)}" type="text" value="${escapeHtml(rule.voicemodVoiceName || "")}" placeholder="Optional label shown in the app" autocomplete="off" />
+                </label>
+                <label class="field">
+                  <span>Revert after seconds</span>
+                  <input data-rule-voicemod-revert-seconds="${escapeHtml(rule.id)}" type="number" min="1" max="3600" step="1" value="${escapeHtml(String(rule.voicemodRevertSeconds || 10))}" />
+                </label>
+                <label class="tts-mini-toggle">
+                  <input data-rule-voicemod-revert="${escapeHtml(rule.id)}" type="checkbox" ${rule.voicemodRevertEnabled ? "checked" : ""} />
+                  <span>Revert back to the previous Voicemod voice after the delay</span>
+                </label>
+              </div>
+            </fieldset>
 
             <label class="field field-span-2">
               <span>Webhook URL</span>
@@ -12571,7 +14368,7 @@ function renderCustomRules() {
       `;
   });
 
-  customRuleList.innerHTML = cards.join("");
+  customRuleList.innerHTML = `${listHeader}${cards.join("")}`;
 
   if (state.soundCatalogError) {
     setStatusMessage(customRuleStatus, "error", state.soundCatalogError);
@@ -12941,6 +14738,26 @@ function updateFeedbackOverlayVisibility(ruleId, enabled) {
       messageInput.value = "{username} triggered {rule name}. Total likes: {user total likes}";
     }
   }
+}
+
+function updateQueueMediaVisibility(ruleId, enabled) {
+  const wrapper = document.querySelector(`[data-rule-queue-media-fields="${ruleId}"]`);
+  if (!wrapper) {
+    return;
+  }
+
+  wrapper.classList.toggle("is-hidden", !enabled);
+}
+
+function updateRuleQueueOverlayUrl(ruleId) {
+  const queueSelect = document.querySelector(`[data-rule-queue="${ruleId}"]`);
+  const urlInput = document.querySelector(`[data-rule-queue-overlay-url="${ruleId}"]`);
+  if (!urlInput) {
+    return;
+  }
+
+  const overlayUrl = getQueueOverlayUrlForLane(queueSelect?.value ?? 1);
+  urlInput.value = overlayUrl || "Queue overlay unavailable";
 }
 
 function renderGiftOptionList(ruleId, searchText = "") {
@@ -16525,6 +18342,8 @@ function applySettingsToUi() {
   updateHeaderPills();
   renderCustomRules();
   renderXttsVoiceTuning();
+  renderDiagnosticsPanel();
+  renderLiveControlDashboard();
   applyDashboardCardVisibility();
   applyMainScreenPinnedCards();
   applySavedCardCollapseState();
@@ -16923,11 +18742,114 @@ function wireAuthEvents() {
   });
 
   openControlsLayerButton?.addEventListener("click", () => openFocusedControlsLayer());
-  openOverlaysLayerButton?.addEventListener("click", () => openFocusedControlsLayer());
+  openOverlaysLayerButton?.addEventListener("click", () => openFocusedOverlayHubLayer());
   openEventActionsLayerButton?.addEventListener("click", () => openFocusedEventActionsLayer());
   openGamesLayerButton?.addEventListener("click", () => openFocusedGamesLayer());
   openMusicLayerButton?.addEventListener("click", () => openFocusedMusicLayer());
   openUsersLayerButton?.addEventListener("click", () => openFocusedUsersLayer());
+  openDiagnosticsLayerButton?.addEventListener("click", () => openFocusedDiagnosticsLayer());
+  liveControlSafeModeButton?.addEventListener("click", () => {
+    void enableStreamSafeMode().catch((error) => {
+      showToast(error.message || "Unable to enable stream-safe mode.", "error");
+    });
+  });
+  document.querySelectorAll("[data-live-control-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      void toggleLiveControlFeature(button.dataset.liveControlToggle).catch((error) => {
+        showToast(error.message || "Unable to update live control.", "error");
+      });
+    });
+  });
+  document.querySelectorAll("[data-live-control-open]").forEach((button) => {
+    button.addEventListener("click", () => openLiveControlTarget(button.dataset.liveControlOpen));
+  });
+  factoryResetOpenButton?.addEventListener("click", () => openFactoryResetModal());
+  factoryResetCloseButton?.addEventListener("click", () => closeFactoryResetModal());
+  factoryResetCancelButton?.addEventListener("click", () => closeFactoryResetModal());
+  factoryResetExportButton?.addEventListener("click", () => {
+    void exportFactoryResetBackup().catch((error) => {
+      setStatusMessage(factoryResetStatus, "error", error.message || "Unable to export backup.");
+    });
+  });
+  factoryResetConfirmationInput?.addEventListener("input", () => updateFactoryResetConfirmationState());
+  factoryResetRunButton?.addEventListener("click", () => {
+    void runFactoryReset().catch((error) => {
+      factoryResetRunButton.disabled = false;
+      setStatusMessage(factoryResetStatus, "error", error.message || "Factory reset failed.");
+    });
+  });
+  [
+    feedbackCategoryInput,
+    feedbackSeverityInput,
+    feedbackContactInput,
+    feedbackMessageInput,
+    feedbackIncludeDiagnosticsInput
+  ].forEach((input) => {
+    input?.addEventListener("input", () => renderFeedbackReportPreview());
+    input?.addEventListener("change", () => renderFeedbackReportPreview());
+  });
+  feedbackCopyReportButton?.addEventListener("click", () => {
+    void copyFeedbackReport().catch((error) => {
+      setStatusMessage(feedbackStatus, "error", error.message || "Unable to copy feedback report.");
+    });
+  });
+  feedbackSendReportButton?.addEventListener("click", () => {
+    void sendFeedbackReport().catch((error) => {
+      setStatusMessage(feedbackStatus, "error", error.message || "Unable to send feedback report.");
+    });
+  });
+  feedbackEmailReportButton?.addEventListener("click", () => {
+    void emailFeedbackReport().catch((error) => {
+      setStatusMessage(feedbackStatus, "error", error.message || "Unable to open feedback email.");
+    });
+  });
+  diagnosticsTabButton?.addEventListener("click", () => openFocusedDiagnosticsLayer());
+  diagnosticsRefreshButton?.addEventListener("click", () => {
+    renderDiagnosticsPanel();
+    showToast("Diagnostics refreshed.", "info");
+  });
+  diagnosticsTabPanel?.addEventListener("click", (event) => {
+    const setupTarget = event.target.closest("[data-setup-wizard-open]");
+    if (setupTarget) {
+      openSetupWizardTarget(setupTarget.dataset.setupWizardOpen);
+      return;
+    }
+
+    const target = event.target.closest("[data-diagnostics-open]");
+    if (!target) {
+      return;
+    }
+    const section = String(target.dataset.diagnosticsOpen || "").trim();
+    if (section === "event-actions") {
+      openFocusedEventActionsLayer();
+    } else if (section === "music") {
+      openFocusedMusicLayer();
+    } else if (section === "games") {
+      openFocusedGamesLayer();
+    } else if (section === "users") {
+      openFocusedUsersLayer();
+    } else {
+      openFocusedControlsLayer();
+    }
+  });
+  controlsTabPanel?.addEventListener("click", (event) => {
+    const jumpTarget = event.target.closest("[data-overlay-hub-jump]");
+    if (jumpTarget) {
+      focusMainScreenCard(jumpTarget.dataset.overlayHubJump);
+      return;
+    }
+
+    const actionTarget = event.target.closest("[data-overlay-hub-click]");
+    if (actionTarget) {
+      const buttonId = String(actionTarget.dataset.overlayHubClick ?? "").trim();
+      const button = buttonId ? document.getElementById(buttonId) : null;
+      if (!button) {
+        showToast("That overlay action is not available yet.", "error");
+        return;
+      }
+      button.click();
+    }
+  });
 
   registerForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -18999,6 +20921,20 @@ function wireCustomRuleEvents() {
       return;
     }
 
+    const stepJump = target.dataset.ruleStepJump;
+    if (stepJump) {
+      const section = Array.from(customRuleList.querySelectorAll("[data-rule-step-section]"))
+        .find((node) => node.dataset.ruleStepSection === stepJump);
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "center" });
+        section.classList.add("event-builder-section-focus");
+        window.setTimeout(() => {
+          section.classList.remove("event-builder-section-focus");
+        }, 900);
+      }
+      return;
+    }
+
         const editId = target.dataset.customEdit;
         if (editId) {
           void refreshKnownTikTokGiftCatalog();
@@ -19070,6 +21006,26 @@ function wireCustomRuleEvents() {
       return;
     }
 
+    const obsRefreshRuleId = target.dataset.ruleObsRefresh;
+    if (obsRefreshRuleId) {
+      try {
+        await refreshObsCatalog(obsRefreshRuleId);
+      } catch (error) {
+        showToast(error.message || "Unable to refresh OBS scenes and sources.", "error");
+      }
+      return;
+    }
+
+    const voicemodRefreshRuleId = target.dataset.ruleVoicemodRefresh;
+    if (voicemodRefreshRuleId) {
+      try {
+        await refreshVoicemodVoices(voicemodRefreshRuleId);
+      } catch (error) {
+        showToast(error.message || "Unable to refresh Voicemod voices.", "error");
+      }
+      return;
+    }
+
     const browseSoundId = target.dataset.customBrowseSound;
     if (browseSoundId) {
       try {
@@ -19089,6 +21045,94 @@ function wireCustomRuleEvents() {
       } catch (error) {
         showToast(error.message || "Unable to browse for a local sound file.", "error");
       }
+      return;
+    }
+
+    const browseQueueMediaId = target.dataset.ruleBrowseQueueMedia;
+    if (browseQueueMediaId) {
+      try {
+        const result = await app.browseEventActionMediaFile();
+        if (result?.canceled) {
+          return;
+        }
+        const mediaIdInput = document.querySelector(`[data-rule-queue-media-id="${browseQueueMediaId}"]`);
+        const mediaNameInput = document.querySelector(`[data-rule-queue-media-name="${browseQueueMediaId}"]`);
+        const mediaDisplayInput = document.querySelector(`[data-rule-queue-media-display="${browseQueueMediaId}"]`);
+        const mediaTypeInput = document.querySelector(`[data-rule-queue-media-type="${browseQueueMediaId}"]`);
+        if (mediaIdInput) {
+          mediaIdInput.value = String(result.mediaId ?? "");
+        }
+        if (mediaNameInput) {
+          mediaNameInput.value = String(result.name ?? "");
+        }
+        if (mediaDisplayInput) {
+          mediaDisplayInput.value = String(result.name ?? "Selected media file");
+        }
+        if (mediaTypeInput && result.mediaType) {
+          mediaTypeInput.value = result.mediaType === "video" ? "video" : "image";
+        }
+        const effectiveRule = getEffectiveCustomRule(browseQueueMediaId);
+        if (effectiveRule) {
+          state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
+            rule.id === browseQueueMediaId ? effectiveRule : rule
+          );
+          await persistSettings({ customEventRules: state.settings.customEventRules }, { render: false });
+        }
+        showToast(`Selected queue overlay media: ${result.name ?? "media file"}.`, "success");
+      } catch (error) {
+        showToast(error.message || "Unable to browse for a picture or video.", "error");
+      }
+      return;
+    }
+
+    const clearQueueMediaId = target.dataset.ruleClearQueueMedia;
+    if (clearQueueMediaId) {
+      const mediaIdInput = document.querySelector(`[data-rule-queue-media-id="${clearQueueMediaId}"]`);
+      const mediaNameInput = document.querySelector(`[data-rule-queue-media-name="${clearQueueMediaId}"]`);
+      const mediaDisplayInput = document.querySelector(`[data-rule-queue-media-display="${clearQueueMediaId}"]`);
+      if (mediaIdInput) {
+        mediaIdInput.value = "";
+      }
+      if (mediaNameInput) {
+        mediaNameInput.value = "";
+      }
+      if (mediaDisplayInput) {
+        mediaDisplayInput.value = "No media selected";
+      }
+      const effectiveRule = getEffectiveCustomRule(clearQueueMediaId);
+      if (effectiveRule) {
+        state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
+          rule.id === clearQueueMediaId ? effectiveRule : rule
+        );
+        await persistSettings({ customEventRules: state.settings.customEventRules }, { render: false });
+      }
+      showToast("Cleared queue overlay media for this rule.", "info");
+      return;
+    }
+
+    const copyRuleQueueOverlayId = target.dataset.ruleCopyQueueOverlay;
+    if (copyRuleQueueOverlayId) {
+      updateRuleQueueOverlayUrl(copyRuleQueueOverlayId);
+      const overlayUrl = String(document.querySelector(`[data-rule-queue-overlay-url="${copyRuleQueueOverlayId}"]`)?.value ?? "").trim();
+      if (!overlayUrl || overlayUrl === "Queue overlay unavailable") {
+        showToast("The queue overlay URL is not ready yet.", "error");
+        return;
+      }
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Selected queue overlay URL copied.", "success");
+      return;
+    }
+
+    const openRuleQueueOverlayId = target.dataset.ruleOpenQueueOverlay;
+    if (openRuleQueueOverlayId) {
+      updateRuleQueueOverlayUrl(openRuleQueueOverlayId);
+      const overlayUrl = String(document.querySelector(`[data-rule-queue-overlay-url="${openRuleQueueOverlayId}"]`)?.value ?? "").trim();
+      if (!overlayUrl || overlayUrl === "Queue overlay unavailable") {
+        showToast("The queue overlay URL is not ready yet.", "error");
+        return;
+      }
+      await app.openExternal(overlayUrl);
+      showToast("Opened selected queue overlay.", "success");
       return;
     }
 
@@ -19125,13 +21169,14 @@ function wireCustomRuleEvents() {
     }
 
     const deleteId = target.dataset.customDelete;
-      if (deleteId) {
-        state.settings.customEventRules = state.settings.customEventRules.filter((rule) => rule.id !== deleteId);
-        clearRuleTriggerState(deleteId);
-        if (state.activeCustomRuleId === deleteId) {
-          state.activeCustomRuleId = null;
-        }
-        await persistSettings({ customEventRules: state.settings.customEventRules });
+    if (deleteId) {
+      state.settings.customEventRules = state.settings.customEventRules.filter((rule) => rule.id !== deleteId);
+      clearRuleTriggerState(deleteId);
+      if (state.activeCustomRuleId === deleteId) {
+        state.activeCustomRuleId = null;
+      }
+      await persistSettings({ customEventRules: state.settings.customEventRules }, { render: false });
+      renderCustomRules();
       refreshSpinWheelActionOptions();
       renderProgressBarSettings();
       showToast("Custom event action deleted.", "info");
@@ -19161,6 +21206,25 @@ function wireCustomRuleEvents() {
       const feedbackOverlayAccentInput = document.querySelector(`[data-rule-feedback-overlay-accent="${saveId}"]`);
       const tiktokTtsTextInput = document.querySelector(`[data-rule-tiktok-tts-text="${saveId}"]`);
       const tiktokTtsVoiceInput = document.querySelector(`[data-rule-tiktok-tts-voice="${saveId}"]`);
+      const queueMediaEnabledInput = document.querySelector(`[data-rule-queue-media-enabled="${saveId}"]`);
+      const queueMediaTypeInput = document.querySelector(`[data-rule-queue-media-type="${saveId}"]`);
+      const queueMediaIdInput = document.querySelector(`[data-rule-queue-media-id="${saveId}"]`);
+      const queueMediaNameInput = document.querySelector(`[data-rule-queue-media-name="${saveId}"]`);
+      const queueMediaDurationInput = document.querySelector(`[data-rule-queue-media-duration="${saveId}"]`);
+      const obsSceneEnabledInput = document.querySelector(`[data-rule-obs-scene-enabled="${saveId}"]`);
+      const obsSceneNameInput = document.querySelector(`[data-rule-obs-scene-name="${saveId}"]`);
+      const obsSceneReturnInput = document.querySelector(`[data-rule-obs-scene-return="${saveId}"]`);
+      const obsSceneReturnSecondsInput = document.querySelector(`[data-rule-obs-scene-return-seconds="${saveId}"]`);
+      const obsSourceEnabledInput = document.querySelector(`[data-rule-obs-source-enabled="${saveId}"]`);
+      const obsSourceSceneNameInput = document.querySelector(`[data-rule-obs-source-scene-name="${saveId}"]`);
+      const obsSourceNameInput = document.querySelector(`[data-rule-obs-source-name="${saveId}"]`);
+      const obsSourceDeactivateInput = document.querySelector(`[data-rule-obs-source-deactivate="${saveId}"]`);
+      const obsSourceDeactivateSecondsInput = document.querySelector(`[data-rule-obs-source-deactivate-seconds="${saveId}"]`);
+      const voicemodEnabledInput = document.querySelector(`[data-rule-voicemod-enabled="${saveId}"]`);
+      const voicemodVoiceIdInput = document.querySelector(`[data-rule-voicemod-voice-id="${saveId}"]`);
+      const voicemodVoiceNameInput = document.querySelector(`[data-rule-voicemod-voice-name="${saveId}"]`);
+      const voicemodRevertInput = document.querySelector(`[data-rule-voicemod-revert="${saveId}"]`);
+      const voicemodRevertSecondsInput = document.querySelector(`[data-rule-voicemod-revert-seconds="${saveId}"]`);
       const triggerAudienceInput = document.querySelector(`[data-rule-trigger-audience="${saveId}"]`);
       const triggerUsernameInput = document.querySelector(`[data-rule-trigger-username="${saveId}"]`);
       const triggerGiftNameInput = document.querySelector(`[data-rule-gift-name="${saveId}"]`);
@@ -19183,8 +21247,20 @@ function wireCustomRuleEvents() {
       const feedbackOverlayAccentColor = normalizeOverlayAccentColor(feedbackOverlayAccentInput?.value ?? "");
       const tiktokTtsText = String(tiktokTtsTextInput?.value ?? "").trim();
       const tiktokTtsVoice = String(tiktokTtsVoiceInput?.value ?? "").trim();
+      const queueMediaEnabled = Boolean(queueMediaEnabledInput?.checked);
+      const queueMediaId = String(queueMediaIdInput?.value ?? "").trim();
+      const queueMediaName = String(queueMediaNameInput?.value ?? "").trim();
+      const obsSceneEnabled = Boolean(obsSceneEnabledInput?.checked);
+      const obsSceneName = String(obsSceneNameInput?.value ?? "").trim();
+      const obsSourceEnabled = Boolean(obsSourceEnabledInput?.checked);
+      const obsSourceSceneName = String(obsSourceSceneNameInput?.value ?? "").trim();
+      const obsSourceName = String(obsSourceNameInput?.value ?? "").trim();
+      const voicemodEnabled = Boolean(voicemodEnabledInput?.checked);
+      const voicemodVoiceId = String(voicemodVoiceIdInput?.value ?? "").trim();
+      const voicemodVoiceName = String(voicemodVoiceNameInput?.value ?? "").trim();
       const disableWindowStartTime = normalizeRuleTimeValue(disableWindowStartInput?.value ?? "");
       const disableWindowEndTime = normalizeRuleTimeValue(disableWindowEndInput?.value ?? "");
+      const obsConnectionSettings = getObsConnectionSettings();
 
       if (webhookUrl) {
         try {
@@ -19212,6 +21288,24 @@ function wireCustomRuleEvents() {
         return;
       }
 
+      if (obsSceneEnabled && !obsSceneName) {
+        showToast("Choose or type an OBS scene name before saving this rule.", "error");
+        obsSceneNameInput?.focus();
+        return;
+      }
+
+      if (obsSourceEnabled && !obsSourceName) {
+        showToast("Choose or type an OBS source name before saving this rule.", "error");
+        obsSourceNameInput?.focus();
+        return;
+      }
+
+      if (voicemodEnabled && !voicemodVoiceId) {
+        showToast("Choose or type a Voicemod voice ID before saving this rule.", "error");
+        voicemodVoiceIdInput?.focus();
+        return;
+      }
+
       const updatedRule = normalizeRule({
         ...state.settings.customEventRules[ruleIndex],
         name: nameInput?.value ?? "",
@@ -19233,6 +21327,25 @@ function wireCustomRuleEvents() {
         feedbackOverlayAccentColor: feedbackOverlayEnabled ? feedbackOverlayAccentColor : "#53dcff",
         tiktokTtsText,
         tiktokTtsVoice,
+        queueMediaEnabled,
+        queueMediaType: queueMediaTypeInput?.value ?? "image",
+        queueMediaId: queueMediaEnabled ? queueMediaId : "",
+        queueMediaName: queueMediaEnabled ? queueMediaName : "",
+        queueMediaDurationSeconds: Number(queueMediaDurationInput?.value ?? 6),
+        obsSceneEnabled,
+        obsSceneName: obsSceneEnabled ? obsSceneName : "",
+        obsSceneReturnEnabled: Boolean(obsSceneReturnInput?.checked),
+        obsSceneReturnSeconds: Number(obsSceneReturnSecondsInput?.value ?? 10),
+        obsSourceEnabled,
+        obsSourceSceneName: obsSourceEnabled ? obsSourceSceneName : "",
+        obsSourceName: obsSourceEnabled ? obsSourceName : "",
+        obsSourceDeactivateEnabled: Boolean(obsSourceDeactivateInput?.checked),
+        obsSourceDeactivateSeconds: Number(obsSourceDeactivateSecondsInput?.value ?? 10),
+        voicemodEnabled,
+        voicemodVoiceId: voicemodEnabled ? voicemodVoiceId : "",
+        voicemodVoiceName: voicemodEnabled ? voicemodVoiceName : "",
+        voicemodRevertEnabled: Boolean(voicemodRevertInput?.checked),
+        voicemodRevertSeconds: Number(voicemodRevertSecondsInput?.value ?? 10),
         triggerAudience,
         triggerUsername,
         triggerEmoteId: metric === "subEmote" || metric === "fanEmote" ? triggerEmoteId : "",
@@ -19252,7 +21365,13 @@ function wireCustomRuleEvents() {
       );
       state.activeCustomRuleId = null;
       clearRuleTriggerState(saveId);
-      await persistSettings({ customEventRules: state.settings.customEventRules });
+      state.settings.obsWebSocketUrl = obsConnectionSettings.url;
+      state.settings.obsWebSocketPassword = obsConnectionSettings.password;
+      await persistSettings({
+        customEventRules: state.settings.customEventRules,
+        obsWebSocketUrl: state.settings.obsWebSocketUrl,
+        obsWebSocketPassword: state.settings.obsWebSocketPassword
+      });
       refreshSpinWheelActionOptions();
       renderProgressBarSettings();
       showToast("Custom event action saved.", "success");
@@ -19286,10 +21405,22 @@ function wireCustomRuleEvents() {
     if (emoteSearchRuleId) {
       const metric = document.querySelector(`[data-rule-metric="${emoteSearchRuleId}"]`)?.value ?? "subEmote";
       renderEmoteOptionList(emoteSearchRuleId, metric, event.target.value);
+      return;
+    }
+
+    const voicemodVoiceRuleId = event.target.dataset.ruleVoicemodVoiceId;
+    if (voicemodVoiceRuleId) {
+      syncVoicemodVoiceName(voicemodVoiceRuleId, event.target.value);
     }
   });
 
   customRuleList.addEventListener("change", async (event) => {
+    const voicemodVoiceRuleId = event.target.dataset.ruleVoicemodVoiceId;
+    if (voicemodVoiceRuleId) {
+      syncVoicemodVoiceName(voicemodVoiceRuleId, event.target.value);
+      return;
+    }
+
     const soundSearchRuleId = event.target.dataset.ruleSoundSearch;
     if (soundSearchRuleId) {
       updateRuleSoundSelectionFromSearch(soundSearchRuleId);
@@ -19316,6 +21447,43 @@ function wireCustomRuleEvents() {
     const feedbackOverlayRuleId = event.target.dataset.ruleFeedbackOverlayEnabled;
     if (feedbackOverlayRuleId) {
       updateFeedbackOverlayVisibility(feedbackOverlayRuleId, Boolean(event.target.checked));
+      return;
+    }
+
+    const queueMediaRuleId = event.target.dataset.ruleQueueMediaEnabled;
+    if (queueMediaRuleId) {
+      updateQueueMediaVisibility(queueMediaRuleId, Boolean(event.target.checked));
+      const effectiveRule = getEffectiveCustomRule(queueMediaRuleId);
+      if (effectiveRule) {
+        state.settings.customEventRules = state.settings.customEventRules.map((rule) =>
+          rule.id === queueMediaRuleId ? effectiveRule : rule
+        );
+        await persistSettings({ customEventRules: state.settings.customEventRules }, { render: false });
+      }
+      return;
+    }
+
+    const obsSceneRuleId = event.target.dataset.ruleObsSceneEnabled;
+    if (obsSceneRuleId) {
+      document.querySelector(`[data-rule-obs-scene-fields="${obsSceneRuleId}"]`)?.classList.toggle("is-hidden", !event.target.checked);
+      return;
+    }
+
+    const obsSourceRuleId = event.target.dataset.ruleObsSourceEnabled;
+    if (obsSourceRuleId) {
+      document.querySelector(`[data-rule-obs-source-fields="${obsSourceRuleId}"]`)?.classList.toggle("is-hidden", !event.target.checked);
+      return;
+    }
+
+    const voicemodRuleId = event.target.dataset.ruleVoicemodEnabled;
+    if (voicemodRuleId) {
+      document.querySelector(`[data-rule-voicemod-fields="${voicemodRuleId}"]`)?.classList.toggle("is-hidden", !event.target.checked);
+      return;
+    }
+
+    const queueRuleId = event.target.dataset.ruleQueue;
+    if (queueRuleId) {
+      updateRuleQueueOverlayUrl(queueRuleId);
       return;
     }
 
@@ -19605,6 +21773,10 @@ function wireSpinWheelEvents() {
     spinWheelDurationInput,
     spinWheelResultDurationInput,
     spinWheelArrowPositionInput,
+    spinWheelFontSizeInput,
+    spinWheelBorderThicknessInput,
+    spinWheelCenterSizeInput,
+    spinWheelCenterNameSizeInput,
     spinWheelEventRuleSelect
   ].filter(Boolean).forEach((input) => {
     input.addEventListener("change", saveSpinWheelSettings);
@@ -19824,6 +21996,7 @@ wireAppEvents();
 initializeCollapsibleCards();
 applyMainScreenPinnedCards();
 setActiveTab("controls");
+updateWorkspaceNavigationState("");
 updateRatePitchVolumeLabels();
 updateUpdateStatus();
 setConnectionUiState();

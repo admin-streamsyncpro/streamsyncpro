@@ -14,12 +14,13 @@ return [
         'from_name' => 'Stream Sync Pro',
     ],
     'contact' => [
+        // Contact form and signup notifications are sent here.
         'to_email' => 'info@your-domain.com',
         'to_name' => 'Stream Sync Pro Support',
     ],
     'app' => [
         'name' => 'Stream Sync Pro LIVE',
-        'version' => '1.0.16',
+        'version' => '1.0.18',
         'verification_expiry_minutes' => 15,
         'reset_expiry_minutes' => 15,
     ],
@@ -36,6 +37,9 @@ return [
         'client_id' => 'YOUR_PAYPAL_CLIENT_ID',
         'client_secret' => 'YOUR_PAYPAL_CLIENT_SECRET',
         'brand_name' => 'Stream Sync Pro LIVE',
+    ],
+    'integrations' => [
+        'voicemod_client_key' => '', // Keep the real key in config.local.php or server-only environment/config.
     ],
     'admin' => [
         'username' => 'admin',

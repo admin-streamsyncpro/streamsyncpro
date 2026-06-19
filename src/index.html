@@ -166,6 +166,10 @@
                 <img class="points-nav-icon" src="assets/user-points-badge.png" alt="" aria-hidden="true" />
                 <span class="workspace-nav-label">User Points</span>
               </button>
+              <button type="button" id="open-diagnostics-layer-button" class="workspace-nav-button workspace-nav-button-diagnostics" title="App diagnostics" aria-label="App diagnostics">
+                <span class="diagnostics-nav-icon" aria-hidden="true">DX</span>
+                <span class="workspace-nav-label">Diagnostics</span>
+              </button>
               <button type="button" id="open-layout-customizer-button" class="workspace-nav-button" title="Customize view" aria-label="Customize view">
                 <span aria-hidden="true">🧩</span>
               </button>
@@ -288,6 +292,64 @@
               </div>
             </section>
 
+            <section class="live-control-card card" data-dashboard-card="live-control">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Live Control</p>
+                  <h2 class="section-title">Stream operator dashboard</h2>
+                </div>
+                <button type="button" id="live-control-safe-mode" class="ghost compact-button danger">Stream-safe mode</button>
+              </div>
+              <div class="card-body">
+                <div id="live-control-alerts" class="live-control-alerts" aria-live="polite"></div>
+                <div class="live-control-grid">
+                  <button type="button" class="live-control-tile" data-live-control-toggle="tts">
+                    <span class="live-control-icon" aria-hidden="true">TTS</span>
+                    <span>
+                      <strong>Text to Speech</strong>
+                      <small id="live-control-tts-status">Checking...</small>
+                    </span>
+                  </button>
+                  <button type="button" class="live-control-tile" data-live-control-toggle="events">
+                    <span class="live-control-icon" aria-hidden="true">EV</span>
+                    <span>
+                      <strong>Event Actions</strong>
+                      <small id="live-control-events-status">Checking...</small>
+                    </span>
+                  </button>
+                  <button type="button" class="live-control-tile" data-live-control-toggle="music">
+                    <span class="live-control-icon" aria-hidden="true">MU</span>
+                    <span>
+                      <strong>Music Requests</strong>
+                      <small id="live-control-music-status">Checking...</small>
+                    </span>
+                  </button>
+                  <button type="button" class="live-control-tile" data-live-control-toggle="like-race">
+                    <span class="live-control-icon" aria-hidden="true">LR</span>
+                    <span>
+                      <strong>Like Race</strong>
+                      <small id="live-control-like-race-status">Checking...</small>
+                    </span>
+                  </button>
+                  <button type="button" class="live-control-tile" data-live-control-toggle="spin-wheel">
+                    <span class="live-control-icon" aria-hidden="true">SW</span>
+                    <span>
+                      <strong>Spin Wheel</strong>
+                      <small id="live-control-spin-wheel-status">Checking...</small>
+                    </span>
+                  </button>
+                </div>
+                <div class="live-control-shortcuts">
+                  <button type="button" class="ghost compact-button" data-live-control-open="diagnostics">Health checklist</button>
+                  <button type="button" class="ghost compact-button" data-live-control-open="overlays-hub">Overlay hub</button>
+                  <button type="button" class="ghost compact-button" data-live-control-open="event-actions-main">Rules</button>
+                  <button type="button" class="ghost compact-button" data-live-control-open="controls-queued-actions">Queue</button>
+                  <button type="button" class="ghost compact-button" data-live-control-open="music-spotify">Music</button>
+                  <button type="button" class="ghost compact-button" data-live-control-open="users-points">Users</button>
+                </div>
+              </div>
+            </section>
+
           <!-- Welcome -->
           <section class="welcome-card card" data-dashboard-card="welcome">
             <div class="card-header section-head">
@@ -371,6 +433,7 @@
                 <button type="button" id="music-tab-button" class="sidebar-tab-button">Music</button>
                 <button type="button" id="users-tab-button" class="sidebar-tab-button">Users</button>
                 <button type="button" id="event-actions-tab-button" class="sidebar-tab-button">Event Actions</button>
+                <button type="button" id="diagnostics-tab-button" class="sidebar-tab-button">Diagnostics</button>
               </div>
 
               <div id="controls-tab-panel" class="sidebar-tab-panel active">
@@ -1223,7 +1286,7 @@
               </div>
             </section>
 
-              <section class="sidebar-card card">
+              <section class="sidebar-card card" data-main-screen-card="overlays-hub">
                 <div class="card-header section-head">
                   <div>
                     <p class="eyebrow">Overlay</p>
@@ -1233,6 +1296,135 @@
 
                 <div class="card-body">
                   <p class="section-copy">Manage browser-source overlay URLs, template assignments, and designer access alongside the rest of your live controls in one place.</p>
+                  <div class="overlay-hub-grid" aria-label="Overlay hub">
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">Q</span>
+                      <div>
+                        <strong>Queue</strong>
+                        <small>Now playing and queued actions.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-queue-overlay">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="queue-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="queue-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="queue-overlay-customize">Design</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">C</span>
+                      <div>
+                        <strong>Chat</strong>
+                        <small>Live comments on stream.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-chat-overlay">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="chat-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="chat-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="chat-overlay-customize">Design</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">G</span>
+                      <div>
+                        <strong>Gifts</strong>
+                        <small>Gift feed, counts, and coins.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-gift-overlay">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="gift-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="gift-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="gift-overlay-customize">Design</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">L</span>
+                      <div>
+                        <strong>Likes</strong>
+                        <small>Like leaderboard overlay.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-like-leaderboard">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="likes-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="likes-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="likes-overlay-customize">Design</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">VS</span>
+                      <div>
+                        <strong>Viewer Stats</strong>
+                        <small>Stats leaderboard and filters.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-viewer-stats">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="viewer-stats-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="viewer-stats-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="viewer-stats-overlay-customize">Design</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">V</span>
+                      <div>
+                        <strong>Voting</strong>
+                        <small>Live voting spin bar.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="controls-interactive-voting">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="vote-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="vote-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="voting-test-button">Test</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">P</span>
+                      <div>
+                        <strong>Progress Bars</strong>
+                        <small>Duplicated goal overlays.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-progress-bars">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="progress-bar-add">Add Bar</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">LR</span>
+                      <div>
+                        <strong>Like Race</strong>
+                        <small>Interactive racing game.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="games-like-race">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="like-race-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="like-race-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="like-race-overlay-test">Test</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">SW</span>
+                      <div>
+                        <strong>Spin Wheel</strong>
+                        <small>Wheel of actions overlay.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="games-spin-wheel">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="spin-wheel-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="spin-wheel-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="spin-wheel-test-button">Test</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile overlay-hub-tile-featured">
+                      <span class="overlay-hub-icon">OD</span>
+                      <div>
+                        <strong>Overlay Designer</strong>
+                        <small>Create templates and assign them to overlays.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="overlays-designer">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="overlay-designer-open-button">Open Designer</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="overlay-designer-copy-button">Copy URL</button>
+                      </div>
+                    </article>
+                  </div>
                 </div>
               </section>
 
@@ -1798,6 +1990,22 @@
                         </select>
                       </label>
                       <label class="field">
+                        <span>Wheel font size</span>
+                        <input id="spin-wheel-font-size" type="range" min="14" max="48" step="1" />
+                      </label>
+                      <label class="field">
+                        <span>Wheel border thickness</span>
+                        <input id="spin-wheel-border-thickness" type="range" min="1" max="10" step="0.5" />
+                      </label>
+                      <label class="field">
+                        <span>Centre profile size</span>
+                        <input id="spin-wheel-center-size" type="range" min="72" max="240" step="4" />
+                      </label>
+                      <label class="field">
+                        <span>Centre name size</span>
+                        <input id="spin-wheel-center-name-size" type="range" min="12" max="40" step="1" />
+                      </label>
+                      <label class="field">
                         <span>Start wheel from event action</span>
                         <select id="spin-wheel-event-rule"></select>
                       </label>
@@ -2207,6 +2415,100 @@
               </div>
             </section>
             </div>
+
+            <div id="diagnostics-tab-panel" class="sidebar-tab-panel">
+              <section class="sidebar-card card diagnostics-card">
+                <div class="card-header section-head">
+                  <div>
+                    <p class="eyebrow">Diagnostics</p>
+                    <h3 class="section-title">App health and setup checks</h3>
+                  </div>
+                  <button type="button" id="diagnostics-refresh-button" class="ghost compact-button">Refresh</button>
+                </div>
+                <div class="card-body">
+                  <div id="diagnostics-summary" class="diagnostics-summary">
+                    <div>
+                      <span class="diagnostics-summary-kicker">Setup health</span>
+                      <strong>Checking app status...</strong>
+                    </div>
+                    <span class="status-pill info">Preparing</span>
+                  </div>
+                  <div id="setup-wizard-card" class="setup-wizard-card" aria-live="polite">
+                    <div class="setup-wizard-head">
+                      <div>
+                        <span class="diagnostics-summary-kicker">Guided setup</span>
+                        <strong>Streamer launch checklist</strong>
+                        <small>Follow these steps to get a new profile stream-ready.</small>
+                      </div>
+                      <span id="setup-wizard-progress-label" class="status-pill accent">0%</span>
+                    </div>
+                    <div class="setup-wizard-progress" aria-hidden="true">
+                      <span id="setup-wizard-progress-bar"></span>
+                    </div>
+                    <div id="setup-wizard-list" class="setup-wizard-list"></div>
+                  </div>
+                  <div id="diagnostics-grid" class="diagnostics-grid" aria-live="polite"></div>
+                  <div class="feedback-report-card">
+                    <div class="feedback-report-head">
+                      <div>
+                        <span class="diagnostics-summary-kicker">Beta feedback</span>
+                        <strong>Report issue or send feedback</strong>
+                        <small>Include app health details so issues are easier to reproduce.</small>
+                      </div>
+                      <span class="status-pill info">Beta</span>
+                    </div>
+                    <div class="feedback-report-grid">
+                      <label class="field">
+                        <span>Category</span>
+                        <select id="feedback-category">
+                          <option value="Bug">Bug</option>
+                          <option value="Feature request">Feature request</option>
+                          <option value="UI feedback">UI feedback</option>
+                          <option value="Performance">Performance</option>
+                          <option value="Question">Question</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Severity</span>
+                        <select id="feedback-severity">
+                          <option value="Normal">Normal</option>
+                          <option value="Low">Low</option>
+                          <option value="High">High</option>
+                          <option value="Blocking">Blocking</option>
+                        </select>
+                      </label>
+                      <label class="field">
+                        <span>Contact email or TikTok username</span>
+                        <input id="feedback-contact" type="text" placeholder="Optional" autocomplete="off" />
+                      </label>
+                    </div>
+                    <label class="field">
+                      <span>What happened?</span>
+                      <textarea id="feedback-message" rows="5" placeholder="Tell us what you were doing, what you expected, and what happened instead."></textarea>
+                    </label>
+                    <label class="toggle-row feedback-diagnostics-toggle">
+                      <input id="feedback-include-diagnostics" type="checkbox" checked />
+                      <span>Include diagnostics and setup health in the report</span>
+                    </label>
+                    <textarea id="feedback-report-preview" class="feedback-report-preview" rows="7" readonly aria-label="Feedback report preview"></textarea>
+                    <p id="feedback-status" class="status info">Copy the report or open a pre-filled email to send beta feedback.</p>
+                    <div class="diagnostics-actions">
+                      <button type="button" id="feedback-send-report" class="ghost compact-button">Send report</button>
+                      <button type="button" id="feedback-copy-report" class="ghost compact-button">Copy report</button>
+                      <button type="button" id="feedback-email-report" class="ghost compact-button">Email report</button>
+                    </div>
+                  </div>
+                  <div class="diagnostics-actions">
+                    <button type="button" class="ghost compact-button" data-diagnostics-open="controls">TTS and controls</button>
+                    <button type="button" class="ghost compact-button" data-diagnostics-open="event-actions">Event actions</button>
+                    <button type="button" class="ghost compact-button" data-diagnostics-open="music">Music</button>
+                    <button type="button" class="ghost compact-button" data-diagnostics-open="games">Games</button>
+                    <button type="button" class="ghost compact-button" data-diagnostics-open="users">Users</button>
+                    <button type="button" id="factory-reset-open" class="ghost compact-button danger">Factory reset app</button>
+                  </div>
+                </div>
+              </section>
+            </div>
               </aside>
             </div>
             </section>
@@ -2363,6 +2665,10 @@
                   <input id="layout-show-incoming-chat" type="checkbox" />
                   <span>Incoming chat card</span>
                 </label>
+                <label class="filter-tile">
+                  <input id="layout-show-live-control" type="checkbox" />
+                  <span>Live control dashboard</span>
+                </label>
               </div>
 
               <div class="field-stack">
@@ -2372,6 +2678,35 @@
 
               <div class="chat-notes-actions">
                 <button type="button" id="layout-customizer-save" class="ghost compact-button">Save layout</button>
+            </div>
+          </section>
+        </div>
+
+        <div id="factory-reset-modal" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel settings-profile-modal factory-reset-modal" role="dialog" aria-modal="true" aria-labelledby="factory-reset-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">Factory Reset</p>
+                <h3 id="factory-reset-title" class="section-title">Reset app to fresh install</h3>
+              </div>
+              <button type="button" id="factory-reset-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <p class="helper-text danger-copy">
+              This clears local app settings, remembered sign-in details, saved TikTok usernames, profiles, custom rules, overlay settings, user points, XTTS voices, TTS cache, and local session data. The app will relaunch afterwards.
+            </p>
+
+            <label class="field">
+              <span>Type RESET to confirm</span>
+              <input id="factory-reset-confirmation" type="text" autocomplete="off" placeholder="RESET" />
+            </label>
+
+            <p id="factory-reset-status" class="status info">This cannot be undone unless you exported your settings first.</p>
+
+            <div class="chat-notes-actions">
+              <button type="button" id="factory-reset-export" class="ghost compact-button">Export backup first</button>
+              <button type="button" id="factory-reset-cancel" class="ghost compact-button">Cancel</button>
+              <button type="button" id="factory-reset-run" class="ghost compact-button danger" disabled>Reset and relaunch</button>
             </div>
           </section>
         </div>

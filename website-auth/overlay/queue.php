@@ -258,6 +258,61 @@ $overlayAccessQuery = $overlayId !== ''
         align-items: center;
       }
 
+      .queue-item-media,
+      .compact-media,
+      .queue-media-layer-card {
+        overflow: hidden;
+        border-radius: 16px;
+        border: 1px solid rgba(84, 208, 255, 0.18);
+        background: rgba(0, 0, 0, 0.28);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+      }
+
+      .queue-item-media img,
+      .queue-item-media video,
+      .compact-media img,
+      .compact-media video,
+      .queue-media-layer-card img,
+      .queue-media-layer-card video {
+        display: block;
+        width: 100%;
+        max-height: 280px;
+        object-fit: contain;
+      }
+
+      .queue-media-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        pointer-events: none;
+      }
+
+      .queue-media-layer[hidden] {
+        display: none;
+      }
+
+      .queue-media-layer-card {
+        width: min(86vw, 720px);
+        max-height: 82vh;
+        background: rgba(0, 0, 0, 0.36);
+        box-shadow:
+          0 20px 54px rgba(0, 0, 0, 0.42),
+          0 0 34px rgba(83, 220, 255, 0.18);
+      }
+
+      .queue-media-layer-card img,
+      .queue-media-layer-card video {
+        max-height: 82vh;
+      }
+
+      body.mode-compact .compact-media img,
+      body.mode-compact .compact-media video {
+        max-height: 420px;
+      }
+
       .pill {
         display: inline-flex;
         align-items: center;
@@ -322,6 +377,7 @@ $overlayAccessQuery = $overlayId !== ''
     </style>
   </head>
   <body>
+    <div id="queue-media-layer" class="queue-media-layer" hidden></div>
     <div id="designer-overlay-root" hidden></div>
     <section id="default-overlay-shell" class="overlay-shell">
       <header class="overlay-head">
@@ -359,6 +415,7 @@ $overlayAccessQuery = $overlayId !== ''
         <section class="queue-panel hidden" id="compact-panel">
           <div class="compact-now-playing">
             <div class="compact-line" id="compact-line">No active queue items yet.</div>
+            <div id="compact-media-host"></div>
             <div class="compact-title" id="compact-title">Waiting for activity</div>
             <div class="compact-subtle" id="compact-meta"></div>
           </div>
@@ -382,10 +439,12 @@ $overlayAccessQuery = $overlayId !== ''
       const queueCount = document.getElementById("queue-count");
       const queueTag = document.getElementById("queue-tag");
       const queueList = document.getElementById("queue-list");
+      const queueMediaLayer = document.getElementById("queue-media-layer");
       const queueEmpty = document.getElementById("queue-empty");
       const fullPanel = document.getElementById("full-panel");
       const compactPanel = document.getElementById("compact-panel");
       const compactLine = document.getElementById("compact-line");
+      const compactMediaHost = document.getElementById("compact-media-host");
       const compactTitle = document.getElementById("compact-title");
       const compactMeta = document.getElementById("compact-meta");
 
@@ -413,7 +472,50 @@ $overlayAccessQuery = $overlayId !== ''
         return `<span class="pill ${className}">${escapeHtml(text)}</span>`;
       }
 
+      function escapeAttribute(value) {
+        return escapeHtml(value).replaceAll("`", "&#96;");
+      }
+
+      function renderQueueMedia(media, className) {
+        if (!media || !media.url) {
+          return "";
+        }
+
+        const mediaName = escapeHtml(media.name || "Queue media");
+        const mediaUrl = escapeAttribute(media.url);
+        if (media.type === "video") {
+          return `
+            <div class="${escapeHtml(className)}">
+              <video src="${mediaUrl}" muted autoplay loop playsinline title="${mediaName}"></video>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="${escapeHtml(className)}">
+            <img src="${mediaUrl}" alt="${mediaName}" />
+          </div>
+        `;
+      }
+
+      function renderQueueMediaLayer(items) {
+        const activeItem = Array.isArray(items)
+          ? (items.find((item) => item?.status === "running" && item?.media?.url) || null)
+          : null;
+        if (!activeItem) {
+          queueMediaLayer.hidden = true;
+          queueMediaLayer.innerHTML = "";
+          return;
+        }
+
+        queueMediaLayer.innerHTML = renderQueueMedia(activeItem.media, "queue-media-layer-card");
+        queueMediaLayer.hidden = false;
+      }
+
       function renderState(state) {
+        const items = Array.isArray(state?.items) ? state.items.filter((item) => Number(item?.queueId || 0) === queueNumber) : [];
+        renderQueueMediaLayer(items);
+
         if (state?.designerTemplate && window.StreamSyncOverlayDesignerRuntime) {
           defaultOverlayShell.hidden = true;
           designerOverlayRoot.hidden = false;
@@ -432,7 +534,6 @@ $overlayAccessQuery = $overlayId !== ''
         designerOverlayRoot.hidden = true;
         const connected = Boolean(state?.connected);
         const username = String(state?.username ?? "").trim();
-        const items = Array.isArray(state?.items) ? state.items.filter((item) => Number(item?.queueId || 0) === queueNumber) : [];
         const runningItem = items.find((item) => item?.status === "running") || null;
         const nextItem = items.find((item) => item?.status === "queued") || null;
 
@@ -443,6 +544,8 @@ $overlayAccessQuery = $overlayId !== ''
 
         if (mode === "compact") {
           const focusItem = runningItem || nextItem;
+          const mediaHtml = renderQueueMedia(focusItem?.media, "compact-media");
+          compactMediaHost.innerHTML = mediaHtml;
           compactLine.textContent = runningItem
             ? `Now playing on Queue ${queueNumber}`
             : nextItem
@@ -468,8 +571,10 @@ $overlayAccessQuery = $overlayId !== ''
         queueList.innerHTML = items.map((item) => {
           const kind = item?.kind === "tts" ? "TTS" : "Action";
           const status = item?.status === "running" ? "Playing" : "Queued";
+          const mediaHtml = renderQueueMedia(item?.media, "queue-item-media");
           return `
             <article class="queue-item ${item?.status === "running" ? "running" : ""}">
+              ${mediaHtml}
               <div class="queue-item-title">${escapeHtml(item?.label ?? "Queued action")}</div>
               <div class="queue-item-meta">
                 ${renderPill(kind, item?.kind === "tts" ? "kind-tts" : "kind-action")}

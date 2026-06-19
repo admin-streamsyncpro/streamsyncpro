@@ -53,9 +53,10 @@ public_html/
    - `paypal.client_id`
    - `paypal.client_secret`
    - `paypal.environment`
-5. Upload the `api` folder, `admin/index.php`, `billing/index.php`, `overlay/queue.php`, and `overlay/command-feedback.php` to your website root.
-6. If you want website contact messages routed to a specific inbox, set `contact.to_email` and `contact.to_name` in `config.php`.
-7. Visit `https://your-domain.com/api/health`
+5. For server-only integration secrets such as the Voicemod client key, create `api/config.local.php` on the server. This file is intentionally ignored by Git.
+6. Upload the `api` folder, `admin/index.php`, `billing/index.php`, `overlay/queue.php`, and `overlay/command-feedback.php` to your website root.
+7. If you want website contact messages routed to a specific inbox, set `contact.to_email` and `contact.to_name` in `config.php`.
+8. Visit `https://your-domain.com/api/health`
 8. If it returns JSON with `"ok": true`, the API is live.
 
 ### Admin dashboard

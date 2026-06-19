@@ -84,6 +84,8 @@ const MYINSTANTS_CACHE_TTL_MS = 30 * 60 * 1000;
 const MYINSTANTS_MAX_PAGES = 50;
 const MYINSTANTS_SEARCH_MAX_PAGES = 8;
 const LOCAL_SOUND_ID_PREFIX = "local-file:";
+const LOCAL_MEDIA_ID_PREFIX = "local-media:";
+const VOICEMOD_WEBSOCKET_URL = "ws://127.0.0.1:59129/v1";
 const DEFAULT_CUSTOM_EVENT_RULES = [];
 const SETTINGS_READ_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
 const SETTINGS_READ_RETRY_DELAYS_MS = [120, 250, 500, 900];
@@ -397,6 +399,8 @@ let settings = {
       "incoming-chat": true
     },
     customEventRules: DEFAULT_CUSTOM_EVENT_RULES,
+    obsWebSocketUrl: "ws://127.0.0.1:4455",
+    obsWebSocketPassword: "",
     commandFeedbackOverlayDurationMs: 6000,
   commandFeedbackTemplates: {
     myttsvoice: "{user} has selected {voiceLabel} for their personalised TTS voice.",
@@ -418,6 +422,8 @@ let settings = {
   musicSettings: {}
 };
 
+const DEFAULT_SETTINGS = JSON.parse(JSON.stringify(settings));
+
 log.initialize();
 
 function sendToRenderer(channel, payload) {
@@ -436,7 +442,22 @@ function sanitizeQueueOverlayState(payload = {}) {
           label: String(item?.label ?? "Queued action").trim() || "Queued action",
           queueId: Math.min(10, Math.max(1, Number(item?.queueId) || 1)),
           kind: item?.kind === "tts" ? "tts" : "action",
-          status: item?.status === "running" ? "running" : "queued"
+          status: item?.status === "running" ? "running" : "queued",
+          source: item?.source && typeof item.source === "object"
+            ? {
+                user: String(item.source.user ?? "").trim(),
+                displayName: String(item.source.displayName ?? "").trim(),
+                profilePictureUrl: String(item.source.profilePictureUrl ?? "").trim()
+              }
+            : null,
+          media: item?.media && typeof item.media === "object"
+            ? {
+                type: item.media.type === "video" ? "video" : "image",
+                url: String(item.media.url ?? "").trim(),
+                name: String(item.media.name ?? "").trim(),
+                durationMs: Math.min(60000, Math.max(1000, Number(item.media.durationMs) || 6000))
+              }
+            : null
         }))
         .slice(0, 12)
     : [];
@@ -646,6 +667,10 @@ function sanitizeSpinWheelOverlayState(payload = {}) {
     arrowPosition: ["right", "top", "bottom", "left"].includes(String(payload.arrowPosition ?? "").trim().toLowerCase())
       ? String(payload.arrowPosition).trim().toLowerCase()
       : "right",
+    fontSize: Math.max(14, Math.min(48, Number(payload.fontSize) || 24)),
+    borderThickness: Math.max(1, Math.min(10, Number(payload.borderThickness) || 4)),
+    centerSize: Math.max(72, Math.min(240, Number(payload.centerSize) || 118)),
+    centerNameSize: Math.max(12, Math.min(40, Number(payload.centerNameSize) || 20)),
     selectedIndex,
     winnerLabel: String(payload.winnerLabel ?? segments[selectedIndex]?.label ?? "").trim(),
     triggeredBy: String(payload.triggeredBy ?? "").trim(),
@@ -1545,10 +1570,291 @@ function normalizeCustomEventRules(source = []) {
         feedbackOverlayMessage: String(rule?.feedbackOverlayMessage ?? "").trim(),
         feedbackOverlayAccentColor: String(rule?.feedbackOverlayAccentColor ?? "").trim(),
         tiktokTtsText: String(rule?.tiktokTtsText ?? "").trim(),
-        tiktokTtsVoice: String(rule?.tiktokTtsVoice ?? "").trim()
+        tiktokTtsVoice: String(rule?.tiktokTtsVoice ?? "").trim(),
+        queueMediaEnabled: Boolean(rule?.queueMediaEnabled),
+        queueMediaType: rule?.queueMediaType === "video" ? "video" : "image",
+        queueMediaId: String(rule?.queueMediaId ?? "").trim(),
+        queueMediaName: String(rule?.queueMediaName ?? "").trim(),
+        queueMediaDurationSeconds: Math.min(60, Math.max(1, Number(rule?.queueMediaDurationSeconds) || 6)),
+        obsSceneEnabled: Boolean(rule?.obsSceneEnabled),
+        obsSceneName: String(rule?.obsSceneName ?? "").trim(),
+        obsSceneReturnEnabled: Boolean(rule?.obsSceneReturnEnabled),
+        obsSceneReturnSeconds: Math.min(3600, Math.max(1, Number(rule?.obsSceneReturnSeconds) || 10)),
+        obsSourceEnabled: Boolean(rule?.obsSourceEnabled),
+        obsSourceSceneName: String(rule?.obsSourceSceneName ?? "").trim(),
+        obsSourceName: String(rule?.obsSourceName ?? "").trim(),
+        obsSourceDeactivateEnabled: Boolean(rule?.obsSourceDeactivateEnabled),
+        obsSourceDeactivateSeconds: Math.min(3600, Math.max(1, Number(rule?.obsSourceDeactivateSeconds) || 10)),
+        voicemodEnabled: Boolean(rule?.voicemodEnabled),
+        voicemodVoiceId: String(rule?.voicemodVoiceId ?? "").trim(),
+        voicemodVoiceName: String(rule?.voicemodVoiceName ?? "").trim(),
+        voicemodRevertEnabled: Boolean(rule?.voicemodRevertEnabled),
+        voicemodRevertSeconds: Math.min(3600, Math.max(1, Number(rule?.voicemodRevertSeconds) || 10))
       }))
       .slice(0, 50);
   }
+
+function normalizeObsWebSocketUrl(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return "ws://127.0.0.1:4455";
+  }
+  return /^wss?:\/\//i.test(raw) ? raw : `ws://${raw}`;
+}
+
+function normalizeVoicemodWebSocketUrl(value) {
+  return VOICEMOD_WEBSOCKET_URL;
+}
+
+function normalizeAuthApiBaseUrl(value) {
+  return String(value || "https://streamsyncpro.co.uk").trim().replace(/\/+$/, "") || "https://streamsyncpro.co.uk";
+}
+
+async function fetchVoicemodClientKey(payload = {}) {
+  const authApiBaseUrl = normalizeAuthApiBaseUrl(payload.authApiBaseUrl || settings.authApiBaseUrl);
+  const userId = Number(payload.userId || 0);
+  const sessionToken = String(payload.sessionToken || "").trim();
+  if (!userId || !sessionToken) {
+    throw new Error("Sign in before using the Voicemod integration.");
+  }
+
+  const response = await fetch(`${authApiBaseUrl}/api/integrations/voicemod-client`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ userId, sessionToken })
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result?.ok) {
+    throw new Error(result?.error || result?.message || "Unable to load the Voicemod server integration key.");
+  }
+  const clientKey = String(result.clientKey || "").trim();
+  if (!clientKey) {
+    throw new Error("The Voicemod server integration key is not configured.");
+  }
+  return clientKey;
+}
+
+function createVoicemodClient(clientKey) {
+  const WebSocketCtor = globalThis.WebSocket;
+  if (!WebSocketCtor) {
+    throw new Error("This app runtime does not support WebSocket connections from the main process.");
+  }
+
+  let socket = null;
+  let requestId = 0;
+  let authRejected = false;
+  const pendingRequests = new Map();
+  const voicemodAuthErrorMessage = "Voicemod rejected the Stream Sync Pro integration key. Check the server-side Voicemod client key and make sure Voicemod Desktop is open.";
+
+  const rejectPendingRequests = (error) => {
+    for (const pending of pendingRequests.values()) {
+      clearTimeout(pending.timeout);
+      pending.reject(error);
+    }
+    pendingRequests.clear();
+  };
+
+  const close = () => {
+    if (socket && socket.readyState === WebSocketCtor.OPEN) {
+      socket.close();
+    }
+  };
+
+  const request = (action, payload = {}, options = {}) => {
+    if (authRejected) {
+      return Promise.reject(new Error(voicemodAuthErrorMessage));
+    }
+    if (!socket || socket.readyState !== WebSocketCtor.OPEN) {
+      return Promise.reject(new Error("Voicemod WebSocket is not connected."));
+    }
+
+    requestId += 1;
+    const id = `ssp-voicemod-${Date.now()}-${requestId}`;
+    socket.send(JSON.stringify({
+      action,
+      actionID: id,
+      id,
+      payload
+    }));
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        pendingRequests.delete(id);
+        reject(new Error(`Voicemod did not respond to ${action}.`));
+      }, Math.max(1000, Number(options.timeoutMs) || 5000));
+      pendingRequests.set(id, { resolve, reject, timeout });
+    });
+  };
+
+  const connect = () => new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      reject(error instanceof Error ? error : new Error(String(error || "Unable to connect to Voicemod.")));
+    };
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve({ request, close });
+    };
+
+    try {
+      socket = new WebSocketCtor(VOICEMOD_WEBSOCKET_URL);
+    } catch (error) {
+      fail(error);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      fail(new Error("Unable to connect to Voicemod. Make sure Voicemod Desktop is open and its local API is enabled."));
+      close();
+    }, 6000);
+
+    socket.addEventListener("open", () => {
+      clearTimeout(timeout);
+      request("registerClient", { clientKey }, { timeoutMs: 3000 })
+        .then(finish)
+        .catch((error) => {
+          fail(error);
+          close();
+        });
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeout);
+      fail(new Error("Unable to connect to Voicemod. Make sure Voicemod Desktop is open and its local API is enabled."));
+    });
+
+    socket.addEventListener("close", () => {
+      clearTimeout(timeout);
+      rejectPendingRequests(new Error(authRejected ? voicemodAuthErrorMessage : "Voicemod WebSocket closed before the request completed."));
+      if (!settled) {
+        fail(new Error("Voicemod WebSocket closed before connecting."));
+      }
+    });
+
+    socket.addEventListener("message", (event) => {
+      let message = null;
+      try {
+        message = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      const id = String(message?.id ?? message?.actionID ?? "");
+      if (!id || !pendingRequests.has(id)) {
+        return;
+      }
+      const pending = pendingRequests.get(id);
+      pendingRequests.delete(id);
+      clearTimeout(pending.timeout);
+
+      const status = message?.payload?.status ?? message?.actionObject?.status ?? null;
+      if (Number(status?.code) === 401) {
+        authRejected = true;
+        pending.reject(new Error(voicemodAuthErrorMessage));
+      } else if (message?.error) {
+        pending.reject(new Error(String(message.error?.message ?? message.error ?? "Voicemod request failed.")));
+      } else {
+        pending.resolve(message?.payload ?? message?.actionObject ?? message);
+      }
+    });
+  });
+
+  return { connect };
+}
+
+function normalizeVoicemodVoiceEntry(entry = {}) {
+  const id = String(entry.voiceID ?? entry.voiceId ?? entry.id ?? entry.name ?? "").trim();
+  if (!id) {
+    return null;
+  }
+  const name = String(entry.friendlyName ?? entry.name ?? entry.voiceName ?? id).trim() || id;
+  return { id, name };
+}
+
+function extractVoicemodVoiceList(response = {}) {
+  const voices = Array.isArray(response)
+    ? response
+    : Array.isArray(response.voices)
+      ? response.voices
+      : Array.isArray(response.voiceList)
+        ? response.voiceList
+        : Array.isArray(response?.payload?.voices)
+          ? response.payload.voices
+          : [];
+  return voices.map(normalizeVoicemodVoiceEntry).filter(Boolean);
+}
+
+async function withVoicemodConnection(payload, action) {
+  const clientKey = await fetchVoicemodClientKey(payload);
+  const client = createVoicemodClient(clientKey);
+  const connection = await client.connect();
+  try {
+    return await action(connection);
+  } finally {
+    connection.close();
+  }
+}
+
+async function loadVoicemodVoice(connection, voiceId) {
+  const normalizedVoiceId = String(voiceId ?? "").trim();
+  if (!normalizedVoiceId) {
+    return;
+  }
+  try {
+    await connection.request("loadVoice", { voiceID: normalizedVoiceId });
+  } catch (firstError) {
+    try {
+      await connection.request("loadVoice", { voiceId: normalizedVoiceId });
+    } catch {
+      try {
+        await connection.request("selectVoice", { voiceID: normalizedVoiceId });
+      } catch {
+        throw firstError;
+      }
+    }
+  }
+}
+
+async function getVoicemodVoices(payload = {}) {
+  return withVoicemodConnection(payload, async (connection) => {
+    const response = await connection.request("getVoices", {});
+    return extractVoicemodVoiceList(response);
+  });
+}
+
+async function getCurrentVoicemodVoiceId(payload = {}) {
+  return withVoicemodConnection(payload, async (connection) => {
+    const response = await connection.request("getCurrentVoice", {}).catch(() => null);
+    return String(
+      response?.voiceID
+      ?? response?.voiceId
+      ?? response?.id
+      ?? response?.currentVoice
+      ?? response?.currentVoiceID
+      ?? ""
+    ).trim();
+  });
+}
+
+async function setVoicemodVoice(payload = {}) {
+  const voiceId = String(payload?.voiceId ?? "").trim();
+  if (!voiceId) {
+    throw new Error("Choose a Voicemod voice before running this action.");
+  }
+  return withVoicemodConnection(payload, async (connection) => {
+    await loadVoicemodVoice(connection, voiceId);
+    return { ok: true };
+  });
+}
 
 async function loadSettings() {
   try {
@@ -1592,6 +1898,10 @@ async function loadSettings() {
   // Keep updater settings pinned to the built-in GitHub Releases repo.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
   settings.githubRepo = DEFAULT_GITHUB_REPO;
+  settings.obsWebSocketUrl = normalizeObsWebSocketUrl(settings.obsWebSocketUrl);
+  settings.obsWebSocketPassword = String(settings.obsWebSocketPassword ?? "");
+  delete settings.voicemodWebSocketUrl;
+  delete settings.voicemodClientKey;
   settings.customEventRules = normalizeCustomEventRules(settings.customEventRules);
 
   updateConfig = getGitHubUpdateConfig(settings);
@@ -1606,6 +1916,10 @@ async function saveSettings(partialSettings) {
   // Ignore stale or mistyped repo settings from older builds.
   settings.githubOwner = DEFAULT_GITHUB_OWNER;
   settings.githubRepo = DEFAULT_GITHUB_REPO;
+  settings.obsWebSocketUrl = normalizeObsWebSocketUrl(settings.obsWebSocketUrl);
+  settings.obsWebSocketPassword = String(settings.obsWebSocketPassword ?? "");
+  delete settings.voicemodWebSocketUrl;
+  delete settings.voicemodClientKey;
   settings.customEventRules = normalizeCustomEventRules(settings.customEventRules);
   settings.commandFeedbackOverlayDurationMs = Math.max(1000, Number(settings.commandFeedbackOverlayDurationMs) || 6000);
   settings.commandFeedbackTemplates = {
@@ -1628,6 +1942,73 @@ async function saveSettings(partialSettings) {
 
   await fs.mkdir(app.getPath("userData"), { recursive: true });
   await fs.writeFile(getSettingsPath(), JSON.stringify(settings, null, 2), "utf8");
+}
+
+async function removePathIfExists(targetPath) {
+  if (!targetPath) {
+    return;
+  }
+
+  try {
+    await fs.rm(targetPath, { recursive: true, force: true });
+  } catch (error) {
+    log.warn(`Failed to remove ${targetPath}`, error);
+  }
+}
+
+async function clearAppSessionStorage() {
+  const storageTasks = [
+    session.defaultSession.clearStorageData(),
+    session.defaultSession.clearCache(),
+    getTikTokAuthSession().clearStorageData(),
+    getTikTokAuthSession().clearCache()
+  ];
+
+  const results = await Promise.allSettled(storageTasks);
+  results.forEach((result) => {
+    if (result.status === "rejected") {
+      log.warn("Failed to clear session storage during factory reset", result.reason);
+    }
+  });
+}
+
+async function factoryResetAppData() {
+  try {
+    await disconnectFromLive();
+  } catch (error) {
+    log.warn("Failed to disconnect during factory reset", error);
+  }
+
+  if (tiktokAuthWindow && !tiktokAuthWindow.isDestroyed()) {
+    tiktokAuthWindow.close();
+    tiktokAuthWindow = null;
+  }
+
+  if (xttsServiceProcess && !xttsServiceProcess.killed) {
+    xttsServiceProcess.kill();
+    xttsServiceProcess = null;
+  }
+
+  myInstantsCatalogCache = { fetchedAt: 0, sounds: [] };
+  myInstantsSoundLookup.clear();
+  myInstantsAudioUrlCache.clear();
+  settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  updateConfig = getGitHubUpdateConfig(settings);
+
+  await Promise.allSettled([
+    clearTikTokAuthSessionCookies(),
+    clearAppSessionStorage(),
+    removePathIfExists(getSettingsPath()),
+    removePathIfExists(getTtsCacheDirectory()),
+    removePathIfExists(path.join(app.getPath("userData"), "xtts-voices"))
+  ]);
+
+  app.relaunch();
+  setTimeout(() => {
+    app.exit(0);
+  }, 350);
+
+  return { ok: true };
 }
 
 function getGitHubUpdateConfig(sourceSettings = settings) {
@@ -1977,6 +2358,40 @@ function getAudioMimeType(filePath) {
   return "audio/mpeg";
 }
 
+function getEventActionMediaMimeType(filePath) {
+  const extension = path.extname(String(filePath ?? "")).toLowerCase();
+  switch (extension) {
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".gif":
+      return "image/gif";
+    case ".webp":
+      return "image/webp";
+    case ".svg":
+      return "image/svg+xml";
+    case ".mp4":
+      return "video/mp4";
+    case ".webm":
+      return "video/webm";
+    case ".mov":
+      return "video/quicktime";
+    case ".mkv":
+      return "video/x-matroska";
+    case ".png":
+    default:
+      return "image/png";
+  }
+}
+
+function getLocalMediaPath(mediaId) {
+  const value = String(mediaId ?? "").trim();
+  if (!value.startsWith(LOCAL_MEDIA_ID_PREFIX)) {
+    return "";
+  }
+  return value.slice(LOCAL_MEDIA_ID_PREFIX.length).trim();
+}
+
 async function resolveLocalSoundAudioUrl(soundId) {
   const filePath = getLocalSoundPath(soundId);
   if (!filePath) {
@@ -1990,6 +2405,21 @@ async function resolveLocalSoundAudioUrl(soundId) {
 
   const bytes = await fs.readFile(filePath);
   return `data:${getAudioMimeType(filePath)};base64,${bytes.toString("base64")}`;
+}
+
+async function resolveLocalEventActionMediaUrl(mediaId) {
+  const filePath = getLocalMediaPath(mediaId);
+  if (!filePath) {
+    throw new Error("No local media file was selected.");
+  }
+
+  const stats = await fs.stat(filePath).catch(() => null);
+  if (!stats?.isFile()) {
+    throw new Error("The selected media file could not be found.");
+  }
+
+  const bytes = await fs.readFile(filePath);
+  return `data:${getEventActionMediaMimeType(filePath)};base64,${bytes.toString("base64")}`;
 }
 
 async function ensureTtsScript() {
@@ -3407,6 +3837,19 @@ ipcMain.handle("overlay:update-designer-state", async (_event, payload) => {
   };
 });
 
+ipcMain.handle("voicemod:get-voices", async (_event, payload = {}) => {
+  return { ok: true, voices: await getVoicemodVoices(payload) };
+});
+
+ipcMain.handle("voicemod:get-current-voice", async (_event, payload = {}) => {
+  return { ok: true, voiceId: await getCurrentVoicemodVoiceId(payload) };
+});
+
+ipcMain.handle("voicemod:set-voice", async (_event, payload = {}) => {
+  await setVoicemodVoice(payload);
+  return { ok: true };
+});
+
 ipcMain.handle("app:open-external", async (_event, payload) => {
   const url = String(payload?.url ?? "").trim();
   if (url === "") {
@@ -3426,6 +3869,15 @@ ipcMain.handle("app:quit", async () => {
 
   app.quit();
   return { ok: true };
+});
+
+ipcMain.handle("app:factory-reset", async (_event, payload = {}) => {
+  const confirmation = String(payload?.confirmation ?? "").trim().toUpperCase();
+  if (confirmation !== "RESET") {
+    throw new Error("Type RESET to confirm the factory reset.");
+  }
+
+  return factoryResetAppData();
 });
 
 ipcMain.handle("app:save-settings", async (_event, payload) => {
@@ -3764,11 +4216,45 @@ ipcMain.handle("sound-alerts:browse-local-file", async () => {
   };
 });
 
+ipcMain.handle("event-actions:browse-media-file", async () => {
+  const openResult = await dialog.showOpenDialog(mainWindow, {
+    title: "Choose picture or video for queue overlay",
+    properties: ["openFile"],
+    filters: [
+      { name: "Pictures and videos", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "mp4", "webm", "mov", "mkv"] },
+      { name: "Pictures", extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg"] },
+      { name: "Videos", extensions: ["mp4", "webm", "mov", "mkv"] },
+      { name: "All files", extensions: ["*"] }
+    ]
+  });
+
+  if (openResult.canceled || !openResult.filePaths?.length) {
+    return { canceled: true };
+  }
+
+  const filePath = openResult.filePaths[0];
+  const mimeType = getEventActionMediaMimeType(filePath);
+  return {
+    canceled: false,
+    filePath,
+    name: path.basename(filePath),
+    mediaId: `${LOCAL_MEDIA_ID_PREFIX}${filePath}`,
+    mediaType: mimeType.startsWith("video/") ? "video" : "image"
+  };
+});
+
 ipcMain.handle("sound-alerts:resolve-audio", async (_event, payload) => {
   const soundId = String(payload?.soundId ?? "").trim();
   return {
     audioUrl: soundId.startsWith(LOCAL_SOUND_ID_PREFIX)
       ? await resolveLocalSoundAudioUrl(soundId)
       : await resolveMyInstantsAudioUrl(soundId)
+  };
+});
+
+ipcMain.handle("event-actions:resolve-media", async (_event, payload) => {
+  const mediaId = String(payload?.mediaId ?? "").trim();
+  return {
+    mediaUrl: await resolveLocalEventActionMediaUrl(mediaId)
   };
 });

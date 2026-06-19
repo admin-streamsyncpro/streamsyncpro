@@ -19,7 +19,7 @@ return [
     ],
     'app' => [
         'name' => 'Stream Sync Pro LIVE',
-        'version' => '1.0.16',
+        'version' => '1.0.18',
         'verification_expiry_minutes' => 15,
         'reset_expiry_minutes' => 15,
     ],

@@ -275,6 +275,14 @@ $overlayAccessQuery = $overlayId !== ''
           .replaceAll("'", "&#39;");
       }
 
+      function normalizeImageUrl(value) {
+        return String(value ?? "").trim().replace(/^http:\/\//i, "https://");
+      }
+
+      function getGiftSenderName(item) {
+        return String(item?.nickname || item?.displayName || item?.username || "viewer").trim() || "viewer";
+      }
+
       function renderState(state) {
         if (state?.designerTemplate && window.StreamSyncOverlayDesignerRuntime) {
           defaultOverlayShell.hidden = true;
@@ -283,8 +291,10 @@ $overlayAccessQuery = $overlayId !== ''
           window.StreamSyncOverlayDesignerRuntime.render(designerOverlayRoot, state.designerTemplate, {
             username: state?.username || "",
             alert: firstItem ? {
-              username: firstItem.username || state?.username || "",
-              giftSent: firstItem.giftName || "Gift"
+              username: getGiftSenderName(firstItem),
+              displayName: getGiftSenderName(firstItem),
+              giftSent: firstItem.giftName || "Gift",
+              giftImageUrl: normalizeImageUrl(firstItem.giftImageUrl)
             } : null,
             counters: { coins: firstItem ? Number(firstItem.totalCoins || 0) : 0 }
           });
@@ -310,11 +320,11 @@ $overlayAccessQuery = $overlayId !== ''
         emptyState.style.display = "none";
         giftList.innerHTML = items.map((item) => `
           <article class="gift-card">
-            <p class="gift-user">@${escapeHtml(item?.username || "viewer")}</p>
+            <p class="gift-user">@${escapeHtml(getGiftSenderName(item))}</p>
             <div class="gift-main">
-              ${item?.giftImageUrl ? `
+              ${normalizeImageUrl(item?.giftImageUrl) ? `
                 <div class="gift-icon-wrap">
-                  <img class="gift-icon" src="${escapeHtml(item.giftImageUrl)}" alt="${escapeHtml(item?.giftName || "Gift")}" loading="lazy" onerror="this.closest('.gift-icon-wrap')?.classList.add('is-hidden'); this.remove();" />
+                  <img class="gift-icon" src="${escapeHtml(normalizeImageUrl(item.giftImageUrl))}" alt="${escapeHtml(item?.giftName || "Gift")}" loading="lazy" onerror="this.closest('.gift-icon-wrap')?.classList.add('is-hidden'); this.remove();" />
                 </div>
               ` : ""}
               <div class="gift-copy">

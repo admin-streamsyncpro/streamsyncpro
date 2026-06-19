@@ -14,6 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $configPath = __DIR__ . '/config.php';
+$localConfigPath = __DIR__ . '/config.local.php';
 
 if (!file_exists($configPath)) {
     jsonResponse(500, [
@@ -23,6 +24,12 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
+if (file_exists($localConfigPath)) {
+    $localConfig = require $localConfigPath;
+    if (is_array($localConfig)) {
+        $config = array_replace_recursive($config, $localConfig);
+    }
+}
 
 try {
     $pdo = createPdo($config['db'] ?? []);
@@ -153,6 +160,9 @@ function routeRequest(PDO $pdo, array $config): void
         case '/auth/create-topup-session':
             handleCreateTopupSession($pdo, $config, $input);
             return;
+        case '/integrations/voicemod-client':
+            handleVoicemodClientConfig($pdo, $config, $input);
+            return;
         case '/auth/create-overlay-sessions':
             handleCreateOverlaySessions($pdo, $input);
             return;
@@ -176,6 +186,9 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/contact/submit':
             handleContactSubmit($pdo, $config, $input);
+            return;
+        case '/feedback/submit':
+            handleFeedbackSubmit($pdo, $input);
             return;
         case '/billing/session':
             handleBillingSession($pdo, $config, $input);
@@ -376,6 +389,27 @@ function ensureSchema(PDO $pdo, array $config = []): void
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS auth_beta_feedback_reports (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id INT UNSIGNED NULL,
+            category VARCHAR(80) NOT NULL,
+            severity VARCHAR(40) NOT NULL,
+            contact VARCHAR(255) NULL,
+            app_version VARCHAR(40) NULL,
+            report_body LONGTEXT NOT NULL,
+            diagnostics_json LONGTEXT NULL,
+            status VARCHAR(40) NOT NULL DEFAULT "open",
+            admin_notes TEXT NULL,
+            ip_address VARCHAR(64) NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_feedback_status_created (status, created_at),
+            INDEX idx_feedback_user_created (user_id, created_at),
+            CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES auth_users(id) ON DELETE SET NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+
     ensureColumn($pdo, 'auth_users', 'is_locked', 'ALTER TABLE auth_users ADD COLUMN is_locked TINYINT(1) NOT NULL DEFAULT 0 AFTER is_verified');
     ensureColumn($pdo, 'auth_users', 'debug_enabled', 'ALTER TABLE auth_users ADD COLUMN debug_enabled TINYINT(1) NOT NULL DEFAULT 0 AFTER is_locked');
     ensureColumn($pdo, 'auth_users', 'credits', 'ALTER TABLE auth_users ADD COLUMN credits INT NOT NULL DEFAULT 0 AFTER debug_enabled');
@@ -400,6 +434,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_user_overlay_state', 'like_race_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN like_race_overlay_json LONGTEXT NULL AFTER vote_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'spin_wheel_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN spin_wheel_overlay_json LONGTEXT NULL AFTER like_race_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'progress_bar_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN progress_bar_overlay_json LONGTEXT NULL AFTER spin_wheel_overlay_json');
+    ensureColumn($pdo, 'auth_beta_feedback_reports', 'admin_notes', 'ALTER TABLE auth_beta_feedback_reports ADD COLUMN admin_notes TEXT NULL AFTER status');
     ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
 }
@@ -539,6 +574,12 @@ function handleRegister(PDO $pdo, array $config, array $input): void
         'Use this code to verify your Stream Sync Pro LIVE account:',
         $code
     );
+    sendSignupNotificationEmailSafe($config, [
+        'displayName' => $displayName,
+        'email' => $email,
+        'credits' => $signupCredits,
+        'isExistingUnverified' => (bool) $existingUser,
+    ]);
 
     jsonResponse(200, [
         'ok' => true,
@@ -789,6 +830,24 @@ function handleSession(PDO $pdo, array $input): void
     jsonResponse(200, [
         'ok' => true,
         'user' => sanitizeUser($user, $sessionToken),
+    ]);
+}
+
+function handleVoicemodClientConfig(PDO $pdo, array $config, array $input): void
+{
+    requireValidConnectSession($pdo, $input);
+
+    $clientKey = trim((string) ($config['integrations']['voicemod_client_key'] ?? ''));
+    if ($clientKey === '') {
+        jsonResponse(500, [
+            'ok' => false,
+            'error' => 'Voicemod server integration is not configured.',
+        ]);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'clientKey' => $clientKey,
     ]);
 }
 
@@ -1125,7 +1184,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
     $siteBaseUrl = getSiteBaseUrl();
     $payload = [
         'ok' => true,
-        'queueUrl' => $siteBaseUrl . '/overlay/queue.php?id=' . $publicIdParam,
+        'queueUrl' => $siteBaseUrl . '/overlay/queue.php?id=' . $publicIdParam . '&v=20260617-queue-media',
         'commandFeedbackUrl' => $siteBaseUrl . '/overlay/command-feedback.php?id=' . $publicIdParam,
         'chatUrl' => $siteBaseUrl . '/overlay/chat.php?id=' . $publicIdParam,
         'giftUrl' => $siteBaseUrl . '/overlay/gift.php?id=' . $publicIdParam,
@@ -1133,7 +1192,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'viewerStatsUrl' => $siteBaseUrl . '/overlay/viewer-stats.php?id=' . $publicIdParam,
         'voteUrl' => $siteBaseUrl . '/overlay/vote.php?id=' . $publicIdParam,
         'likeRaceUrl' => $siteBaseUrl . '/overlay/like-race.php?id=' . $publicIdParam . '&v=20260522-usernamesize',
-        'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260610-nobom',
+        'spinWheelUrl' => $siteBaseUrl . '/overlay/spin-wheel.php?id=' . $publicIdParam . '&v=20260617-spin-style',
         'progressBarUrl' => $siteBaseUrl . '/overlay/progress-bar.php?id=' . $publicIdParam,
         'publicId' => $overlayPublicId,
         'expiresAt' => $expiresAt,
@@ -2544,6 +2603,92 @@ function handleContactSubmit(PDO $pdo, array $config, array $input): void
     ]);
 }
 
+function handleFeedbackSubmit(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+
+    $category = trim((string) ($input['category'] ?? 'Bug'));
+    $severity = trim((string) ($input['severity'] ?? 'Normal'));
+    $contact = trim((string) ($input['contact'] ?? ''));
+    $appVersion = trim((string) ($input['appVersion'] ?? ''));
+    $reportBody = trim((string) ($input['report'] ?? ''));
+    $diagnostics = $input['diagnostics'] ?? null;
+
+    $allowedCategories = ['Bug', 'Feature request', 'UI feedback', 'Performance', 'Question'];
+    $allowedSeverities = ['Low', 'Normal', 'High', 'Blocking'];
+
+    if (!in_array($category, $allowedCategories, true)) {
+        $category = 'Bug';
+    }
+
+    if (!in_array($severity, $allowedSeverities, true)) {
+        $severity = 'Normal';
+    }
+
+    if ($reportBody === '' || mb_strlen($reportBody) < 10) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Please enter a fuller feedback report before sending.']);
+    }
+
+    $diagnosticsJson = null;
+    if (is_array($diagnostics)) {
+        $diagnosticsJson = json_encode($diagnostics, JSON_UNESCAPED_SLASHES);
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_beta_feedback_reports (
+            user_id,
+            category,
+            severity,
+            contact,
+            app_version,
+            report_body,
+            diagnostics_json,
+            status,
+            ip_address
+         ) VALUES (
+            :user_id,
+            :category,
+            :severity,
+            :contact,
+            :app_version,
+            :report_body,
+            :diagnostics_json,
+            "open",
+            :ip_address
+         )'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':category' => mb_substr($category, 0, 80),
+        ':severity' => mb_substr($severity, 0, 40),
+        ':contact' => $contact !== '' ? mb_substr($contact, 0, 255) : null,
+        ':app_version' => $appVersion !== '' ? mb_substr($appVersion, 0, 40) : null,
+        ':report_body' => $reportBody,
+        ':diagnostics_json' => $diagnosticsJson,
+        ':ip_address' => resolveClientIp(),
+    ]);
+    $reportId = (int) $pdo->lastInsertId();
+
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'beta_feedback_submitted',
+        sprintf('Submitted beta feedback report: %s / %s.', $category, $severity),
+        (int) ($user['credits'] ?? 0),
+        [
+            'feedbackReportId' => $reportId,
+            'category' => $category,
+            'severity' => $severity,
+        ]
+    );
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Thanks, your beta feedback report was sent successfully.',
+        'reportId' => $reportId,
+    ]);
+}
+
 function findUserByEmail(PDO $pdo, string $email): ?array
 {
     $statement = $pdo->prepare('SELECT * FROM auth_users WHERE email = :email LIMIT 1');
@@ -2837,6 +2982,10 @@ function defaultSpinWheelOverlayState(): array
         'durationMs' => 5200,
         'resultDurationMs' => 6000,
         'arrowPosition' => 'right',
+        'fontSize' => 24,
+        'borderThickness' => 4,
+        'centerSize' => 118,
+        'centerNameSize' => 20,
         'triggeredBy' => '',
         'triggerUser' => null,
         'segments' => [
@@ -2953,12 +3102,37 @@ function sanitizeQueueOverlayStatePayload(array $payload): array
                 continue;
             }
 
+            $media = null;
+            if (isset($item['media']) && is_array($item['media'])) {
+                $mediaUrl = trim((string) ($item['media']['url'] ?? ''));
+                if ($mediaUrl !== '') {
+                    $mediaType = (($item['media']['type'] ?? '') === 'video') ? 'video' : 'image';
+                    $media = [
+                        'type' => $mediaType,
+                        'url' => $mediaUrl,
+                        'name' => mb_substr(trim((string) ($item['media']['name'] ?? 'Queue media')), 0, 160),
+                        'durationMs' => max(1000, min(60000, (int) ($item['media']['durationMs'] ?? 6000))),
+                    ];
+                }
+            }
+
+            $source = null;
+            if (isset($item['source']) && is_array($item['source'])) {
+                $source = [
+                    'user' => mb_substr(trim((string) ($item['source']['user'] ?? '')), 0, 120),
+                    'displayName' => mb_substr(trim((string) ($item['source']['displayName'] ?? '')), 0, 160),
+                    'profilePictureUrl' => mb_substr(trim((string) ($item['source']['profilePictureUrl'] ?? '')), 0, 1024),
+                ];
+            }
+
             $items[] = [
                 'id' => trim((string) ($item['id'] ?? ('queue-item-' . $index))),
                 'label' => trim((string) ($item['label'] ?? 'Queued action')) ?: 'Queued action',
                 'queueId' => max(1, min(10, (int) ($item['queueId'] ?? 1))),
                 'kind' => (($item['kind'] ?? '') === 'tts') ? 'tts' : 'action',
                 'status' => (($item['status'] ?? '') === 'running') ? 'running' : 'queued',
+                'source' => $source,
+                'media' => $media,
             ];
         }
     }
@@ -3046,8 +3220,10 @@ function sanitizeGiftOverlayStatePayload(array $payload): array
             $items[] = [
                 'id' => trim((string) ($item['id'] ?? ('gift-item-' . $index))),
                 'username' => trim((string) ($item['username'] ?? '')),
+                'nickname' => trim((string) ($item['nickname'] ?? $item['displayName'] ?? $item['username'] ?? '')),
+                'displayName' => trim((string) ($item['displayName'] ?? $item['nickname'] ?? $item['username'] ?? '')),
                 'giftName' => trim((string) ($item['giftName'] ?? 'Gift')) ?: 'Gift',
-                'giftImageUrl' => trim((string) ($item['giftImageUrl'] ?? '')),
+                'giftImageUrl' => preg_replace('/^http:\/\//i', 'https://', trim((string) ($item['giftImageUrl'] ?? ''))),
                 'giftCount' => max(1, (int) ($item['giftCount'] ?? 1)),
                 'totalCoins' => max(0, (int) ($item['totalCoins'] ?? 0)),
                 'message' => trim((string) ($item['message'] ?? '')),
@@ -3417,6 +3593,10 @@ function sanitizeSpinWheelOverlayStatePayload(array $payload): array
         'durationMs' => max(1000, min(30000, (int) ($payload['durationMs'] ?? 5200))),
         'resultDurationMs' => max(1000, min(30000, (int) ($payload['resultDurationMs'] ?? 6000))),
         'arrowPosition' => $arrowPosition,
+        'fontSize' => max(14, min(48, (int) ($payload['fontSize'] ?? 24))),
+        'borderThickness' => max(1, min(10, (float) ($payload['borderThickness'] ?? 4))),
+        'centerSize' => max(72, min(240, (int) ($payload['centerSize'] ?? 118))),
+        'centerNameSize' => max(12, min(40, (int) ($payload['centerNameSize'] ?? 20))),
         'triggeredBy' => mb_substr(trim((string) ($payload['triggeredBy'] ?? '')), 0, 160),
         'triggerUser' => $triggerUser,
         'segments' => $segments,
@@ -3758,6 +3938,78 @@ function sendContactEmail(array $config, array $payload): void
 
     if (!$sent) {
         throw new RuntimeException('Contact email could not be sent. Your hosting mail() setup may need to be configured.');
+    }
+}
+
+function sendSignupNotificationEmailSafe(array $config, array $payload): void
+{
+    try {
+        sendSignupNotificationEmail($config, $payload);
+    } catch (Throwable $exception) {
+        error_log('Signup notification email failed: ' . $exception->getMessage());
+    }
+}
+
+function sendSignupNotificationEmail(array $config, array $payload): void
+{
+    $fromEmail = (string) ($config['mail']['from_email'] ?? '');
+    $fromName = (string) ($config['mail']['from_name'] ?? 'Stream Sync Pro');
+    $toEmail = (string) ($config['contact']['to_email'] ?? 'info@streamsyncpro.co.uk');
+    $toName = (string) ($config['contact']['to_name'] ?? 'Stream Sync Pro Support');
+    $appName = (string) ($config['app']['name'] ?? 'Stream Sync Pro');
+
+    if ($fromEmail === '' || $toEmail === '') {
+        throw new RuntimeException('Signup notification email routing is missing in config.php.');
+    }
+
+    $displayName = trim((string) ($payload['displayName'] ?? ''));
+    $email = normalizeEmail((string) ($payload['email'] ?? ''));
+    $credits = max(0, (int) ($payload['credits'] ?? 0));
+    $isExistingUnverified = !empty($payload['isExistingUnverified']);
+    $signupTime = gmdate('Y-m-d H:i:s') . ' UTC';
+    $ipAddress = resolveClientIp() ?? 'Unknown';
+    $subject = '[New Signup] Stream Sync Pro LIVE';
+    $textBody = implode("\n", [
+        'A new Stream Sync Pro LIVE signup has started.',
+        '',
+        'Display name: ' . ($displayName !== '' ? $displayName : 'Not provided'),
+        'Email: ' . $email,
+        'Signup credits: ' . $credits,
+        'Signup type: ' . ($isExistingUnverified ? 'Existing unverified account updated' : 'New account'),
+        'IP address: ' . $ipAddress,
+        'Time: ' . $signupTime,
+    ]);
+    $htmlBody = renderBrandedEmailHtml($appName, [
+        'eyebrow' => 'New Signup',
+        'title' => 'New Stream Sync Pro LIVE signup',
+        'intro' => 'A new user has started registration and has been sent their verification code.',
+        'sections' => [
+            ['label' => 'Display name', 'value' => $displayName !== '' ? $displayName : 'Not provided'],
+            ['label' => 'Email', 'value' => $email],
+            ['label' => 'Signup credits', 'value' => (string) $credits],
+            ['label' => 'Signup type', 'value' => $isExistingUnverified ? 'Existing unverified account updated' : 'New account'],
+            ['label' => 'IP address', 'value' => $ipAddress],
+            ['label' => 'Time', 'value' => $signupTime],
+        ],
+        'footnote' => 'This is an automatic signup notification from Stream Sync Pro LIVE.',
+    ]);
+
+    $sent = sendBrandedEmail(
+        $toEmail,
+        $subject,
+        $textBody,
+        $htmlBody,
+        [
+            'toName' => $toName,
+            'fromEmail' => $fromEmail,
+            'fromName' => $fromName,
+            'replyToEmail' => $email !== '' ? $email : $fromEmail,
+            'replyToName' => $displayName !== '' ? $displayName : 'New signup',
+        ]
+    );
+
+    if (!$sent) {
+        throw new RuntimeException('Signup notification email could not be sent. Your hosting mail() setup may need to be configured.');
     }
 }
 

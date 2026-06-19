@@ -25,7 +25,7 @@
     const counters = runtime?.counters || {};
     const vote = runtime?.activeVote || {};
     return String(template || "")
-      .replace(/\{username\}/gi, runtime?.username || chat.username || alert.username || "viewer")
+      .replace(/\{username\}/gi, alert.username || chat.username || runtime?.username || "viewer")
       .replace(/\{message\}/gi, chat.message || "Waiting for chat")
       .replace(/\{giftsent\}/gi, alert.giftSent || "gift")
       .replace(/\{gift sent\}/gi, alert.giftSent || "gift")
@@ -176,8 +176,10 @@
             </div>
           </div>
         `;
-      case "image":
-        return element.source ? `<img src="${escapeHtml(element.source)}" alt="${escapeHtml(element.name || "Image")}" style="width:100%;height:100%;object-fit:cover;" />` : "Image source";
+      case "image": {
+        const imageSource = String(element.source || runtime?.alert?.giftImageUrl || "").trim().replace(/^http:\/\//i, "https://");
+        return imageSource ? `<img src="${escapeHtml(imageSource)}" alt="${escapeHtml(element.name || "Image")}" style="width:100%;height:100%;object-fit:contain;" />` : "";
+      }
       case "video":
         return element.source ? `<video src="${escapeHtml(element.source)}" muted autoplay loop playsinline style="width:100%;height:100%;object-fit:cover;"></video>` : "Video source";
       case "customHtml":

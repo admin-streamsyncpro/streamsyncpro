@@ -507,9 +507,42 @@ img {
 
 .section-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 18px;
   margin-top: 28px;
+}
+
+.release-strip {
+  margin-top: 28px;
+}
+
+.release-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.release-grid article {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid rgba(129, 176, 255, 0.13);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(78, 230, 255, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.04);
+}
+
+.release-grid strong {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.12rem;
+  line-height: 1.18;
+}
+
+.release-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.62;
 }
 
 .feature-card .card-body,
@@ -540,6 +573,15 @@ img {
   padding: 12px;
   color: var(--muted-strong);
   line-height: 1.45;
+}
+
+.feature-list code {
+  padding: 2px 5px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e7f7ff;
+  font: inherit;
+  font-size: 0.92em;
 }
 
 .overview-card,
@@ -840,7 +882,7 @@ img {
   }
 
   .hero,
-  .section-grid,
+  .release-grid,
   .steps,
   .contact-layout,
   .contact-hero,

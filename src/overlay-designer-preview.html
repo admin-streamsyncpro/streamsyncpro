@@ -260,7 +260,7 @@
         const counters = runtime?.counters || {};
         const vote = runtime?.activeVote || {};
         return String(template || "")
-          .replace(/\{username\}/gi, runtime?.username || chat.username || alert.username || "viewer")
+          .replace(/\{username\}/gi, alert.username || chat.username || runtime?.username || "viewer")
           .replace(/\{message\}/gi, chat.message || "Waiting for chat")
           .replace(/\{giftsent\}/gi, alert.giftSent || "gift")
           .replace(/\{gift sent\}/gi, alert.giftSent || "gift")
@@ -403,10 +403,12 @@
                 <div class="overlay-element-progress-bar"><span style="background: linear-gradient(90deg, var(--overlay-accent, #53dcff), var(--overlay-accent-2, #b266ff));"></span></div>
               </div>
             `;
-          case "image":
-            return element.source
-              ? `<img class="overlay-element-media" src="${escapeHtml(element.source)}" alt="${escapeHtml(element.name || "Image")}" />`
-              : `<div class="overlay-html">Image source</div>`;
+          case "image": {
+            const imageSource = String(element.source || runtime?.alert?.giftImageUrl || "").trim().replace(/^http:\/\//i, "https://");
+            return imageSource
+              ? `<img class="overlay-element-media" src="${escapeHtml(imageSource)}" alt="${escapeHtml(element.name || "Image")}" />`
+              : "";
+          }
           case "video":
             return element.source
               ? `<video class="overlay-element-video" src="${escapeHtml(element.source)}" muted autoplay loop playsinline></video>`
