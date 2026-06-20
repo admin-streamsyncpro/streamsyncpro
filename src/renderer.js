@@ -435,6 +435,13 @@ const ttsXttsServiceActions = document.getElementById("tts-xtts-service-actions"
 const ttsXttsStartServiceButton = document.getElementById("tts-xtts-start-service");
 const ttsXttsCheckServiceButton = document.getElementById("tts-xtts-check-service");
 const ttsXttsOpenHelpButton = document.getElementById("tts-xtts-open-help");
+const ttsXttsRuntimePanel = document.getElementById("tts-xtts-runtime-panel");
+const ttsXttsRuntimeStatus = document.getElementById("tts-xtts-runtime-status");
+const ttsXttsRefreshRuntimeButton = document.getElementById("tts-xtts-refresh-runtime");
+const ttsXttsInstallRuntimeButton = document.getElementById("tts-xtts-install-runtime");
+const ttsXttsChooseRuntimeButton = document.getElementById("tts-xtts-choose-runtime");
+const ttsXttsOpenRuntimeFolderButton = document.getElementById("tts-xtts-open-runtime-folder");
+const ttsXttsRemoveRuntimeButton = document.getElementById("tts-xtts-remove-runtime");
 const ttsXttsSplitSentencesField = document.getElementById("tts-xtts-split-sentences-field");
 const ttsXttsSplitSentencesInput = document.getElementById("tts-xtts-split-sentences");
 const ttsXttsLanguageField = document.getElementById("tts-xtts-language-field");
@@ -549,6 +556,31 @@ const votingStartRoleInput = document.getElementById("voting-start-role");
 const votingOverlayOrientationInput = document.getElementById("voting-overlay-orientation");
 const votingTestButton = document.getElementById("voting-test-button");
 const votingStatus = document.getElementById("voting-status");
+const jokeOverlayEnabledInput = document.getElementById("joke-overlay-enabled");
+const jokeOverlaySourceInput = document.getElementById("joke-overlay-source");
+const jokeOverlayApiCategoryInput = document.getElementById("joke-overlay-api-category");
+const jokeOverlayApiSafeModeInput = document.getElementById("joke-overlay-api-safe-mode");
+const jokeOverlayCommandRoleInput = document.getElementById("joke-overlay-command-role");
+const jokeOverlayDurationInput = document.getElementById("joke-overlay-duration");
+const jokeOverlayDisplayModeInput = document.getElementById("joke-overlay-display-mode");
+const jokeOverlayMarqueeSpeedInput = document.getElementById("joke-overlay-marquee-speed");
+const jokeOverlayGiftNameInput = document.getElementById("joke-overlay-gift-name");
+const jokeOverlayGiftList = document.getElementById("joke-overlay-gift-list");
+const jokeOverlayEmoteNameInput = document.getElementById("joke-overlay-emote-name");
+const jokeOverlayEmoteList = document.getElementById("joke-overlay-emote-list");
+const jokeOverlayJokesInput = document.getElementById("joke-overlay-jokes");
+const jokeOverlayTitleInput = document.getElementById("joke-overlay-title");
+const jokeOverlayFontFamilyInput = document.getElementById("joke-overlay-font-family");
+const jokeOverlayFontSizeInput = document.getElementById("joke-overlay-font-size");
+const jokeOverlayBorderRadiusInput = document.getElementById("joke-overlay-border-radius");
+const jokeOverlayAccentColorInput = document.getElementById("joke-overlay-accent-color");
+const jokeOverlayBackgroundColorInput = document.getElementById("joke-overlay-background-color");
+const jokeOverlayTextColorInput = document.getElementById("joke-overlay-text-color");
+const jokeOverlayUrlInput = document.getElementById("joke-overlay-url");
+const jokeOverlayCopyButton = document.getElementById("joke-overlay-copy");
+const jokeOverlayOpenButton = document.getElementById("joke-overlay-open");
+const jokeOverlayTestButton = document.getElementById("joke-overlay-test");
+const jokeOverlayStatus = document.getElementById("joke-overlay-status");
 const likeRaceEnabledInput = document.getElementById("like-race-enabled");
 const likeRaceStatusPill = document.getElementById("like-race-status-pill");
 const likeRaceStartButton = document.getElementById("like-race-start-button");
@@ -1497,6 +1529,7 @@ const PROFILE_SETTING_KEYS = [
     "votingEnabled",
     "votingStartRole",
     "votingOverlayOrientation",
+    "jokeOverlaySettings",
     "likeRaceSettings",
     "likeRaceStats",
   "spinWheelSettings",
@@ -1522,6 +1555,7 @@ const MAIN_SCREEN_CARD_DEFINITIONS = [
   { key: "controls-queued-actions", label: "Controls | Queued Actions" },
   { key: "controls-auto-translate", label: "Controls | Auto Translate" },
   { key: "controls-interactive-voting", label: "Controls | Voting" },
+  { key: "controls-joke-overlay", label: "Controls | Joke Overlay" },
   { key: "games-like-race", label: "Games | Like Race" },
   { key: "games-spin-wheel", label: "Games | Spin Wheel" },
   { key: "music-spotify", label: "Music | Spotify Requests" },
@@ -1668,7 +1702,11 @@ const state = {
     likesOverlayBaseUrl: "",
     viewerStatsOverlayBaseUrl: "",
     voteOverlayBaseUrl: "",
-    progressBarOverlayBaseUrl: "",
+  progressBarOverlayBaseUrl: "",
+  jokeOverlayBaseUrl: "",
+  jokeOverlayQueue: [],
+  jokeOverlayQueueActive: false,
+  jokeOverlayQueueTimer: null,
   progressBarPreviewOverrides: new Map(),
   progressBarPreviewTimer: null,
   overlayDesignerBaseUrl: "",
@@ -1866,6 +1904,33 @@ function createDefaultLikeRaceStats() {
   };
 }
 
+function createDefaultJokeOverlaySettings() {
+  return {
+    enabled: false,
+    commandRole: "everyone",
+    giftName: "",
+    emoteName: "",
+    jokeSource: "jokeapi",
+    apiCategory: "Any",
+    apiSafeMode: true,
+    durationMs: 8000,
+    title: "Joke Time",
+    jokes: [
+      "Why did the streamer bring a ladder? | Because chat kept raising the stakes.",
+      "Why did the TikTok gift go to school? | To improve its class act.",
+      "{username} asked for a joke. | The punchline is currently buffering."
+    ],
+    accentColor: "#ffd166",
+    backgroundColor: "#071322",
+    textColor: "#fff7e6",
+    fontFamily: "Segoe UI",
+    fontSize: 34,
+    borderRadius: 24,
+    displayMode: "card",
+    marqueeSpeed: 70
+  };
+}
+
 function createDefaultSettings() {
   return {
     authApiBaseUrl: "https://streamsyncpro.co.uk",
@@ -1939,6 +2004,7 @@ function createDefaultSettings() {
     votingEnabled: false,
     votingStartRole: "everyone",
     votingOverlayOrientation: "horizontal",
+    jokeOverlaySettings: createDefaultJokeOverlaySettings(),
     likeRaceSettings: createDefaultLikeRaceSettings(),
     likeRaceStats: createDefaultLikeRaceStats(),
     spinWheelSettings: createDefaultSpinWheelSettings(),
@@ -2005,6 +2071,7 @@ function ensureSettingsShape(source = {}) {
     likeRaceSettings: normalizeLikeRaceSettings(activeProfileSettings?.likeRaceSettings),
     likeRaceStats: normalizeLikeRaceStats(activeProfileSettings?.likeRaceStats),
     spinWheelSettings: normalizeSpinWheelSettings(activeProfileSettings?.spinWheelSettings),
+    jokeOverlaySettings: normalizeJokeOverlaySettings(activeProfileSettings?.jokeOverlaySettings),
     musicSettings: normalizeMusicSettings(activeProfileSettings?.musicSettings),
     commandFeedbackOverlayDurationMs: Math.max(1000, Number(activeProfileSettings?.commandFeedbackOverlayDurationMs) || defaults.commandFeedbackOverlayDurationMs),
     commandFeedbackTemplates: {
@@ -2430,6 +2497,14 @@ function getViewerStatsOverlayUrl() {
   return state.viewerStatsOverlayBaseUrl || "";
 }
 
+function buildHostedJokeOverlayUrl(publicId = "") {
+  const overlayPublicId = String(publicId ?? "").trim();
+  if (!overlayPublicId) {
+    return "";
+  }
+  return `${getAuthApiBaseUrl()}/overlay/joke.php?id=${encodeURIComponent(overlayPublicId)}`;
+}
+
 function updateQueueOverlayControls(info = {}) {
   if (info?.url) {
     state.queueOverlayBaseUrl = String(info.url).trim();
@@ -2645,6 +2720,17 @@ async function loadProgressBarOverlayInfo() {
   }
 }
 
+async function loadJokeOverlayInfo() {
+  try {
+    const info = await app.getJokeOverlayInfo();
+    updateJokeOverlayControls(info);
+  } catch (error) {
+    state.jokeOverlayBaseUrl = "";
+    updateJokeOverlayControls();
+    setStatusMessage(jokeOverlayStatus, "error", error.message || "Unable to prepare joke overlay.");
+  }
+}
+
 async function loadOverlayInfoBundle() {
   if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
     state.queueOverlayBaseUrl = "";
@@ -2655,6 +2741,7 @@ async function loadOverlayInfoBundle() {
     state.voteOverlayBaseUrl = "";
     state.progressBarOverlayBaseUrl = "";
     state.likeRaceOverlayBaseUrl = "";
+    state.jokeOverlayBaseUrl = "";
     state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Sign in to generate hosted overlay";
     queueOverlayCopyButton.disabled = true;
@@ -2664,6 +2751,11 @@ async function loadOverlayInfoBundle() {
     commandFeedbackOverlayCopyButton.disabled = true;
     commandFeedbackOverlayOpenButton.disabled = true;
     setStatusMessage(commandFeedbackStatus, "info", "Sign in to generate a hosted command feedback overlay URL for this user.");
+    updateJokeOverlayControls({ url: "" });
+    if (jokeOverlayUrlInput) {
+      jokeOverlayUrlInput.value = "Sign in to generate hosted overlay";
+    }
+    setStatusMessage(jokeOverlayStatus, "info", "Sign in to generate a hosted joke overlay URL for this user.");
     chatOverlayUrlInput.value = "Sign in to generate hosted overlay";
     chatOverlayCopyButton.disabled = true;
     chatOverlayOpenButton.disabled = true;
@@ -2717,6 +2809,7 @@ async function loadOverlayInfoBundle() {
     updateProgressBarOverlayControls({ url: info.progressBarUrl });
     updateLikeRaceOverlayControls({ url: info.likeRaceUrl });
     updateSpinWheelOverlayControls({ url: info.spinWheelUrl });
+    updateJokeOverlayControls({ url: info.jokeUrl || buildHostedJokeOverlayUrl(info.publicId) });
   } catch (error) {
     state.queueOverlayBaseUrl = "";
     state.chatOverlayBaseUrl = "";
@@ -2727,6 +2820,7 @@ async function loadOverlayInfoBundle() {
     state.progressBarOverlayBaseUrl = "";
     state.likeRaceOverlayBaseUrl = "";
     state.spinWheelOverlayBaseUrl = "";
+    state.jokeOverlayBaseUrl = "";
     state.commandFeedbackOverlayBaseUrl = "";
     queueOverlayUrlInput.value = "Overlay unavailable";
     queueOverlayCopyButton.disabled = true;
@@ -2736,6 +2830,11 @@ async function loadOverlayInfoBundle() {
     commandFeedbackOverlayCopyButton.disabled = true;
     commandFeedbackOverlayOpenButton.disabled = true;
     setStatusMessage(commandFeedbackStatus, "error", error.message || "Unable to load hosted overlay URLs.");
+    updateJokeOverlayControls({ url: "" });
+    if (jokeOverlayUrlInput) {
+      jokeOverlayUrlInput.value = "Overlay unavailable";
+    }
+    setStatusMessage(jokeOverlayStatus, "error", error.message || "Unable to load hosted overlay URLs.");
     chatOverlayUrlInput.value = "Overlay unavailable";
     chatOverlayCopyButton.disabled = true;
     chatOverlayOpenButton.disabled = true;
@@ -3667,6 +3766,7 @@ function getSupportedChatCommandList() {
     "!mybday dd/mm",
     `!myttsvoice <number>${myTtsVoiceRange}`,
     "!lockmyttsvoice",
+    "!joke",
     "!tts on/off",
     "!pause tts",
     "!resume tts",
@@ -3770,6 +3870,318 @@ function showCommandFeedbackOverlay(commandType, replacements) {
     accentColor: "#53dcff",
     sourceType: "command"
   });
+}
+
+function getJokeOverlayUrl() {
+  return state.jokeOverlayBaseUrl || "";
+}
+
+function collectJokeOverlaySettingsFromUi(existing = state.settings?.jokeOverlaySettings) {
+  const current = normalizeJokeOverlaySettings(existing);
+  return normalizeJokeOverlaySettings({
+    ...current,
+    enabled: Boolean(jokeOverlayEnabledInput?.checked),
+    jokeSource: String(jokeOverlaySourceInput?.value ?? current.jokeSource).trim(),
+    apiCategory: String(jokeOverlayApiCategoryInput?.value ?? current.apiCategory).trim(),
+    apiSafeMode: Boolean(jokeOverlayApiSafeModeInput?.checked ?? current.apiSafeMode),
+    commandRole: String(jokeOverlayCommandRoleInput?.value ?? current.commandRole).trim(),
+    displayMode: String(jokeOverlayDisplayModeInput?.value ?? current.displayMode).trim(),
+    marqueeSpeed: Number(jokeOverlayMarqueeSpeedInput?.value ?? current.marqueeSpeed),
+    giftName: String(jokeOverlayGiftNameInput?.value ?? current.giftName).trim(),
+    emoteName: String(jokeOverlayEmoteNameInput?.value ?? current.emoteName).trim(),
+    durationMs: Math.max(1, Number(jokeOverlayDurationInput?.value ?? current.durationMs / 1000) || 8) * 1000,
+    title: String(jokeOverlayTitleInput?.value ?? current.title).trim(),
+    jokes: String(jokeOverlayJokesInput?.value ?? current.jokes.join("\n"))
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean),
+    fontFamily: String(jokeOverlayFontFamilyInput?.value ?? current.fontFamily).trim(),
+    fontSize: Number(jokeOverlayFontSizeInput?.value ?? current.fontSize),
+    borderRadius: Number(jokeOverlayBorderRadiusInput?.value ?? current.borderRadius),
+    accentColor: String(jokeOverlayAccentColorInput?.value ?? current.accentColor).trim(),
+    backgroundColor: String(jokeOverlayBackgroundColorInput?.value ?? current.backgroundColor).trim(),
+    textColor: String(jokeOverlayTextColorInput?.value ?? current.textColor).trim()
+  });
+}
+
+function renderJokeOverlaySettings() {
+  if (!jokeOverlayEnabledInput || !state.settings) {
+    return;
+  }
+  const settings = normalizeJokeOverlaySettings(state.settings.jokeOverlaySettings);
+  state.settings.jokeOverlaySettings = settings;
+  jokeOverlayEnabledInput.checked = settings.enabled;
+  if (jokeOverlaySourceInput) jokeOverlaySourceInput.value = settings.jokeSource;
+  if (jokeOverlayApiCategoryInput) jokeOverlayApiCategoryInput.value = settings.apiCategory;
+  if (jokeOverlayApiSafeModeInput) jokeOverlayApiSafeModeInput.checked = settings.apiSafeMode;
+  jokeOverlayCommandRoleInput.value = settings.commandRole;
+  jokeOverlayDurationInput.value = String(Math.round(settings.durationMs / 1000));
+  if (jokeOverlayDisplayModeInput) jokeOverlayDisplayModeInput.value = settings.displayMode;
+  if (jokeOverlayMarqueeSpeedInput) jokeOverlayMarqueeSpeedInput.value = String(settings.marqueeSpeed);
+  jokeOverlayGiftNameInput.value = settings.giftName;
+  jokeOverlayEmoteNameInput.value = settings.emoteName;
+  jokeOverlayJokesInput.value = settings.jokes.join("\n");
+  jokeOverlayTitleInput.value = settings.title;
+  jokeOverlayFontFamilyInput.value = settings.fontFamily;
+  jokeOverlayFontSizeInput.value = String(settings.fontSize);
+  jokeOverlayBorderRadiusInput.value = String(settings.borderRadius);
+  jokeOverlayAccentColorInput.value = settings.accentColor;
+  jokeOverlayBackgroundColorInput.value = settings.backgroundColor;
+  jokeOverlayTextColorInput.value = settings.textColor;
+  if (jokeOverlayGiftList) {
+    jokeOverlayGiftList.innerHTML = getKnownTikTokGifts()
+      .slice(0, 250)
+      .map((gift) => `<option value="${escapeHtml(gift.giftName)}"></option>`)
+      .join("");
+  }
+  if (jokeOverlayEmoteList) {
+    jokeOverlayEmoteList.innerHTML = normalizeKnownTikTokEmotes(state.settings?.knownTikTokEmotes)
+      .slice(0, 250)
+      .map((emote) => `<option value="${escapeHtml(emote.emoteName || emote.emoteId)}"></option>`)
+      .join("");
+  }
+  updateJokeOverlayControls();
+}
+
+function updateJokeOverlayControls(info = {}) {
+  if (Object.prototype.hasOwnProperty.call(info, "url")) {
+    state.jokeOverlayBaseUrl = String(info.url ?? "").trim();
+  }
+  const overlayUrl = getJokeOverlayUrl();
+  const queueCount = state.jokeOverlayQueue.length + (state.jokeOverlayQueueActive ? 1 : 0);
+  if (jokeOverlayUrlInput) {
+    jokeOverlayUrlInput.value = overlayUrl || "Overlay unavailable";
+  }
+  if (jokeOverlayCopyButton) {
+    jokeOverlayCopyButton.disabled = overlayUrl === "";
+  }
+  if (jokeOverlayOpenButton) {
+    jokeOverlayOpenButton.disabled = overlayUrl === "";
+  }
+  setStatusMessage(
+    jokeOverlayStatus,
+    overlayUrl ? "success" : "error",
+    overlayUrl
+      ? `Joke overlay URL ready. ${queueCount ? `${queueCount} joke${queueCount === 1 ? "" : "s"} in queue.` : "Queue is clear."}`
+      : "Joke overlay is unavailable right now."
+  );
+}
+
+function canUseJokeCommand(item, settings = normalizeJokeOverlaySettings(state.settings?.jokeOverlaySettings)) {
+  const profile = state.sessionUserProfiles.get(normalizeUserKey(item?.user)) ?? {};
+  switch (settings.commandRole) {
+    case "followers":
+      return Boolean(item?.isFollower || item?.followedThisSession || profile?.followedThisSession);
+    case "subscribers":
+      return Boolean(item?.isSubscriber || profile?.isSubscriber);
+    case "moderators":
+      return Boolean(item?.isModerator || profile?.isModerator);
+    default:
+      return true;
+  }
+}
+
+function pickJokeLine(settings) {
+  const jokes = normalizeJokeOverlaySettings(settings).jokes;
+  return jokes[Math.floor(Math.random() * jokes.length)] || createDefaultJokeOverlaySettings().jokes[0];
+}
+
+function buildJokeApiUrl(settings) {
+  const normalized = normalizeJokeOverlaySettings(settings);
+  const category = encodeURIComponent(normalized.apiCategory || "Any");
+  const url = new URL(`https://v2.jokeapi.dev/joke/${category}`);
+  url.searchParams.set("lang", "en");
+  if (normalized.apiSafeMode) {
+    url.searchParams.set("safe-mode", "");
+  }
+  return url.toString().replace("safe-mode=", "safe-mode");
+}
+
+async function fetchJokeApiLine(settings) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(buildJokeApiUrl(settings), {
+      cache: "no-store",
+      signal: controller.signal
+    });
+    if (!response.ok) {
+      throw new Error(`JokeAPI request failed with status ${response.status}.`);
+    }
+    const result = await response.json();
+    if (result?.error) {
+      throw new Error(result?.message || "JokeAPI could not provide a joke.");
+    }
+    if (result?.type === "twopart") {
+      return `${String(result.setup ?? "").trim()} | ${String(result.delivery ?? "").trim()}`.trim();
+    }
+    return String(result?.joke ?? "").trim();
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function pickJokeLineForOverlay(settings) {
+  const normalized = normalizeJokeOverlaySettings(settings);
+  if (normalized.jokeSource === "jokeapi") {
+    try {
+      const apiJoke = await fetchJokeApiLine(normalized);
+      if (apiJoke) {
+        return apiJoke;
+      }
+    } catch (error) {
+      console.warn("JokeAPI unavailable, using custom joke fallback.", error);
+    }
+  }
+  return pickJokeLine(normalized);
+}
+
+async function buildJokeOverlayPayload(settings, item = {}, sourceType = "command") {
+  const selectedLine = await pickJokeLineForOverlay(settings);
+  const [setupRaw, ...punchlineParts] = selectedLine.split("|");
+  const replacements = {
+    username: item?.nickname || item?.displayName || item?.user || "viewer",
+    giftName: item?.giftName || settings.giftName || "gift",
+    emoteName: item?.emoteName || settings.emoteName || "emote"
+  };
+  const setup = formatNamedTemplate(setupRaw, replacements);
+  const punchline = formatNamedTemplate(punchlineParts.join("|"), replacements);
+  return {
+    visible: true,
+    setup,
+    punchline,
+    joke: [setup, punchline].filter(Boolean).join(" "),
+    username: replacements.username,
+    sourceType,
+    title: settings.title,
+    accentColor: settings.accentColor,
+    backgroundColor: settings.backgroundColor,
+    textColor: settings.textColor,
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    borderRadius: settings.borderRadius,
+    displayMode: settings.displayMode,
+    marqueeSpeed: settings.marqueeSpeed,
+    durationMs: settings.durationMs
+  };
+}
+
+function syncHostedJokeOverlayState(payload = {}) {
+  if (!state.authenticatedUser?.id || !state.authenticatedUser?.sessionToken) {
+    return;
+  }
+
+  void authRequest("/api/overlay/update-joke-state", {
+    userId: state.authenticatedUser.id,
+    sessionToken: state.authenticatedUser.sessionToken,
+    ...payload
+  }).catch(() => {
+    // Hosted overlay sync should never interrupt live joke playback.
+  });
+}
+
+function scheduleNextJokeOverlay() {
+  if (state.jokeOverlayQueueTimer) {
+    window.clearTimeout(state.jokeOverlayQueueTimer);
+  }
+  state.jokeOverlayQueueTimer = window.setTimeout(() => {
+    state.jokeOverlayQueueActive = false;
+    state.jokeOverlayQueueTimer = null;
+    void processJokeOverlayQueue();
+  }, 250);
+}
+
+async function processJokeOverlayQueue() {
+  if (state.jokeOverlayQueueActive) {
+    return;
+  }
+  const nextRequest = state.jokeOverlayQueue.shift();
+  updateJokeOverlayControls();
+  if (!nextRequest) {
+    return;
+  }
+
+  state.jokeOverlayQueueActive = true;
+  const settings = normalizeJokeOverlaySettings(nextRequest.settings);
+  try {
+    const payload = await buildJokeOverlayPayload(settings, nextRequest.item, nextRequest.sourceType);
+    await app.updateJokeOverlayState(payload);
+    syncHostedJokeOverlayState(payload);
+    updateJokeOverlayControls();
+    state.jokeOverlayQueueTimer = window.setTimeout(() => {
+      state.jokeOverlayQueueActive = false;
+      state.jokeOverlayQueueTimer = null;
+      void processJokeOverlayQueue();
+    }, settings.durationMs + 350);
+  } catch (error) {
+    console.warn("Unable to process joke overlay queue item.", error);
+    scheduleNextJokeOverlay();
+  }
+}
+
+async function triggerJokeOverlay(item = {}, sourceType = "command") {
+  const settings = normalizeJokeOverlaySettings(state.settings?.jokeOverlaySettings);
+  if (!settings.enabled && sourceType !== "test") {
+    return false;
+  }
+  if (state.jokeOverlayQueue.length >= 25) {
+    showToast("Joke queue is full. Ignoring the newest joke request.", "info");
+    return false;
+  }
+  state.jokeOverlayQueue.push({
+    settings,
+    item: { ...item },
+    sourceType,
+    queuedAt: Date.now()
+  });
+  updateJokeOverlayControls();
+  void processJokeOverlayQueue();
+  return true;
+}
+
+async function handleJokeCommand(item) {
+  const messageText = String(item?.message ?? item?.text ?? "").trim();
+  if (!/^!joke\b/i.test(messageText)) {
+    return false;
+  }
+  const settings = normalizeJokeOverlaySettings(state.settings?.jokeOverlaySettings);
+  if (!settings.enabled) {
+    showToast(`@${item.user || "viewer"} tried !joke, but Joke Overlay is disabled.`, "info");
+    return true;
+  }
+  if (!canUseJokeCommand(item, settings)) {
+    showToast(`@${item.user || "viewer"} does not have permission to use !joke.`, "info");
+    return true;
+  }
+  await triggerJokeOverlay(item, "command");
+  return true;
+}
+
+function maybeTriggerJokeOverlayFromGift(item) {
+  const settings = normalizeJokeOverlaySettings(state.settings?.jokeOverlaySettings);
+  if (!settings.enabled || !settings.giftName) {
+    return;
+  }
+  if (normalizeGiftKey(item?.giftName) === normalizeGiftKey(settings.giftName)) {
+    void triggerJokeOverlay(item, "gift");
+  }
+}
+
+function maybeTriggerJokeOverlayFromEmote(item, emote = null) {
+  const settings = normalizeJokeOverlaySettings(state.settings?.jokeOverlaySettings);
+  const selected = String(settings.emoteName ?? "").trim().toLowerCase();
+  if (!settings.enabled || !selected) {
+    return;
+  }
+  const candidates = [
+    item?.emoteName,
+    item?.emoteId,
+    emote?.emoteName,
+    emote?.emoteId
+  ].map((value) => String(value ?? "").trim().toLowerCase()).filter(Boolean);
+  if (candidates.includes(selected)) {
+    void triggerJokeOverlay({ ...item, ...(emote ?? {}) }, "emote");
+  }
 }
 
 function updateVotingStatus(message) {
@@ -4114,6 +4526,7 @@ function clearHostedFeedOverlayState() {
   syncGiftOverlayState();
   syncLikesOverlayState();
   syncViewerStatsOverlayState();
+  syncHostedJokeOverlayState({ visible: false, durationMs: 1000 });
   clearActiveVoteTimers();
   clearVoteOverlayState();
 }
@@ -7513,6 +7926,44 @@ function normalizeSpinWheelSettings(source = {}) {
   };
 }
 
+function normalizeJokeOverlaySettings(source = {}) {
+  const defaults = createDefaultJokeOverlaySettings();
+  const rawJokes = Array.isArray(source?.jokes)
+    ? source.jokes
+    : String(source?.jokes ?? "").split(/\r?\n/);
+  const jokes = rawJokes
+    .map((joke) => String(joke ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 80);
+
+  return {
+    ...defaults,
+    ...source,
+    enabled: Boolean(source?.enabled ?? defaults.enabled),
+    commandRole: ["everyone", "followers", "subscribers", "moderators"].includes(String(source?.commandRole ?? "").trim().toLowerCase())
+      ? String(source.commandRole).trim().toLowerCase()
+      : defaults.commandRole,
+    giftName: String(source?.giftName ?? defaults.giftName).trim(),
+    emoteName: String(source?.emoteName ?? defaults.emoteName).trim(),
+    durationMs: Math.max(1000, Math.min(60000, Number(source?.durationMs ?? defaults.durationMs) || defaults.durationMs)),
+    title: String(source?.title ?? defaults.title).trim() || defaults.title,
+    jokes: jokes.length ? jokes : defaults.jokes,
+    accentColor: normalizeOverlayDesignerHex(source?.accentColor, defaults.accentColor),
+    backgroundColor: normalizeOverlayDesignerHex(source?.backgroundColor, defaults.backgroundColor),
+    textColor: normalizeOverlayDesignerHex(source?.textColor, defaults.textColor),
+    fontFamily: String(source?.fontFamily ?? defaults.fontFamily).trim() || defaults.fontFamily,
+    fontSize: Math.max(16, Math.min(90, Number(source?.fontSize ?? defaults.fontSize) || defaults.fontSize)),
+    borderRadius: Math.max(0, Math.min(60, Number(source?.borderRadius ?? defaults.borderRadius) || defaults.borderRadius)),
+    displayMode: String(source?.displayMode ?? "").trim().toLowerCase() === "marquee" ? "marquee" : defaults.displayMode,
+    marqueeSpeed: Math.max(20, Math.min(140, Number(source?.marqueeSpeed ?? defaults.marqueeSpeed) || defaults.marqueeSpeed)),
+    jokeSource: String(source?.jokeSource ?? "").trim().toLowerCase() === "custom" ? "custom" : defaults.jokeSource,
+    apiCategory: ["Any", "Misc", "Programming", "Pun", "Spooky", "Christmas", "Dark"].includes(String(source?.apiCategory ?? "").trim())
+      ? String(source.apiCategory).trim()
+      : defaults.apiCategory,
+    apiSafeMode: Boolean(source?.apiSafeMode ?? defaults.apiSafeMode)
+  };
+}
+
 function getDefaultProfileSettingsSource() {
   return {
     rememberedUsername: "",
@@ -7572,6 +8023,7 @@ function getDefaultProfileSettingsSource() {
     votingEnabled: false,
     votingStartRole: "everyone",
     votingOverlayOrientation: "horizontal",
+    jokeOverlaySettings: createDefaultJokeOverlaySettings(),
     likeRaceSettings: createDefaultLikeRaceSettings(),
     likeRaceStats: createDefaultLikeRaceStats(),
     spinWheelSettings: createDefaultSpinWheelSettings(),
@@ -7772,6 +8224,7 @@ function normalizeProfileSettingsSnapshot(source = {}) {
       votingOverlayOrientation: String(source?.votingOverlayOrientation ?? "").trim().toLowerCase() === "vertical"
         ? "vertical"
         : defaults.votingOverlayOrientation,
+      jokeOverlaySettings: normalizeJokeOverlaySettings(source?.jokeOverlaySettings),
       likeRaceSettings: normalizeLikeRaceSettings(source?.likeRaceSettings),
       likeRaceStats: normalizeLikeRaceStats(source?.likeRaceStats),
       spinWheelSettings: normalizeSpinWheelSettings(source?.spinWheelSettings),
@@ -9482,6 +9935,7 @@ function getCurrentProfileSettingsFromUi(overrides = {}) {
     votingEnabled: Boolean(votingEnabledInput.checked),
     votingStartRole: String(votingStartRoleInput.value ?? "everyone").trim().toLowerCase(),
     votingOverlayOrientation: votingOverlayOrientationInput.value === "vertical" ? "vertical" : "horizontal",
+    jokeOverlaySettings: collectJokeOverlaySettingsFromUi(merged.jokeOverlaySettings),
     likeRaceSettings: collectLikeRaceSettingsFromUi(merged.likeRaceSettings),
     likeRaceStats: normalizeLikeRaceStats(merged.likeRaceStats),
     spinWheelSettings: collectSpinWheelSettingsFromUi(merged.spinWheelSettings),
@@ -11973,6 +12427,7 @@ async function enableStreamSafeMode() {
   const musicSettings = normalizeMusicSettings({ ...settings.musicSettings, enabled: false, skipEnabled: false });
   const likeRaceSettings = normalizeLikeRaceSettings({ ...settings.likeRaceSettings, enabled: false });
   const spinWheelSettings = normalizeSpinWheelSettings({ ...settings.spinWheelSettings, enabled: false });
+  const jokeOverlaySettings = normalizeJokeOverlaySettings({ ...settings.jokeOverlaySettings, enabled: false });
 
   if (ttsEnabledInput) {
     ttsEnabledInput.checked = false;
@@ -11983,9 +12438,11 @@ async function enableStreamSafeMode() {
     customEventRules,
     musicSettings,
     likeRaceSettings,
-    spinWheelSettings
+    spinWheelSettings,
+    jokeOverlaySettings
   });
   renderMusicSettings();
+  renderJokeOverlaySettings();
   renderLikeRaceSettings();
   renderSpinWheelSettings();
   renderLiveControlDashboard();
@@ -12364,6 +12821,7 @@ async function ensureSoundCatalog() {
     state.soundCatalogLoaded = true;
     state.soundCatalogError = "";
     renderCustomRules();
+    renderJokeOverlaySettings();
     renderLikeRaceSettings();
     renderSpinWheelSettings();
     renderMusicSettings();
@@ -17013,6 +17471,50 @@ async function renameSelectedXttsVoiceFromUi() {
   showToast(`Renamed XTTS voice to "${nextName}".`, "success");
 }
 
+function renderXttsRuntimeStatus(status = null) {
+  if (!ttsXttsRuntimeStatus) {
+    return;
+  }
+  if (!status) {
+    ttsXttsRuntimeStatus.textContent = "XTTS runtime status unavailable.";
+    ttsXttsRuntimeStatus.dataset.state = "unknown";
+    return;
+  }
+  const activeRoot = String(status.activeRoot ?? "").trim();
+  const runtimeRoot = String(status.runtimeRoot ?? "").trim();
+  if (status.installed) {
+    ttsXttsRuntimeStatus.textContent = `Runtime ready${activeRoot ? `: ${activeRoot}` : "."}`;
+    ttsXttsRuntimeStatus.dataset.state = "ready";
+    return;
+  }
+  const fallbackRoot = String(status.fallbackRoot ?? "").trim();
+  const fallbackNote = fallbackRoot ? ` A fallback/dev runtime exists at ${fallbackRoot}, but it is not the optional installed runtime.` : "";
+  ttsXttsRuntimeStatus.textContent = `Runtime not installed. Open the runtime folder and add .venv-xtts plus tools there: ${runtimeRoot}.${fallbackNote}`;
+  ttsXttsRuntimeStatus.dataset.state = "missing";
+}
+
+async function refreshXttsRuntimeStatus(options = {}) {
+  if (!app?.getXttsRuntimeStatus) {
+    renderXttsRuntimeStatus(null);
+    return null;
+  }
+  try {
+    const status = await app.getXttsRuntimeStatus();
+    renderXttsRuntimeStatus(status);
+    return status;
+  } catch (error) {
+    const message = error.message || "Unable to check XTTS runtime.";
+    if (!options.silent) {
+      showToast(message, "error");
+    }
+    if (ttsXttsRuntimeStatus) {
+      ttsXttsRuntimeStatus.textContent = message;
+      ttsXttsRuntimeStatus.dataset.state = "error";
+    }
+    return null;
+  }
+}
+
 async function checkXttsServiceFromUi() {
   const serviceUrl = String(ttsXttsServiceUrlInput?.value ?? state.settings?.ttsXttsServiceUrl ?? "").trim();
   try {
@@ -17037,6 +17539,7 @@ async function startXttsServiceFromUi(options = {}) {
       showToast(result?.message || "XTTS service started.", "success");
       setStatusMessage(ttsStatus, "success", result?.message || "XTTS service started.");
     }
+    void refreshXttsRuntimeStatus({ silent: true });
     return result;
   } catch (error) {
     const message = error.message || "Unable to start the XTTS service.";
@@ -17570,6 +18073,7 @@ function updateTtsProviderVisibility() {
   ttsElevenFallbackTiktokField?.classList.toggle("is-hidden", !isElevenLabs);
   ttsXttsServiceUrlField?.classList.toggle("is-hidden", !showXttsTools);
   ttsXttsServiceActions?.classList.toggle("is-hidden", !showXttsTools);
+  ttsXttsRuntimePanel?.classList.toggle("is-hidden", !showXttsTools);
   ttsXttsSplitSentencesField?.classList.toggle("is-hidden", !showXttsTools);
   ttsXttsLanguageField?.classList.toggle("is-hidden", !showXttsTools);
   ttsCachePanel?.classList.toggle("is-hidden", !showXttsTools);
@@ -17578,6 +18082,9 @@ function updateTtsProviderVisibility() {
   renderXttsVoiceTuning();
   renderElevenLabsUsagePanel();
   void refreshElevenLabsUsage({ silent: true });
+  if (showXttsTools) {
+    void refreshXttsRuntimeStatus({ silent: true });
+  }
 }
 
 function enqueueSpeech(text, options = {}) {
@@ -17969,6 +18476,7 @@ async function handleIncomingChat(payload) {
           emote?.emoteId,
           state.username
         );
+        maybeTriggerJokeOverlayFromEmote(item, emote);
       }
     }
   }
@@ -17984,6 +18492,7 @@ async function handleIncomingChat(payload) {
     incrementGiftMetric(item.user, item.giftName, giftCount);
     pushGiftOverlayItem(item);
     void rememberKnownTikTokGift(item.giftName, item.giftImageUrl, item.coinValue, item.giftId);
+    maybeTriggerJokeOverlayFromGift(item);
     maybeTriggerSpinWheelFromGift(item);
     moveLikeRaceRacer(item, totalCoins * Math.max(0, Number(getLikeRace().giftMultiplier) || 0), {
       type: "gift",
@@ -18047,6 +18556,7 @@ async function handleIncomingChat(payload) {
     awardViewerPoints(item, "subEmote", 1);
     incrementEmoteMetric("subEmote", item.user, item.emoteId, item.emoteName, 1);
     void rememberKnownTikTokEmote("subEmote", item.emoteName, item.emoteImageUrl, item.emoteId, state.username);
+    maybeTriggerJokeOverlayFromEmote(item);
   }
 
   if (item.type === "fanEmote") {
@@ -18055,6 +18565,7 @@ async function handleIncomingChat(payload) {
     awardViewerPoints(item, "fanEmote", 1);
     incrementEmoteMetric("fanEmote", item.user, item.emoteId, item.emoteName, 1);
     void rememberKnownTikTokEmote("fanEmote", item.emoteName, item.emoteImageUrl, item.emoteId, state.username);
+    maybeTriggerJokeOverlayFromEmote(item);
   }
 
   if (["chat", "gift", "follow", "share", "like"].includes(item.type)) {
@@ -18089,6 +18600,11 @@ async function handleIncomingChat(payload) {
 
   const handledListCommands = await handleListCommandsCommand(item);
   if (handledListCommands) {
+    return;
+  }
+
+  const handledJokeCommand = await handleJokeCommand(item);
+  if (handledJokeCommand) {
     return;
   }
 
@@ -18315,6 +18831,7 @@ function applySettingsToUi() {
       ? String(settings.votingStartRole).trim().toLowerCase()
       : "everyone";
     votingOverlayOrientationInput.value = String(settings.votingOverlayOrientation ?? "").trim().toLowerCase() === "vertical" ? "vertical" : "horizontal";
+    renderJokeOverlaySettings();
     renderLikeRaceSettings();
     renderSpinWheelSettings();
     renderProgressBarSettings();
@@ -19192,6 +19709,69 @@ function wireChatToolbarEvents() {
     } catch (error) {
       showToast(error.message || "Unable to open the voting overlay.", "error");
     }
+  });
+  jokeOverlayCopyButton?.addEventListener("click", async () => {
+    const overlayUrl = jokeOverlayUrlInput?.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The joke overlay URL is not ready yet.", "error");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      showToast("Joke overlay URL copied.", "success");
+    } catch (error) {
+      showToast(error.message || "Unable to copy the joke overlay URL.", "error");
+    }
+  });
+  jokeOverlayOpenButton?.addEventListener("click", async () => {
+    const overlayUrl = jokeOverlayUrlInput?.value.trim();
+    if (!overlayUrl || overlayUrl === "Overlay unavailable" || overlayUrl === "Loading...") {
+      showToast("The joke overlay URL is not ready yet.", "error");
+      return;
+    }
+    try {
+      await app.openExternal(overlayUrl);
+    } catch (error) {
+      showToast(error.message || "Unable to open the joke overlay.", "error");
+    }
+  });
+  jokeOverlayTestButton?.addEventListener("click", () => {
+    state.settings.jokeOverlaySettings = collectJokeOverlaySettingsFromUi();
+    void triggerJokeOverlay({ user: "testviewer", nickname: "Test Viewer" }, "test").then(() => {
+      showToast("Joke overlay test sent.", "success");
+    }).catch((error) => {
+      showToast(error.message || "Unable to test joke overlay.", "error");
+    });
+  });
+  [
+    jokeOverlayEnabledInput,
+    jokeOverlaySourceInput,
+    jokeOverlayApiCategoryInput,
+    jokeOverlayApiSafeModeInput,
+    jokeOverlayCommandRoleInput,
+    jokeOverlayDurationInput,
+    jokeOverlayDisplayModeInput,
+    jokeOverlayMarqueeSpeedInput,
+    jokeOverlayGiftNameInput,
+    jokeOverlayEmoteNameInput,
+    jokeOverlayJokesInput,
+    jokeOverlayTitleInput,
+    jokeOverlayFontFamilyInput,
+    jokeOverlayFontSizeInput,
+    jokeOverlayBorderRadiusInput,
+    jokeOverlayAccentColorInput,
+    jokeOverlayBackgroundColorInput,
+    jokeOverlayTextColorInput
+  ].forEach((element) => {
+    element?.addEventListener("input", () => {
+      state.settings.jokeOverlaySettings = collectJokeOverlaySettingsFromUi();
+      scheduleSettingsSave();
+    });
+    element?.addEventListener("change", () => {
+      state.settings.jokeOverlaySettings = collectJokeOverlaySettingsFromUi();
+      scheduleSettingsSave();
+      renderJokeOverlaySettings();
+    });
   });
   progressBarOverlayAddButton?.addEventListener("click", () => {
     const bars = normalizeProgressBarOverlays(state.settings?.progressBarOverlays);
@@ -20608,7 +21188,78 @@ function wireSettingsEvents() {
   });
 
   ttsXttsOpenHelpButton?.addEventListener("click", () => {
-    showToast("Auto-start expects .venv-xtts\\Scripts\\python.exe and tools\\xtts_v2_service.py in the app folder. Or run your own XTTS server and set the XTTS service URL.", "info");
+    showToast("XTTS is optional to keep the installer small. Open the runtime folder and add .venv-xtts plus tools there, or run your own XTTS server and set the service URL.", "info");
+  });
+
+  ttsXttsRefreshRuntimeButton?.addEventListener("click", () => {
+    void refreshXttsRuntimeStatus();
+  });
+
+  const installXttsRuntimeFromUi = (payload = {}) => {
+    void (async () => {
+      try {
+        if (ttsXttsRuntimeStatus) {
+          ttsXttsRuntimeStatus.textContent = payload?.mode === "folder"
+            ? "Installing XTTS runtime from selected folder. This can take a few minutes..."
+            : "Installing XTTS runtime. The app will use a local runtime if available, otherwise download and extract the official runtime package...";
+          ttsXttsRuntimeStatus.dataset.state = "unknown";
+        }
+        const result = await app.installXttsRuntime(payload);
+        if (result?.canceled) {
+          renderXttsRuntimeStatus(result);
+          showToast("XTTS runtime install cancelled.", "info");
+          return;
+        }
+        renderXttsRuntimeStatus(result);
+        const sourceLabel = result?.installSource === "download"
+          ? "downloaded and installed"
+          : result?.installSource === "local"
+            ? "installed from local runtime"
+            : result?.installSource === "folder"
+              ? "installed from selected folder"
+              : "installed";
+        showToast(result?.copied === false ? "XTTS runtime already installed." : `XTTS runtime ${sourceLabel}.`, "success");
+      } catch (error) {
+        showToast(error.message || "Unable to install XTTS runtime.", "error");
+        void refreshXttsRuntimeStatus({ silent: true });
+      }
+    })();
+  };
+
+  ttsXttsInstallRuntimeButton?.addEventListener("click", () => {
+    installXttsRuntimeFromUi();
+  });
+
+  ttsXttsChooseRuntimeButton?.addEventListener("click", () => {
+    installXttsRuntimeFromUi({ mode: "folder" });
+  });
+
+  ttsXttsOpenRuntimeFolderButton?.addEventListener("click", () => {
+    void (async () => {
+      try {
+        const status = await app.openXttsRuntimeFolder();
+        renderXttsRuntimeStatus(status);
+        showToast("XTTS runtime folder opened.", "success");
+      } catch (error) {
+        showToast(error.message || "Unable to open XTTS runtime folder.", "error");
+      }
+    })();
+  });
+
+  ttsXttsRemoveRuntimeButton?.addEventListener("click", () => {
+    void (async () => {
+      const confirmed = window.confirm("Remove the optional local XTTS runtime from this app data folder? Your saved XTTS voice samples are not removed.");
+      if (!confirmed) {
+        return;
+      }
+      try {
+        const status = await app.removeXttsRuntime();
+        renderXttsRuntimeStatus(status);
+        showToast("Optional XTTS runtime removed.", "success");
+      } catch (error) {
+        showToast(error.message || "Unable to remove XTTS runtime.", "error");
+      }
+    })();
   });
 
   ttsCacheRefreshButton?.addEventListener("click", () => {

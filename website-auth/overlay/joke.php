@@ -1,0 +1,280 @@
+<?php
+declare(strict_types=1);
+
+$overlayId = trim((string) ($_GET['id'] ?? ''));
+$overlayToken = trim((string) ($_GET['token'] ?? ''));
+$overlayAccessQuery = $overlayId !== ''
+    ? 'id=' . rawurlencode($overlayId)
+    : 'token=' . rawurlencode($overlayToken);
+?>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stream Sync Pro LIVE Joke Overlay</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --accent: #ffd166;
+        --background: #071322;
+        --text: #fff7e6;
+        --font: "Segoe UI", system-ui, sans-serif;
+        --size: 34px;
+        --radius: 24px;
+        --marquee-duration: 18s;
+      }
+
+      * { box-sizing: border-box; }
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        min-height: 100%;
+        background: transparent;
+        color: var(--text);
+        font-family: var(--font);
+      }
+
+      body {
+        padding: 24px;
+        display: grid;
+        place-items: center;
+      }
+
+      .joke-card {
+        display: none;
+        width: min(920px, 100%);
+        position: relative;
+        overflow: hidden;
+        padding: 28px;
+        border-radius: var(--radius);
+        background:
+          radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 34%),
+          linear-gradient(145deg, color-mix(in srgb, var(--background) 96%, #ffffff 4%), color-mix(in srgb, var(--background) 88%, #000000 12%));
+        border: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+        box-shadow:
+          0 24px 80px rgba(0, 0, 0, 0.45),
+          0 0 36px color-mix(in srgb, var(--accent) 42%, transparent);
+        animation: jokePop 420ms cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+      }
+
+      .joke-card.visible {
+        display: grid;
+        gap: 16px;
+      }
+
+      .joke-card.marquee-mode {
+        width: min(100%, 1920px);
+        padding: 14px 0;
+        border-left: 0;
+        border-right: 0;
+        border-radius: var(--radius);
+      }
+
+      .joke-card.marquee-mode.visible {
+        display: block;
+      }
+
+      .joke-card.marquee-mode .joke-head,
+      .joke-card.marquee-mode .joke-meta {
+        display: none;
+      }
+
+      .joke-card.marquee-mode .joke-body {
+        display: block;
+        overflow: hidden;
+        white-space: nowrap;
+        width: 100%;
+      }
+
+      .joke-card.marquee-mode .joke-setup {
+        display: inline-block;
+        min-width: 100%;
+        padding-inline: 100%;
+        font-size: var(--size);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        animation: jokeMarquee var(--marquee-duration) linear infinite;
+      }
+
+      .joke-card.marquee-mode .joke-punchline {
+        display: none;
+      }
+
+      .joke-card::before {
+        content: "";
+        position: absolute;
+        inset: -40%;
+        background:
+          radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent) 0 3px, transparent 4px),
+          radial-gradient(circle, rgba(255, 255, 255, 0.26) 0 2px, transparent 3px);
+        background-size: 56px 56px, 82px 82px;
+        opacity: 0.28;
+        transform: rotate(-8deg);
+        pointer-events: none;
+      }
+
+      .joke-head,
+      .joke-body,
+      .joke-meta {
+        position: relative;
+        z-index: 1;
+      }
+
+      .joke-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: center;
+      }
+
+      .joke-title {
+        margin: 0;
+        color: var(--accent);
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .joke-source {
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .joke-body {
+        display: grid;
+        gap: 14px;
+      }
+
+      .joke-setup {
+        font-size: var(--size);
+        line-height: 1.12;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+      }
+
+      .joke-punchline {
+        width: fit-content;
+        max-width: 100%;
+        padding: 12px 16px;
+        border-radius: calc(var(--radius) * 0.65);
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+        font-size: calc(var(--size) * 0.84);
+        line-height: 1.16;
+        font-weight: 900;
+      }
+
+      .joke-meta {
+        color: color-mix(in srgb, var(--text) 74%, transparent);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      @keyframes jokePop {
+        from {
+          opacity: 0;
+          transform: translateY(18px) scale(0.94) rotate(-1deg);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1) rotate(0deg);
+        }
+      }
+
+      @keyframes jokeMarquee {
+        from { transform: translateX(0); }
+        to { transform: translateX(-100%); }
+      }
+    </style>
+  </head>
+  <body>
+    <section id="joke-card" class="joke-card">
+      <header class="joke-head">
+        <h1 id="joke-title" class="joke-title">Joke Time</h1>
+        <span id="joke-source" class="joke-source">!joke</span>
+      </header>
+      <div class="joke-body">
+        <div id="joke-setup" class="joke-setup"></div>
+        <div id="joke-punchline" class="joke-punchline"></div>
+      </div>
+      <div id="joke-meta" class="joke-meta"></div>
+    </section>
+
+    <script>
+      const overlayAccessQuery = <?php echo json_encode($overlayAccessQuery, JSON_UNESCAPED_SLASHES); ?>;
+      const card = document.getElementById("joke-card");
+      const title = document.getElementById("joke-title");
+      const source = document.getElementById("joke-source");
+      const setup = document.getElementById("joke-setup");
+      const punchline = document.getElementById("joke-punchline");
+      const meta = document.getElementById("joke-meta");
+
+      function renderState(state) {
+        const visibleUntil = state?.visibleUntil ? new Date(state.visibleUntil) : null;
+        const shouldShow = Boolean(state?.visible)
+          && visibleUntil instanceof Date
+          && !Number.isNaN(visibleUntil.getTime())
+          && visibleUntil.getTime() > Date.now();
+        card.classList.toggle("visible", shouldShow);
+        if (!shouldShow) return;
+
+        const safeSetup = String(state?.setup || state?.joke || "").trim();
+        const safePunchline = String(state?.punchline || "").trim();
+        const displayMode = state?.displayMode === "marquee" ? "marquee" : "card";
+        const marqueeSpeed = Math.max(20, Math.min(140, Number(state?.marqueeSpeed) || 70));
+        const marqueeText = [String(state?.title || "Joke Time"), safeSetup, safePunchline]
+          .map((part) => part.trim())
+          .filter(Boolean)
+          .join("   •   ");
+
+        document.documentElement.style.setProperty("--accent", /^#[0-9a-fA-F]{6}$/.test(state?.accentColor || "") ? state.accentColor : "#ffd166");
+        document.documentElement.style.setProperty("--background", /^#[0-9a-fA-F]{6}$/.test(state?.backgroundColor || "") ? state.backgroundColor : "#071322");
+        document.documentElement.style.setProperty("--text", /^#[0-9a-fA-F]{6}$/.test(state?.textColor || "") ? state.textColor : "#fff7e6");
+        document.documentElement.style.setProperty("--font", String(state?.fontFamily || "Segoe UI"));
+        document.documentElement.style.setProperty("--size", `${Math.max(14, Math.min(120, Number(state?.fontSize) || 34))}px`);
+        document.documentElement.style.setProperty("--radius", `${Math.max(0, Math.min(80, Number(state?.borderRadius) || 24))}px`);
+        document.documentElement.style.setProperty("--marquee-duration", `${Math.max(6, Math.min(42, 46 - Math.round(marqueeSpeed / 4)))}s`);
+
+        card.classList.toggle("marquee-mode", displayMode === "marquee");
+        title.textContent = String(state?.title || "Joke Time");
+        source.textContent = String(state?.sourceType || "!joke");
+        setup.textContent = displayMode === "marquee" ? marqueeText : safeSetup;
+        punchline.textContent = safePunchline;
+        punchline.hidden = !safePunchline;
+        meta.textContent = state?.username ? `Triggered by ${state.username}` : "";
+      }
+
+      async function loadState() {
+        if (!overlayAccessQuery) {
+          renderState({});
+          return;
+        }
+
+        try {
+          const response = await fetch(`/api/overlay/joke-state?${overlayAccessQuery}`, {
+            cache: "no-store"
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result?.error || "Overlay unavailable.");
+          }
+          renderState(result?.state ?? {});
+        } catch {
+          renderState({});
+        }
+      }
+
+      loadState();
+      window.setInterval(loadState, 350);
+    </script>
+  </body>
+</html>

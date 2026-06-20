@@ -629,6 +629,151 @@
               </div>
             </section>
 
+            <!-- Joke Overlay -->
+            <section class="sidebar-card card" data-main-screen-card="controls-joke-overlay">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Interactive</p>
+                  <h3 class="section-title">Joke Overlay</h3>
+                </div>
+              </div>
+
+              <div class="card-body">
+                <div class="settings-grid">
+                  <label class="toggle-switch">
+                    <input id="joke-overlay-enabled" type="checkbox" />
+                    <span class="switch-ui"></span>
+                    <span class="switch-copy">
+                      <strong>Enable joke overlay</strong>
+                      <small>Let viewers trigger a fully styled joke overlay with <code>!joke</code>, a selected gift, or a selected emote.</small>
+                    </span>
+                  </label>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Joke source</span>
+                      <select id="joke-overlay-source">
+                        <option value="jokeapi">JokeAPI.dev</option>
+                        <option value="custom">Custom joke list</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>JokeAPI category</span>
+                      <select id="joke-overlay-api-category">
+                        <option value="Any">Any</option>
+                        <option value="Misc">Misc</option>
+                        <option value="Programming">Programming</option>
+                        <option value="Pun">Pun</option>
+                        <option value="Spooky">Spooky</option>
+                        <option value="Christmas">Christmas</option>
+                        <option value="Dark">Dark</option>
+                      </select>
+                    </label>
+                    <label class="toggle-switch">
+                      <input id="joke-overlay-api-safe-mode" type="checkbox" checked />
+                      <span class="switch-ui"></span>
+                      <span class="switch-copy">
+                        <strong>Use JokeAPI safe mode</strong>
+                        <small>Ask JokeAPI to avoid unsafe or explicit jokes.</small>
+                      </span>
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Who can use !joke</span>
+                      <select id="joke-overlay-command-role">
+                        <option value="everyone">Everyone</option>
+                        <option value="followers">Followers</option>
+                        <option value="subscribers">Subscribers / Super Fans</option>
+                        <option value="moderators">Moderators</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Display duration seconds</span>
+                      <input id="joke-overlay-duration" type="number" min="1" max="60" step="1" value="8" />
+                    </label>
+                    <label class="field">
+                      <span>Display style</span>
+                      <select id="joke-overlay-display-mode">
+                        <option value="card">Pop-up card</option>
+                        <option value="marquee">Marquee scrolling joke</option>
+                      </select>
+                    </label>
+                    <label class="field">
+                      <span>Marquee speed</span>
+                      <input id="joke-overlay-marquee-speed" type="range" min="20" max="140" step="5" value="70" />
+                      <small class="field-hint">Higher is faster. Used when display style is marquee.</small>
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Gift trigger</span>
+                      <input id="joke-overlay-gift-name" type="text" list="joke-overlay-gift-list" placeholder="Any selected gift name" />
+                      <datalist id="joke-overlay-gift-list"></datalist>
+                    </label>
+                    <label class="field">
+                      <span>Emote trigger</span>
+                      <input id="joke-overlay-emote-name" type="text" list="joke-overlay-emote-list" placeholder="Sub/fan emote name or id" />
+                      <datalist id="joke-overlay-emote-list"></datalist>
+                    </label>
+                  </div>
+
+                  <label class="field">
+                    <span>Jokes</span>
+                    <textarea id="joke-overlay-jokes" rows="5" placeholder="Why did the streamer cross the road? | To get to the other side of chat."></textarea>
+                    <small class="field-hint">Add one joke per line. Use <code>|</code> to split setup and punchline. Tags: <code>{username}</code>, <code>{giftName}</code>, <code>{emoteName}</code>.</small>
+                  </label>
+
+                  <div class="field-grid">
+                    <label class="field">
+                      <span>Overlay title</span>
+                      <input id="joke-overlay-title" type="text" value="Joke Time" />
+                    </label>
+                    <label class="field">
+                      <span>Font family</span>
+                      <input id="joke-overlay-font-family" type="text" value="Segoe UI" />
+                    </label>
+                    <label class="field">
+                      <span>Font size</span>
+                      <input id="joke-overlay-font-size" type="range" min="16" max="90" step="1" value="34" />
+                    </label>
+                    <label class="field">
+                      <span>Corner radius</span>
+                      <input id="joke-overlay-border-radius" type="range" min="0" max="60" step="1" value="24" />
+                    </label>
+                  </div>
+
+                  <div class="field-grid">
+                    <label class="field color-field">
+                      <span>Accent colour</span>
+                      <input id="joke-overlay-accent-color" type="color" value="#ffd166" />
+                    </label>
+                    <label class="field color-field">
+                      <span>Background colour</span>
+                      <input id="joke-overlay-background-color" type="color" value="#071322" />
+                    </label>
+                    <label class="field color-field">
+                      <span>Text colour</span>
+                      <input id="joke-overlay-text-color" type="color" value="#fff7e6" />
+                    </label>
+                  </div>
+
+                  <label class="field">
+                    <span>Overlay URL</span>
+                    <input id="joke-overlay-url" type="text" readonly value="Loading..." />
+                  </label>
+                  <div class="queue-overlay-actions">
+                    <button type="button" id="joke-overlay-copy" class="ghost compact-button">Copy URL</button>
+                    <button type="button" id="joke-overlay-open" class="ghost compact-button">Open Overlay</button>
+                    <button type="button" id="joke-overlay-test" class="ghost compact-button">Test Joke</button>
+                  </div>
+                  <p id="joke-overlay-status" class="status info">Preparing joke overlay...</p>
+                </div>
+              </div>
+            </section>
+
             <!-- Text To Speech -->
             <section class="sidebar-card card tts-card" data-main-screen-card="controls-text-to-speech">
               <div class="card-header section-head">
@@ -878,6 +1023,21 @@
                         <button type="button" id="tts-xtts-start-service" class="ghost compact-button">Start XTTS service</button>
                         <button type="button" id="tts-xtts-check-service" class="ghost compact-button">Check XTTS service</button>
                         <button type="button" id="tts-xtts-open-help" class="ghost compact-button">XTTS setup help</button>
+                      </div>
+
+                      <div class="field tts-xtts-only is-hidden field-span-2 xtts-runtime-panel" id="tts-xtts-runtime-panel">
+                        <div class="xtts-runtime-copy">
+                          <strong>Optional local XTTS runtime</strong>
+                          <small id="tts-xtts-runtime-status">Checking XTTS runtime...</small>
+                        </div>
+                        <div class="actions xtts-service-actions">
+                          <button type="button" id="tts-xtts-refresh-runtime" class="ghost compact-button">Refresh runtime</button>
+                          <button type="button" id="tts-xtts-install-runtime" class="ghost compact-button">Install runtime</button>
+                          <button type="button" id="tts-xtts-choose-runtime" class="ghost compact-button">Choose folder</button>
+                          <button type="button" id="tts-xtts-open-runtime-folder" class="ghost compact-button">Open runtime folder</button>
+                          <button type="button" id="tts-xtts-remove-runtime" class="ghost compact-button danger">Remove runtime</button>
+                        </div>
+                        <small class="field-hint">The main installer stays small by not bundling the XTTS Python engine. Add the runtime here only if you need local XTTS voice cloning.</small>
                       </div>
 
                       <label class="toggle-row compact-toggle tts-xtts-only is-hidden" id="tts-xtts-split-sentences-field">
@@ -1373,6 +1533,19 @@
                         <button type="button" class="ghost compact-button" data-overlay-hub-click="vote-overlay-copy">Copy</button>
                         <button type="button" class="ghost compact-button" data-overlay-hub-click="vote-overlay-open">Open</button>
                         <button type="button" class="ghost compact-button" data-overlay-hub-click="voting-test-button">Test</button>
+                      </div>
+                    </article>
+                    <article class="overlay-hub-tile">
+                      <span class="overlay-hub-icon">J</span>
+                      <div>
+                        <strong>Joke Overlay</strong>
+                        <small>Command, gift, or emote triggered jokes.</small>
+                      </div>
+                      <div class="overlay-hub-actions">
+                        <button type="button" class="ghost compact-button" data-overlay-hub-jump="controls-joke-overlay">Settings</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="joke-overlay-copy">Copy</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="joke-overlay-open">Open</button>
+                        <button type="button" class="ghost compact-button" data-overlay-hub-click="joke-overlay-test">Test</button>
                       </div>
                     </article>
                     <article class="overlay-hub-tile">

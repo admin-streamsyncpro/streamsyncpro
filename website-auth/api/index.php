@@ -74,6 +74,11 @@ function routeRequest(PDO $pdo, array $config): void
         return;
     }
 
+    if ($requestMethod === 'GET' && $requestPath === '/overlay/joke-state') {
+        handleGetJokeOverlayState($pdo, $_GET);
+        return;
+    }
+
     if ($requestMethod === 'GET' && $requestPath === '/overlay/chat-state') {
         handleGetChatOverlayState($pdo, $_GET);
         return;
@@ -207,6 +212,9 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/overlay/update-command-feedback-state':
             handleUpdateCommandFeedbackOverlayState($pdo, $input);
+            return;
+        case '/overlay/update-joke-state':
+            handleUpdateJokeOverlayState($pdo, $input);
             return;
         case '/overlay/update-chat-state':
             handleUpdateChatOverlayState($pdo, $input);
@@ -342,6 +350,7 @@ function ensureSchema(PDO $pdo, array $config = []): void
             overlay_token_expires_at DATETIME NULL,
             queue_state_json LONGTEXT NULL,
             command_feedback_json LONGTEXT NULL,
+            joke_overlay_json LONGTEXT NULL,
             chat_overlay_json LONGTEXT NULL,
             gift_overlay_json LONGTEXT NULL,
             likes_overlay_json LONGTEXT NULL,
@@ -426,7 +435,8 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_credit_transactions', 'discount_amount', 'ALTER TABLE auth_credit_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER amount_value');
     ensureColumn($pdo, 'auth_user_overlay_state', 'overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD COLUMN overlay_public_id VARCHAR(80) NULL AFTER user_id');
     ensureColumn($pdo, 'auth_user_overlay_state', 'command_feedback_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN command_feedback_json LONGTEXT NULL AFTER queue_state_json');
-    ensureColumn($pdo, 'auth_user_overlay_state', 'chat_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN chat_overlay_json LONGTEXT NULL AFTER command_feedback_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'joke_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN joke_overlay_json LONGTEXT NULL AFTER command_feedback_json');
+    ensureColumn($pdo, 'auth_user_overlay_state', 'chat_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN chat_overlay_json LONGTEXT NULL AFTER joke_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'gift_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN gift_overlay_json LONGTEXT NULL AFTER chat_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'likes_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN likes_overlay_json LONGTEXT NULL AFTER gift_overlay_json');
     ensureColumn($pdo, 'auth_user_overlay_state', 'viewer_stats_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN viewer_stats_overlay_json LONGTEXT NULL AFTER likes_overlay_json');
@@ -1124,6 +1134,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             overlay_token_expires_at,
             queue_state_json,
             command_feedback_json,
+            joke_overlay_json,
             chat_overlay_json,
             gift_overlay_json,
             likes_overlay_json,
@@ -1139,6 +1150,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             :overlay_token_expires_at,
             :queue_state_json,
             :command_feedback_json,
+            :joke_overlay_json,
             :chat_overlay_json,
             :gift_overlay_json,
             :likes_overlay_json,
@@ -1154,6 +1166,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
             overlay_token_expires_at = COALESCE(auth_user_overlay_state.overlay_token_expires_at, VALUES(overlay_token_expires_at)),
             queue_state_json = COALESCE(auth_user_overlay_state.queue_state_json, VALUES(queue_state_json)),
             command_feedback_json = COALESCE(auth_user_overlay_state.command_feedback_json, VALUES(command_feedback_json)),
+            joke_overlay_json = COALESCE(auth_user_overlay_state.joke_overlay_json, VALUES(joke_overlay_json)),
             chat_overlay_json = COALESCE(auth_user_overlay_state.chat_overlay_json, VALUES(chat_overlay_json)),
             gift_overlay_json = COALESCE(auth_user_overlay_state.gift_overlay_json, VALUES(gift_overlay_json)),
             likes_overlay_json = COALESCE(auth_user_overlay_state.likes_overlay_json, VALUES(likes_overlay_json)),
@@ -1170,6 +1183,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         ':overlay_token_expires_at' => $expiresAt,
         ':queue_state_json' => json_encode(defaultQueueOverlayState(), JSON_UNESCAPED_SLASHES),
         ':command_feedback_json' => json_encode(defaultCommandFeedbackOverlayState(), JSON_UNESCAPED_SLASHES),
+        ':joke_overlay_json' => json_encode(defaultJokeOverlayState(), JSON_UNESCAPED_SLASHES),
         ':chat_overlay_json' => json_encode(defaultChatOverlayState(), JSON_UNESCAPED_SLASHES),
         ':gift_overlay_json' => json_encode(defaultGiftOverlayState(), JSON_UNESCAPED_SLASHES),
         ':likes_overlay_json' => json_encode(defaultLikesOverlayState(), JSON_UNESCAPED_SLASHES),
@@ -1186,6 +1200,7 @@ function createOverlaySessionBundle(PDO $pdo, array $user, ?string $sessionToken
         'ok' => true,
         'queueUrl' => $siteBaseUrl . '/overlay/queue.php?id=' . $publicIdParam . '&v=20260617-queue-media',
         'commandFeedbackUrl' => $siteBaseUrl . '/overlay/command-feedback.php?id=' . $publicIdParam,
+        'jokeUrl' => $siteBaseUrl . '/overlay/joke.php?id=' . $publicIdParam,
         'chatUrl' => $siteBaseUrl . '/overlay/chat.php?id=' . $publicIdParam,
         'giftUrl' => $siteBaseUrl . '/overlay/gift.php?id=' . $publicIdParam,
         'likesUrl' => $siteBaseUrl . '/overlay/likes.php?id=' . $publicIdParam,
@@ -1331,6 +1346,34 @@ function handleUpdateCommandFeedbackOverlayState(PDO $pdo, array $input): void
     $statement->execute([
         ':user_id' => (int) $user['id'],
         ':command_feedback_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'state' => $state,
+    ]);
+}
+
+function handleUpdateJokeOverlayState(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $state = sanitizeJokeOverlayStatePayload($input);
+
+    $statement = $pdo->prepare(
+        'INSERT INTO auth_user_overlay_state (
+            user_id,
+            joke_overlay_json
+        ) VALUES (
+            :user_id,
+            :joke_overlay_json
+        )
+        ON DUPLICATE KEY UPDATE
+            joke_overlay_json = VALUES(joke_overlay_json),
+            updated_at = CURRENT_TIMESTAMP'
+    );
+    $statement->execute([
+        ':user_id' => (int) $user['id'],
+        ':joke_overlay_json' => json_encode($state, JSON_UNESCAPED_SLASHES),
     ]);
 
     jsonResponse(200, [
@@ -1587,6 +1630,23 @@ function handleGetCommandFeedbackOverlayState(PDO $pdo, array $query): void
     $decodedState = json_decode((string) ($overlayState['command_feedback_json'] ?? ''), true);
     if (is_array($decodedState)) {
         $state = sanitizeCommandFeedbackOverlayStatePayload($decodedState);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'user' => sanitizeUser($user),
+        'state' => $state,
+        'updatedAt' => (string) ($overlayState['updated_at'] ?? ''),
+    ]);
+}
+
+function handleGetJokeOverlayState(PDO $pdo, array $query): void
+{
+    [$user, $overlayState] = requireValidOverlayAccess($pdo, $query);
+    $state = defaultJokeOverlayState();
+    $decodedState = json_decode((string) ($overlayState['joke_overlay_json'] ?? ''), true);
+    if (is_array($decodedState)) {
+        $state = sanitizeJokeOverlayStatePayload($decodedState);
     }
 
     jsonResponse(200, [
@@ -2875,6 +2935,30 @@ function defaultCommandFeedbackOverlayState(): array
     ];
 }
 
+function defaultJokeOverlayState(): array
+{
+    return [
+        'visible' => false,
+        'joke' => '',
+        'setup' => '',
+        'punchline' => '',
+        'username' => '',
+        'sourceType' => 'command',
+        'title' => 'Joke Time',
+        'accentColor' => '#ffd166',
+        'backgroundColor' => '#071322',
+        'textColor' => '#fff7e6',
+        'fontFamily' => 'Segoe UI',
+        'fontSize' => 34,
+        'borderRadius' => 24,
+        'displayMode' => 'card',
+        'marqueeSpeed' => 70,
+        'durationMs' => 8000,
+        'visibleUntil' => '',
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
+    ];
+}
+
 function defaultChatOverlayState(): array
 {
     return [
@@ -3171,6 +3255,53 @@ function sanitizeCommandFeedbackOverlayStatePayload(array $payload): array
         'visibleUntil' => $visibleUntil,
         'durationMs' => $durationMs,
         'designerTemplate' => sanitizeOverlayDesignerTemplatePayload($payload['designerTemplate'] ?? null),
+    ];
+}
+
+function sanitizeJokeOverlayStatePayload(array $payload): array
+{
+    $durationMs = max(1000, min(60000, (int) ($payload['durationMs'] ?? 8000)));
+    $visibleUntil = trim((string) ($payload['visibleUntil'] ?? ''));
+    if ($visibleUntil === '' && !empty($payload['visible'])) {
+        $visibleUntil = gmdate('Y-m-d H:i:s', time() + (int) ceil($durationMs / 1000));
+    }
+
+    $accentColor = trim((string) ($payload['accentColor'] ?? ''));
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $accentColor)) {
+        $accentColor = '#ffd166';
+    }
+    $backgroundColor = trim((string) ($payload['backgroundColor'] ?? ''));
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $backgroundColor)) {
+        $backgroundColor = '#071322';
+    }
+    $textColor = trim((string) ($payload['textColor'] ?? ''));
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $textColor)) {
+        $textColor = '#fff7e6';
+    }
+
+    $setup = trim((string) ($payload['setup'] ?? ''));
+    $punchline = trim((string) ($payload['punchline'] ?? ''));
+    $joke = trim((string) ($payload['joke'] ?? implode(' ', array_filter([$setup, $punchline]))));
+
+    return [
+        'visible' => !empty($payload['visible']),
+        'joke' => mb_substr($joke, 0, 1200),
+        'setup' => mb_substr($setup, 0, 800),
+        'punchline' => mb_substr($punchline, 0, 800),
+        'username' => mb_substr(trim((string) ($payload['username'] ?? '')), 0, 120),
+        'sourceType' => mb_substr(trim((string) ($payload['sourceType'] ?? 'command')) ?: 'command', 0, 80),
+        'title' => mb_substr(trim((string) ($payload['title'] ?? 'Joke Time')) ?: 'Joke Time', 0, 120),
+        'accentColor' => $accentColor,
+        'backgroundColor' => $backgroundColor,
+        'textColor' => $textColor,
+        'fontFamily' => mb_substr(trim((string) ($payload['fontFamily'] ?? 'Segoe UI')) ?: 'Segoe UI', 0, 160),
+        'fontSize' => max(14, min(120, (int) ($payload['fontSize'] ?? 34))),
+        'borderRadius' => max(0, min(80, (int) ($payload['borderRadius'] ?? 24))),
+        'displayMode' => trim((string) ($payload['displayMode'] ?? '')) === 'marquee' ? 'marquee' : 'card',
+        'marqueeSpeed' => max(20, min(140, (int) ($payload['marqueeSpeed'] ?? 70))),
+        'durationMs' => $durationMs,
+        'visibleUntil' => $visibleUntil,
+        'updatedAt' => gmdate('Y-m-d H:i:s'),
     ];
 }
 

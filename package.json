@@ -1,6 +1,6 @@
 {
   "name": "ssp-live",
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "Stream Sync Pro LIVE desktop app for TikTok chat monitoring, TTS, and remote updates.",
   "main": "src/main.mjs",
   "type": "module",
@@ -17,6 +17,7 @@
     "dist:signed": "node build/run-signed-build.mjs",
     "dist:publish": "electron-builder --win nsis --publish always",
     "dist:signed:publish": "node build/run-signed-build.mjs --publish",
+    "xtts:package-runtime": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/create-xtts-runtime-package.ps1",
     "pack": "electron-builder --dir",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -45,13 +46,6 @@
       {
         "from": "tools",
         "to": "tools",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": ".venv-xtts",
-        "to": ".venv-xtts",
         "filter": [
           "**/*"
         ]

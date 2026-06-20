@@ -10,4 +10,6 @@ __pycache__/
 website-auth/api/config.local.php
 data/xtts-runtime/
 website-public/downloads/*.exe
+website-public/downloads/*.zip
+dist/*.zip
 website-public/assets/SSP - Copy.png

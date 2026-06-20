@@ -12,14 +12,14 @@ Suggested upload structure:
 - `public_html/terms.html`
 - `public_html/styles.css`
 - `public_html/assets/SSP.png`
-- `public_html/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.18.exe`
+- `public_html/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.19.exe`
 
 Notes:
 
-- The main download button now points to a website-hosted installer at `/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.18.exe`.
+- The main download button now points to a website-hosted installer at `/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.19.exe`.
 - Upload or rename the real installer file into `public_html/downloads/` using that exact filename for the button to work.
 - If you publish a new version and want the button text/link updated, change `website-public/index.html`.
-- The homepage currently highlights the v1.0.18 feature set: Overlay Hub, guided Event Actions, hosted overlays, progress bars, Like Race, Spin Wheel, Spotify, Voicemod, OBS actions, TikTok TTS, ElevenLabs fallback, XTTS custom voices, user points, and viewer stats.
+- The homepage currently highlights the v1.0.19 feature set: JokeAPI-powered Joke Overlay with queue and marquee mode, Overlay Hub, guided Event Actions, hosted overlays, progress bars, Like Race, Spin Wheel, Spotify, Voicemod, OBS actions, TikTok TTS, ElevenLabs fallback, XTTS custom voices, user points, and viewer stats.
 - Your auth/API files can stay in:
   - `public_html/api/`
   - `public_html/admin/`

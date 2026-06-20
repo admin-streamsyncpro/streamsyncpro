@@ -34,7 +34,7 @@ try {
 }
 
 $billing = getBillingPageConfig($config, $pdo ?? null);
-$appVersion = (string) ($config['app']['version'] ?? '1.0.18');
+$appVersion = (string) ($config['app']['version'] ?? '1.0.19');
 $paypal = [
     'clientId' => (string) (($config['paypal']['client_id'] ?? '')),
     'environment' => strtolower((string) (($config['paypal']['environment'] ?? 'live'))),

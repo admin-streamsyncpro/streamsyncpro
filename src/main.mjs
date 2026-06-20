@@ -7,6 +7,7 @@ import fsSync from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import electronUpdater from "electron-updater";
@@ -60,6 +61,8 @@ const execFileAsync = promisify(execFile);
 const TTS_SCRIPT_PATH = path.join(os.tmpdir(), "tiktok-live-reader-tts.ps1");
 const XTTS_SERVICE_SCRIPT_PATH = path.join(__dirname, "..", "tools", "xtts_v2_service.py");
 const XTTS_SERVICE_PYTHON_PATH = path.join(__dirname, "..", ".venv-xtts", "Scripts", "python.exe");
+const XTTS_RUNTIME_FOLDER_NAME = "xtts-runtime";
+const XTTS_RUNTIME_DOWNLOAD_URL = "https://streamsyncpro.co.uk/downloads/xtts-runtime.zip";
 const XTTS_LEGACY_SERVICE_ROOT = path.join(os.homedir(), "Documents", "Codex", "2026-05-14", "build-a-node-js-desktop-app");
 const TTS_CACHE_MAX_TEXT_LENGTH = 500;
 const TTS_CACHE_MAX_FILES = 500;
@@ -148,6 +151,24 @@ let commandFeedbackOverlayState = {
   updatedAt: null,
   visibleUntil: null,
   durationMs: 6000
+};
+let jokeOverlayState = {
+  visible: false,
+  joke: "",
+  setup: "",
+  punchline: "",
+  username: "",
+  sourceType: "command",
+  title: "Joke Time",
+  accentColor: "#ffd166",
+  backgroundColor: "#071322",
+  textColor: "#fff7e6",
+  fontFamily: "Segoe UI",
+  fontSize: 34,
+  borderRadius: 24,
+  durationMs: 8000,
+  visibleUntil: null,
+  updatedAt: null
 };
 let likeRaceOverlayState = {
   raceEnabled: false,
@@ -479,6 +500,42 @@ function getCommandFeedbackOverlayUrl() {
   return getOverlayUrlBundle("/command-feedback-overlay").url;
 }
 
+function getJokeOverlayUrl() {
+  return getOverlayUrlBundle("/joke-overlay").url;
+}
+
+function sanitizeJokeOverlayState(payload = {}) {
+  const durationMs = Math.max(1000, Math.min(60000, Number(payload?.durationMs) || 8000));
+  const fontSize = Math.max(14, Math.min(120, Number(payload?.fontSize) || 34));
+  const borderRadius = Math.max(0, Math.min(80, Number(payload?.borderRadius) || 24));
+  const displayMode = String(payload?.displayMode ?? "").trim().toLowerCase() === "marquee" ? "marquee" : "card";
+  const marqueeSpeed = Math.max(20, Math.min(140, Number(payload?.marqueeSpeed) || 70));
+  const setup = String(payload?.setup ?? "").trim();
+  const punchline = String(payload?.punchline ?? "").trim();
+  const joke = String(payload?.joke ?? [setup, punchline].filter(Boolean).join(" ")).trim();
+  const visible = Boolean(payload?.visible ?? joke);
+  return {
+    visible,
+    joke,
+    setup,
+    punchline,
+    username: String(payload?.username ?? "").trim(),
+    sourceType: String(payload?.sourceType ?? "command").trim() || "command",
+    title: String(payload?.title ?? "Joke Time").trim() || "Joke Time",
+    accentColor: /^#[0-9a-fA-F]{6}$/.test(String(payload?.accentColor ?? "").trim()) ? String(payload.accentColor).trim() : "#ffd166",
+    backgroundColor: /^#[0-9a-fA-F]{6}$/.test(String(payload?.backgroundColor ?? "").trim()) ? String(payload.backgroundColor).trim() : "#071322",
+    textColor: /^#[0-9a-fA-F]{6}$/.test(String(payload?.textColor ?? "").trim()) ? String(payload.textColor).trim() : "#fff7e6",
+    fontFamily: String(payload?.fontFamily ?? "Segoe UI").trim() || "Segoe UI",
+    fontSize,
+    borderRadius,
+    displayMode,
+    marqueeSpeed,
+    durationMs,
+    visibleUntil: visible ? new Date(Date.now() + durationMs).toISOString() : null,
+    updatedAt: new Date().toISOString()
+  };
+}
+
 function getLikeRaceOverlayUrl() {
   return getOverlayUrlBundle("/like-race-overlay").hostnameUrl;
 }
@@ -801,6 +858,21 @@ async function serveCommandFeedbackOverlayHtml(response) {
   }
 }
 
+async function serveJokeOverlayHtml(response) {
+  try {
+    const html = await fs.readFile(path.join(__dirname, "joke-overlay.html"), "utf8");
+    response.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store"
+    });
+    response.end(html);
+  } catch (error) {
+    log.error("Failed to serve joke overlay HTML", error);
+    response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Joke overlay unavailable.");
+  }
+}
+
 async function serveOverlayDesignerPreviewHtml(response) {
   try {
     const html = await fs.readFile(path.join(__dirname, "overlay-designer-preview.html"), "utf8");
@@ -875,6 +947,11 @@ function buildQueueOverlayServer() {
       return;
     }
 
+    if (requestUrl.pathname === "/joke-overlay") {
+      await serveJokeOverlayHtml(response);
+      return;
+    }
+
     if (requestUrl.pathname === "/overlay-designer-preview") {
       await serveOverlayDesignerPreviewHtml(response);
       return;
@@ -917,6 +994,20 @@ function buildQueueOverlayServer() {
         ok: true,
         overlayUrl: getCommandFeedbackOverlayUrl(),
         state: commandFeedbackOverlayState
+      }));
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/joke-overlay-state") {
+      response.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*"
+      });
+      response.end(JSON.stringify({
+        ok: true,
+        overlayUrl: getJokeOverlayUrl(),
+        state: jokeOverlayState
       }));
       return;
     }
@@ -2670,7 +2761,9 @@ async function waitForXttsService(serviceUrl, timeoutMs = 120000) {
 function getXttsServiceFileCandidates() {
   const appRoot = path.join(__dirname, "..");
   const resourceRoot = process.resourcesPath || appRoot;
+  const userRuntimeRoot = path.join(app.getPath("userData"), XTTS_RUNTIME_FOLDER_NAME);
   const roots = [
+    userRuntimeRoot,
     appRoot,
     process.cwd(),
     resourceRoot,
@@ -2699,6 +2792,198 @@ function resolveXttsServiceFiles() {
   return getXttsServiceFileCandidates().find((candidate) =>
     fsSync.existsSync(candidate.pythonPath) && fsSync.existsSync(candidate.scriptPath)
   ) ?? null;
+}
+
+function getXttsRuntimeFilesForRoot(rootPath) {
+  const resolvedRoot = path.resolve(rootPath);
+  return {
+    rootPath: resolvedRoot,
+    pythonPath: path.join(resolvedRoot, ".venv-xtts", "Scripts", "python.exe"),
+    scriptPath: path.join(resolvedRoot, "tools", "xtts_v2_service.py")
+  };
+}
+
+function isValidXttsRuntimeRoot(rootPath) {
+  const runtimeFiles = getXttsRuntimeFilesForRoot(rootPath);
+  return fsSync.existsSync(runtimeFiles.pythonPath) && fsSync.existsSync(runtimeFiles.scriptPath);
+}
+
+function getXttsRuntimeRoot() {
+  return path.join(app.getPath("userData"), XTTS_RUNTIME_FOLDER_NAME);
+}
+
+async function findValidXttsRuntimeRoot(startPath, maxDepth = 3) {
+  const resolvedStart = path.resolve(startPath);
+  if (isValidXttsRuntimeRoot(resolvedStart)) {
+    return resolvedStart;
+  }
+  if (maxDepth <= 0) {
+    return "";
+  }
+  let entries = [];
+  try {
+    entries = await fs.readdir(resolvedStart, { withFileTypes: true });
+  } catch {
+    return "";
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) {
+      continue;
+    }
+    const nestedMatch = await findValidXttsRuntimeRoot(path.join(resolvedStart, entry.name), maxDepth - 1);
+    if (nestedMatch) {
+      return nestedMatch;
+    }
+  }
+  return "";
+}
+
+function assertXttsRuntimeDestinationSafe(runtimeRoot) {
+  const resolvedRuntimeRoot = path.resolve(runtimeRoot);
+  const resolvedUserData = path.resolve(app.getPath("userData"));
+  if (!resolvedRuntimeRoot.startsWith(`${resolvedUserData}${path.sep}`)) {
+    throw new Error("Refusing to install XTTS runtime outside the app data folder.");
+  }
+  return resolvedRuntimeRoot;
+}
+
+async function stopXttsServiceIfRunning() {
+  if (xttsServiceProcess && !xttsServiceProcess.killed) {
+    xttsServiceProcess.kill();
+    xttsServiceProcess = null;
+  }
+}
+
+async function installXttsRuntimeFromSource(sourceRoot, installSource = "folder") {
+  const validSourceRoot = await findValidXttsRuntimeRoot(sourceRoot);
+  if (!validSourceRoot) {
+    throw new Error("That folder is not a valid XTTS runtime. It must contain .venv-xtts\\Scripts\\python.exe and tools\\xtts_v2_service.py.");
+  }
+
+  const runtimeRoot = getXttsRuntimeRoot();
+  const resolvedRuntimeRoot = assertXttsRuntimeDestinationSafe(runtimeRoot);
+  const resolvedSourceRoot = path.resolve(validSourceRoot);
+  if (resolvedSourceRoot === resolvedRuntimeRoot) {
+    return {
+      canceled: false,
+      copied: false,
+      installSource,
+      ...(await getXttsRuntimeStatus())
+    };
+  }
+  if (resolvedSourceRoot.startsWith(`${resolvedRuntimeRoot}${path.sep}`)) {
+    throw new Error("Choose the source XTTS runtime folder, not a folder inside the app runtime destination.");
+  }
+
+  await stopXttsServiceIfRunning();
+  const temporaryRuntimeRoot = `${runtimeRoot}-installing-${Date.now()}`;
+  await fs.rm(temporaryRuntimeRoot, { recursive: true, force: true });
+  await fs.mkdir(path.dirname(temporaryRuntimeRoot), { recursive: true });
+  try {
+    await fs.cp(resolvedSourceRoot, temporaryRuntimeRoot, { recursive: true, force: true });
+    if (!isValidXttsRuntimeRoot(temporaryRuntimeRoot)) {
+      throw new Error("The copied runtime did not validate correctly.");
+    }
+    await fs.rm(runtimeRoot, { recursive: true, force: true });
+    await fs.rename(temporaryRuntimeRoot, runtimeRoot);
+  } catch (error) {
+    await fs.rm(temporaryRuntimeRoot, { recursive: true, force: true });
+    throw error;
+  }
+
+  return {
+    canceled: false,
+    copied: true,
+    installSource,
+    ...(await getXttsRuntimeStatus())
+  };
+}
+
+async function downloadFileToPath(url, destinationPath) {
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    throw new Error(`XTTS runtime download failed with status ${response.status}.`);
+  }
+  await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+  const outputStream = fsSync.createWriteStream(destinationPath);
+  await pipeline(response.body, outputStream);
+}
+
+async function extractZipArchive(archivePath, destinationPath) {
+  await fs.rm(destinationPath, { recursive: true, force: true });
+  await fs.mkdir(destinationPath, { recursive: true });
+  await execFileAsync("powershell.exe", [
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-Command",
+    "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
+    archivePath,
+    destinationPath
+  ], { windowsHide: true, maxBuffer: 1024 * 1024 });
+}
+
+async function installXttsRuntimeManaged() {
+  const status = await getXttsRuntimeStatus();
+  if (status.installed) {
+    return {
+      canceled: false,
+      copied: false,
+      installSource: "existing",
+      ...status
+    };
+  }
+
+  if (status.fallbackRuntimeAvailable && status.fallbackRoot) {
+    return installXttsRuntimeFromSource(status.fallbackRoot, "local");
+  }
+
+  const installId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  const downloadDirectory = path.join(os.tmpdir(), `stream-sync-pro-xtts-runtime-${installId}`);
+  const archivePath = path.join(downloadDirectory, "xtts-runtime.zip");
+  const extractDirectory = path.join(downloadDirectory, "extract");
+
+  try {
+    await downloadFileToPath(XTTS_RUNTIME_DOWNLOAD_URL, archivePath);
+    await extractZipArchive(archivePath, extractDirectory);
+    const extractedRuntimeRoot = await findValidXttsRuntimeRoot(extractDirectory, 4);
+    if (!extractedRuntimeRoot) {
+      throw new Error("Downloaded XTTS runtime package did not contain .venv-xtts\\Scripts\\python.exe and tools\\xtts_v2_service.py.");
+    }
+    return await installXttsRuntimeFromSource(extractedRuntimeRoot, "download");
+  } catch (error) {
+    throw new Error(`${error.message || "Unable to install XTTS runtime."} If the download is not available yet, use Choose folder to install a prepared runtime manually.`);
+  } finally {
+    await fs.rm(downloadDirectory, { recursive: true, force: true });
+  }
+}
+
+async function getXttsRuntimeStatus() {
+  const runtimeRoot = getXttsRuntimeRoot();
+  const resolvedRuntimeRoot = path.resolve(runtimeRoot);
+  const candidates = getXttsServiceFileCandidates();
+  const resolved = resolveXttsServiceFiles();
+  const userRuntimeCandidate = candidates.find((candidate) => candidate.rootPath === resolvedRuntimeRoot);
+  const hasUserRuntime = Boolean(userRuntimeCandidate
+    && fsSync.existsSync(userRuntimeCandidate.pythonPath)
+    && fsSync.existsSync(userRuntimeCandidate.scriptPath));
+  const hasFallbackRuntime = Boolean(resolved && resolved.rootPath !== resolvedRuntimeRoot);
+
+  return {
+    installed: hasUserRuntime,
+    fallbackRuntimeAvailable: hasFallbackRuntime,
+    bundled: hasFallbackRuntime,
+    userRuntimeInstalled: hasUserRuntime,
+    runtimeRoot,
+    activeRoot: hasUserRuntime ? userRuntimeCandidate.rootPath : "",
+    fallbackRoot: hasFallbackRuntime ? resolved.rootPath : "",
+    pythonPath: hasUserRuntime ? userRuntimeCandidate.pythonPath : path.join(runtimeRoot, ".venv-xtts", "Scripts", "python.exe"),
+    scriptPath: hasUserRuntime ? userRuntimeCandidate.scriptPath : path.join(runtimeRoot, "tools", "xtts_v2_service.py"),
+    searchedRoots: candidates.map((candidate) => candidate.rootPath),
+    message: hasUserRuntime
+      ? `Optional XTTS runtime found at ${userRuntimeCandidate.rootPath}.`
+      : `Optional XTTS runtime is not installed in ${runtimeRoot}.`
+  };
 }
 
 async function startLocalXttsService(payload = {}) {
@@ -2735,8 +3020,8 @@ async function startLocalXttsService(payload = {}) {
 
   const serviceFiles = resolveXttsServiceFiles();
   if (!serviceFiles) {
-    const searchedRoots = getXttsServiceFileCandidates().map((candidate) => candidate.rootPath).join("; ");
-    throw new Error(`Cannot auto-start XTTS because .venv-xtts\\Scripts\\python.exe and tools\\xtts_v2_service.py were not found. Searched: ${searchedRoots}.`);
+    const runtimeStatus = await getXttsRuntimeStatus();
+    throw new Error(`XTTS is optional and is not installed with the lightweight app installer. Put the XTTS runtime in ${runtimeStatus.runtimeRoot}, or run your own XTTS server and set the XTTS service URL. Searched: ${runtimeStatus.searchedRoots.join("; ")}.`);
   }
 
   xttsServiceStartingPromise = (async () => {
@@ -3765,6 +4050,24 @@ ipcMain.handle("overlay:update-command-feedback-state", async (_event, payload) 
   };
 });
 
+ipcMain.handle("overlay:get-joke-info", async () => {
+  const overlayUrls = getOverlayUrlBundle("/joke-overlay");
+  return {
+    ...overlayUrls,
+    url: overlayUrls.hostnameUrl || overlayUrls.localUrl || overlayUrls.url,
+    port: queueOverlayPort,
+    state: jokeOverlayState
+  };
+});
+
+ipcMain.handle("overlay:update-joke-state", async (_event, payload) => {
+  jokeOverlayState = sanitizeJokeOverlayState(payload);
+  return {
+    ok: true,
+    state: jokeOverlayState
+  };
+});
+
 ipcMain.handle("overlay:get-like-race-info", async () => {
   const overlayUrls = getOverlayUrlBundle("/like-race-overlay");
   return {
@@ -4141,6 +4444,53 @@ ipcMain.handle("tts:check-xtts-service", async (_event, payload) => {
 
 ipcMain.handle("tts:start-xtts-service", async (_event, payload) => {
   return startLocalXttsService(payload ?? {});
+});
+
+ipcMain.handle("tts:get-xtts-runtime-status", async () => {
+  return getXttsRuntimeStatus();
+});
+
+ipcMain.handle("tts:open-xtts-runtime-folder", async () => {
+  const runtimeRoot = getXttsRuntimeRoot();
+  await fs.mkdir(runtimeRoot, { recursive: true });
+  await shell.openPath(runtimeRoot);
+  return getXttsRuntimeStatus();
+});
+
+ipcMain.handle("tts:install-xtts-runtime", async (_event, payload = {}) => {
+  if (String(payload?.mode ?? "").trim().toLowerCase() === "folder") {
+    const result = await dialog.showOpenDialog({
+      title: "Choose XTTS runtime folder",
+      properties: ["openDirectory"],
+      message: "Choose the folder containing .venv-xtts and tools."
+    });
+
+    if (result.canceled || !result.filePaths?.[0]) {
+      return {
+        canceled: true,
+        ...(await getXttsRuntimeStatus())
+      };
+    }
+
+    return installXttsRuntimeFromSource(result.filePaths[0], "folder");
+  }
+
+  return installXttsRuntimeManaged();
+});
+
+ipcMain.handle("tts:remove-xtts-runtime", async () => {
+  const runtimeRoot = getXttsRuntimeRoot();
+  const resolvedRuntimeRoot = path.resolve(runtimeRoot);
+  const resolvedUserData = path.resolve(app.getPath("userData"));
+  if (!resolvedRuntimeRoot.startsWith(`${resolvedUserData}${path.sep}`)) {
+    throw new Error("Refusing to remove XTTS runtime outside the app data folder.");
+  }
+  if (xttsServiceProcess && !xttsServiceProcess.killed) {
+    xttsServiceProcess.kill();
+    xttsServiceProcess = null;
+  }
+  await fs.rm(runtimeRoot, { recursive: true, force: true });
+  return getXttsRuntimeStatus();
 });
 
 ipcMain.handle("tts:get-cache-info", async () => {

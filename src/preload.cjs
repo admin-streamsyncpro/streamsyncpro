@@ -58,6 +58,12 @@ contextBridge.exposeInMainWorld("desktopApp", {
   updateCommandFeedbackOverlayState(payload) {
     return ipcRenderer.invoke("overlay:update-command-feedback-state", payload);
   },
+  getJokeOverlayInfo() {
+    return ipcRenderer.invoke("overlay:get-joke-info");
+  },
+  updateJokeOverlayState(payload) {
+    return ipcRenderer.invoke("overlay:update-joke-state", payload);
+  },
   getLikeRaceOverlayInfo() {
     return ipcRenderer.invoke("overlay:get-like-race-info");
   },
@@ -129,6 +135,18 @@ contextBridge.exposeInMainWorld("desktopApp", {
   },
   startXttsService(payload) {
     return ipcRenderer.invoke("tts:start-xtts-service", payload);
+  },
+  getXttsRuntimeStatus() {
+    return ipcRenderer.invoke("tts:get-xtts-runtime-status");
+  },
+  openXttsRuntimeFolder() {
+    return ipcRenderer.invoke("tts:open-xtts-runtime-folder");
+  },
+  installXttsRuntime(payload) {
+    return ipcRenderer.invoke("tts:install-xtts-runtime", payload);
+  },
+  removeXttsRuntime() {
+    return ipcRenderer.invoke("tts:remove-xtts-runtime");
   },
   getTtsCacheInfo() {
     return ipcRenderer.invoke("tts:get-cache-info");
