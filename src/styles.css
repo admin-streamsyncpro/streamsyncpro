@@ -1108,10 +1108,55 @@ h3,
   gap: 12px;
 }
 
+.referral-email-action .compact-button {
+  min-height: 46px;
+  align-self: stretch;
+}
+
 .feedback-diagnostics-toggle {
   justify-content: flex-start;
   gap: 10px;
   color: var(--muted-strong);
+}
+
+.feedback-attachment-field {
+  gap: 8px;
+}
+
+.feedback-attachment-row {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.feedback-attachment-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.feedback-attachment-name {
+  min-width: 0;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 1px solid rgba(137, 164, 210, 0.18);
+  border-radius: var(--radius-md);
+  color: var(--muted-strong);
+  background: rgba(3, 8, 18, 0.42);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.visually-hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .feedback-report-preview {

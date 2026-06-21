@@ -37,6 +37,21 @@
     </header>
 
     <main id="top">
+      <section id="referral-panel" class="referral-panel card" hidden aria-live="polite">
+        <div class="referral-panel-copy">
+          <span class="eyebrow">Referral Invite</span>
+          <h2>You have been invited to Stream Sync Pro LIVE</h2>
+          <p>
+            Use this referral code when creating your account inside the desktop app to receive any active friend sign-up bonus credits.
+          </p>
+        </div>
+        <div class="referral-code-box">
+          <span>Your code</span>
+          <strong id="referral-code-value">----</strong>
+          <button type="button" id="copy-referral-code" class="button button-secondary">Copy code</button>
+        </div>
+      </section>
+
       <section class="hero card">
         <div class="hero-copy">
           <div class="hero-kicker-row">
@@ -65,9 +80,9 @@
           <div class="hero-actions">
             <a
               class="button button-primary"
-              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.19.exe"
+              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.20.exe"
             >
-              Download v1.0.19
+              Download v1.0.20
             </a>
             <a class="button button-secondary" href="./contact.html">Ask about beta access</a>
             <span class="download-caption">Windows installer for early access creators</span>
@@ -139,7 +154,7 @@
         </div>
         <div class="card-body release-grid">
           <article>
-            <span class="mini-label">v1.0.19</span>
+            <span class="mini-label">v1.0.20</span>
             <strong>External joke overlays and stronger creator workflows</strong>
             <p>New JokeAPI-powered Joke Overlay with queued requests, marquee scrolling mode, and external hosted URLs for TikTok and OBS.</p>
           </article>
@@ -279,7 +294,7 @@
             <p class="download-copy">
               Download the latest Windows installer and start building a more interactive, automated livestream experience.
             </p>
-            <p class="download-note">Current highlighted version: <strong>1.0.19</strong></p>
+            <p class="download-note">Current highlighted version: <strong>1.0.20</strong></p>
             <p class="download-warning">
               Beta release: if Windows shows a SmartScreen warning, use <strong>More info</strong> and then
               <strong>Run anyway</strong> to continue.
@@ -289,7 +304,7 @@
           <div class="download-actions">
             <a
               class="button button-primary"
-              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.19.exe"
+              href="/downloads/Stream-Sync-Pro-LIVE-Setup-1.0.20.exe"
             >
               Download Installer
             </a>
@@ -307,5 +322,32 @@
       </div>
     </footer>
   </div>
+
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const rawCode = params.get("ref") || params.get("promo") || "";
+      const referralCode = rawCode.trim().replace(/[^a-z0-9_-]/gi, "").toUpperCase();
+      const panel = document.getElementById("referral-panel");
+      const codeValue = document.getElementById("referral-code-value");
+      const copyButton = document.getElementById("copy-referral-code");
+
+      if (!referralCode || !panel || !codeValue) {
+        return;
+      }
+
+      panel.hidden = false;
+      codeValue.textContent = referralCode;
+
+      copyButton?.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(referralCode);
+          copyButton.textContent = "Copied";
+        } catch {
+          copyButton.textContent = "Select code above";
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

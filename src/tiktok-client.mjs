@@ -143,6 +143,44 @@ function getUserProfilePictureUrl(data) {
   return "";
 }
 
+function getHostProfileFromRoomInfo(roomInfo, username = "") {
+  const normalizedUsername = normalizeUsername(String(username ?? "")).toLowerCase();
+  const visited = new Set();
+  const candidates = [];
+
+  const visit = (value) => {
+    if (!value || typeof value !== "object" || visited.has(value)) {
+      return;
+    }
+    visited.add(value);
+
+    if (!Array.isArray(value)) {
+      const uniqueId = String(value.uniqueId ?? value.unique_id ?? value.secUid ?? value.id ?? "").trim().toLowerCase();
+      const hasAvatar = Boolean(getUserProfilePictureUrl({ user: value }) || getUserProfilePictureUrl(value));
+      const hasBio = Boolean(String(value.signature ?? value.bio ?? value.desc ?? value.description ?? "").trim());
+      if ((normalizedUsername && uniqueId === normalizedUsername) || hasAvatar || hasBio) {
+        candidates.push(value);
+      }
+    }
+
+    for (const child of Object.values(value)) {
+      visit(child);
+    }
+  };
+
+  visit(roomInfo);
+
+  const preferred = candidates.find((candidate) => {
+    const uniqueId = String(candidate.uniqueId ?? candidate.unique_id ?? "").trim().toLowerCase();
+    return normalizedUsername && uniqueId === normalizedUsername;
+  }) ?? candidates[0] ?? {};
+
+  return {
+    profilePictureUrl: getUserProfilePictureUrl({ user: preferred }) || getUserProfilePictureUrl(preferred),
+    bio: String(preferred.signature ?? preferred.bio ?? preferred.desc ?? preferred.description ?? "").trim()
+  };
+}
+
 function getGiftImageUrl(data) {
   const extractUrl = (candidate) => {
     if (!candidate) {
@@ -1028,10 +1066,18 @@ export async function connectToLive(username, listeners) {
         try {
           const roomInfo = await connection.fetchRoomInfo();
           const viewerCount = extractViewerCount(roomInfo);
+          const hostProfile = getHostProfileFromRoomInfo(roomInfo, normalizedUsername);
           if (viewerCount !== null) {
             connectionState = {
               ...connectionState,
               viewerCount
+            };
+          }
+          if (hostProfile.profilePictureUrl || hostProfile.bio) {
+            connectionState = {
+              ...connectionState,
+              hostProfilePictureUrl: hostProfile.profilePictureUrl,
+              hostBio: hostProfile.bio
             };
           }
         } catch {

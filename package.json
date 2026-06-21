@@ -1,6 +1,6 @@
 {
   "name": "ssp-live",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "Stream Sync Pro LIVE desktop app for TikTok chat monitoring, TTS, and remote updates.",
   "main": "src/main.mjs",
   "type": "module",

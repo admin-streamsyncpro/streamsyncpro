@@ -14,7 +14,7 @@ if (!file_exists($configPath)) {
 }
 
 $config = require $configPath;
-define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.19'));
+define('SSP_WEBSITE_VERSION', (string) ($config['app']['version'] ?? '1.0.20'));
 $message = '';
 $messageType = 'info';
 
@@ -103,10 +103,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messageType = 'success';
         } elseif ($action === 'delete-user') {
             $id = (int) ($_POST['user_id'] ?? 0);
-            $statement = $pdo->prepare('DELETE FROM auth_users WHERE id = :id');
-            $statement->execute([':id' => $id]);
-            $message = 'Account deleted successfully.';
-            $messageType = 'success';
+            $user = findUserById($pdo, $id);
+
+            if (!$user) {
+                $message = 'User account could not be found.';
+                $messageType = 'error';
+            } else {
+                $statement = $pdo->prepare('DELETE FROM auth_users WHERE id = :id');
+                $statement->execute([':id' => $id]);
+
+                $message = sprintf(
+                    'Account deleted successfully: %s.',
+                    (string) ($user['email'] ?? ('ID ' . $id))
+                );
+                $messageType = 'success';
+            }
         } elseif ($action === 'update-user-credits') {
             $id = (int) ($_POST['user_id'] ?? 0);
             $credits = max(0, (int) ($_POST['credits'] ?? 0));
@@ -198,10 +209,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $minimumCredits = max(1, (int) ($_POST['minimum_credits'] ?? 1));
             $maximumCredits = max($minimumCredits, (int) ($_POST['maximum_credits'] ?? 5000));
             $signupCredits = max(0, (int) ($_POST['signup_credits'] ?? 5));
+            $signupPromoCode = normalizeSignupPromoCode((string) ($_POST['signup_promo_code'] ?? ''));
+            $signupPromoCredits = max(0, (int) ($_POST['signup_promo_credits'] ?? 0));
+            $referralRewardCredits = max(0, (int) ($_POST['referral_reward_credits'] ?? 5));
+            $referredSignupBonusCredits = max(0, (int) ($_POST['referred_signup_bonus_credits'] ?? 5));
             upsertBillingSetting($pdo, 'credits_per_gbp', (string) $creditsPerGbp);
             upsertBillingSetting($pdo, 'minimum_credits', (string) $minimumCredits);
             upsertBillingSetting($pdo, 'maximum_credits', (string) $maximumCredits);
             upsertBillingSetting($pdo, 'signup_credits', (string) $signupCredits);
+            upsertBillingSetting($pdo, 'signup_promo_code', $signupPromoCode);
+            upsertBillingSetting($pdo, 'signup_promo_credits', (string) $signupPromoCredits);
+            upsertBillingSetting($pdo, 'referral_reward_credits', (string) $referralRewardCredits);
+            upsertBillingSetting($pdo, 'referred_signup_bonus_credits', (string) $referredSignupBonusCredits);
             $message = 'Billing settings updated successfully.';
             $messageType = 'success';
         } elseif ($action === 'create-promo-code') {
@@ -264,26 +283,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statement->execute([':id' => $promoId]);
             $message = 'Promo code deleted successfully.';
             $messageType = 'success';
-        } elseif ($action === 'update-feedback-report') {
-            $reportId = (int) ($_POST['feedback_id'] ?? 0);
-            $status = trim((string) ($_POST['feedback_status'] ?? 'open'));
-            $adminNotes = trim((string) ($_POST['feedback_admin_notes'] ?? ''));
-            if (!in_array($status, ['open', 'reviewing', 'resolved'], true)) {
-                $status = 'open';
-            }
-            $statement = $pdo->prepare(
-                'UPDATE auth_beta_feedback_reports
-                 SET status = :status,
-                     admin_notes = :admin_notes
-                 WHERE id = :id'
-            );
-            $statement->execute([
-                ':status' => $status,
-                ':admin_notes' => $adminNotes !== '' ? $adminNotes : null,
-                ':id' => $reportId,
-            ]);
-            $message = 'Feedback report updated successfully.';
-            $messageType = 'success';
         }
     }
 }
@@ -303,12 +302,11 @@ $auditSort = trim((string) ($_GET['audit_sort'] ?? 'desc'));
 $auditGroup = trim((string) ($_GET['audit_group'] ?? 'day'));
 $billingSettings = fetchBillingSettings($pdo, $config);
 $promoCodes = fetchPromoCodes($pdo);
-$feedbackReports = fetchBetaFeedbackReports($pdo);
 $users = fetchUsers($pdo, $searchQuery, $statusFilter);
 $auditedUser = $auditUserId > 0 ? findUserById($pdo, $auditUserId) : null;
 $auditLogs = $auditUserId > 0 ? fetchAuditLogs($pdo, $auditUserId, $auditFrom, $auditTo, $auditType, $auditSort) : [];
 $auditChart = $auditUserId > 0 ? fetchAuditChartData($pdo, $auditUserId, $auditFrom, $auditTo, $auditType, $auditGroup) : ['periods' => [], 'legend' => []];
-renderDashboard($users, $message, $messageType, $searchQuery, $statusFilter, $auditUserId, $auditedUser, $auditLogs, $auditFrom, $auditTo, $auditType, $auditSort, $auditGroup, $auditChart, $billingSettings, $promoCodes, $feedbackReports);
+renderDashboard($users, $message, $messageType, $searchQuery, $statusFilter, $auditUserId, $auditedUser, $auditLogs, $auditFrom, $auditTo, $auditType, $auditSort, $auditGroup, $auditChart, $billingSettings, $promoCodes);
 
 function isAdminAuthenticated(): bool
 {
@@ -471,7 +469,16 @@ function resolveBillingDefaults(array $config): array
         'minimum_credits' => max(1, (int) (($config['billing']['minimum_credits'] ?? 1))),
         'maximum_credits' => max(1, (int) (($config['billing']['maximum_credits'] ?? 5000))),
         'signup_credits' => max(0, (int) (($config['billing']['signup_credits'] ?? 5))),
+        'signup_promo_code' => normalizeSignupPromoCode((string) (($config['billing']['signup_promo_code'] ?? ''))),
+        'signup_promo_credits' => max(0, (int) (($config['billing']['signup_promo_credits'] ?? 0))),
+        'referral_reward_credits' => max(0, (int) (($config['billing']['referral_reward_credits'] ?? 5))),
+        'referred_signup_bonus_credits' => max(0, (int) (($config['billing']['referred_signup_bonus_credits'] ?? 5))),
     ];
+}
+
+function normalizeSignupPromoCode(string $code): string
+{
+    return strtoupper(preg_replace('/[^A-Z0-9_-]/i', '', trim($code)) ?? '');
 }
 
 function seedDefaultBillingSettings(PDO $pdo, array $config): void
@@ -514,6 +521,10 @@ function fetchBillingSettings(PDO $pdo, array $config): array
     $settings['minimum_credits'] = max(1, (int) ($settings['minimum_credits'] ?? 1));
     $settings['maximum_credits'] = max((int) $settings['minimum_credits'], (int) ($settings['maximum_credits'] ?? 5000));
     $settings['signup_credits'] = max(0, (int) ($settings['signup_credits'] ?? 5));
+    $settings['signup_promo_code'] = normalizeSignupPromoCode((string) ($settings['signup_promo_code'] ?? ''));
+    $settings['signup_promo_credits'] = max(0, (int) ($settings['signup_promo_credits'] ?? 0));
+    $settings['referral_reward_credits'] = max(0, (int) ($settings['referral_reward_credits'] ?? 5));
+    $settings['referred_signup_bonus_credits'] = max(0, (int) ($settings['referred_signup_bonus_credits'] ?? 5));
     $settings['gbp_per_credit'] = number_format(1 / (int) $settings['credits_per_gbp'], 2, '.', '');
 
     return $settings;
@@ -525,21 +536,6 @@ function fetchPromoCodes(PDO $pdo): array
         'SELECT id, code, discount_type, discount_value, minimum_credits, maximum_redemptions, redeemed_count, is_active, expires_at, created_at
          FROM auth_promo_codes
          ORDER BY created_at DESC, id DESC'
-    );
-    return $statement->fetchAll();
-}
-
-function fetchBetaFeedbackReports(PDO $pdo): array
-{
-    $statement = $pdo->query(
-        'SELECT r.id, r.user_id, r.category, r.severity, r.contact, r.app_version,
-                r.report_body, r.diagnostics_json, r.status, r.admin_notes, r.ip_address,
-                r.created_at, r.updated_at,
-                u.email, u.display_name
-         FROM auth_beta_feedback_reports r
-         LEFT JOIN auth_users u ON u.id = r.user_id
-         ORDER BY FIELD(r.status, "open", "reviewing", "resolved"), r.created_at DESC
-         LIMIT 50'
     );
     return $statement->fetchAll();
 }
@@ -620,7 +616,45 @@ function hasActiveSignedInSession(array $user): bool
 
 function hasActiveLiveConnection(array $user): bool
 {
-    return trim((string) ($user['active_connection_token_hash'] ?? '')) !== '';
+    $tokenHash = trim((string) ($user['active_connection_token_hash'] ?? ''));
+    $lastSeenAt = trim((string) ($user['active_connection_started_at'] ?? ''));
+
+    if ($tokenHash === '' || $lastSeenAt === '') {
+        return false;
+    }
+
+    $lastSeenTime = strtotime($lastSeenAt);
+    if ($lastSeenTime === false) {
+        return false;
+    }
+
+    return $lastSeenTime >= (time() - 45);
+}
+
+function resolveUserLastActiveAt(array $user): string
+{
+    $timestamps = [
+        trim((string) ($user['active_connection_started_at'] ?? '')),
+        trim((string) ($user['updated_at'] ?? '')),
+        trim((string) ($user['created_at'] ?? '')),
+    ];
+
+    $latestTimestamp = '';
+    $latestTime = 0;
+
+    foreach ($timestamps as $timestamp) {
+        if ($timestamp === '') {
+            continue;
+        }
+
+        $time = strtotime($timestamp);
+        if ($time !== false && $time > $latestTime) {
+            $latestTime = $time;
+            $latestTimestamp = $timestamp;
+        }
+    }
+
+    return $latestTimestamp;
 }
 
 function fetchAuditLogs(PDO $pdo, int $userId, string $auditFrom, string $auditTo, string $auditType, string $auditSort): array
@@ -957,7 +991,7 @@ function renderLogin(string $message, string $messageType): void
 <?php
 }
 
-function renderDashboard(array $users, string $message, string $messageType, string $searchQuery, string $statusFilter, int $auditUserId, ?array $auditedUser, array $auditLogs, string $auditFrom, string $auditTo, string $auditType, string $auditSort, string $auditGroup, array $auditChart, array $billingSettings, array $promoCodes, array $feedbackReports): void
+function renderDashboard(array $users, string $message, string $messageType, string $searchQuery, string $statusFilter, int $auditUserId, ?array $auditedUser, array $auditLogs, string $auditFrom, string $auditTo, string $auditType, string $auditSort, string $auditGroup, array $auditChart, array $billingSettings, array $promoCodes): void
 {
     ?>
 <!doctype html>
@@ -971,7 +1005,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at top left,rgba(77,231,255,.12),transparent 32%),radial-gradient(circle at top right,rgba(144,104,255,.16),transparent 26%),linear-gradient(180deg,var(--bg2) 0%,var(--bg) 45%,#02050d 100%);color:var(--text)}
     body::before{content:"";position:fixed;inset:0;pointer-events:none;background:linear-gradient(120deg,rgba(77,231,255,.05),transparent 22%),linear-gradient(300deg,rgba(255,77,184,.04),transparent 18%)}
-    .wrap{max-width:1280px;margin:0 auto;padding:28px 20px 56px}
+    .wrap{width:min(1760px,calc(100% - 24px));margin:0 auto;padding:28px 12px 56px}
     .panel{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
     .panel::before{content:"";position:absolute;inset:-1px;padding:2px;border-radius:inherit;background:conic-gradient(from 0deg,rgba(77,231,255,.12) 0deg,rgba(77,231,255,.18) 55deg,rgba(77,231,255,.95) 88deg,rgba(144,104,255,.9) 132deg,rgba(255,77,184,.82) 170deg,rgba(77,231,255,.16) 230deg,rgba(77,231,255,.12) 360deg);-webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
     .panel-head{position:relative;padding:16px 22px 15px;background:linear-gradient(180deg,rgba(5,7,13,.998) 0%,rgba(10,14,22,.994) 34%,rgba(20,28,41,.96) 100%);border-bottom:1px solid rgba(97,160,255,.18);box-shadow:inset 0 -1px 0 rgba(77,231,255,.1),0 8px 18px rgba(0,0,0,.16)}
@@ -1002,19 +1036,21 @@ function renderDashboard(array $users, string $message, string $messageType, str
     table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
     .table-panel{overflow:hidden}
     .table-panel .panel-body{padding:0 18px 18px}
-    .accounts-table-wrap{overflow:hidden;padding-right:0;border-radius:18px;border:1px solid rgba(89,170,255,.12);background:rgba(8,14,27,.72)}
+    .accounts-table-wrap{overflow:visible;padding-right:0;border-radius:18px;border:1px solid rgba(89,170,255,.12);background:rgba(8,14,27,.72)}
+    .accounts-table-wrap table{min-width:0}
     th,td{padding:12px 10px;border-bottom:1px solid rgba(89,170,255,.1);text-align:left;vertical-align:middle}
     th{position:relative;background:linear-gradient(180deg,rgba(5,7,13,.998) 0%,rgba(10,14,22,.994) 34%,rgba(20,28,41,.96) 100%);color:#b9d7ff;font-size:12px;text-transform:uppercase;letter-spacing:.1em}
     tr:last-child td{border-bottom:none}
-    .accounts-table-wrap table th:nth-child(1),.accounts-table-wrap table td:nth-child(1){width:12%}
-    .accounts-table-wrap table th:nth-child(2),.accounts-table-wrap table td:nth-child(2){width:15%}
-    .accounts-table-wrap table th:nth-child(3),.accounts-table-wrap table td:nth-child(3){width:7%}
-    .accounts-table-wrap table th:nth-child(4),.accounts-table-wrap table td:nth-child(4){width:9%}
-    .accounts-table-wrap table th:nth-child(5),.accounts-table-wrap table td:nth-child(5){width:13%}
-    .accounts-table-wrap table th:nth-child(6),.accounts-table-wrap table td:nth-child(6){width:10%}
-    .accounts-table-wrap table th:nth-child(7),.accounts-table-wrap table td:nth-child(7){width:6%}
-    .accounts-table-wrap table th:nth-child(8),.accounts-table-wrap table td:nth-child(8){width:8%}
-    .accounts-table-wrap table th:nth-child(9),.accounts-table-wrap table td:nth-child(9){width:20%}
+    .accounts-table-wrap table th:nth-child(1),.accounts-table-wrap table td:nth-child(1){width:10%}
+    .accounts-table-wrap table th:nth-child(2),.accounts-table-wrap table td:nth-child(2){width:13%}
+    .accounts-table-wrap table th:nth-child(3),.accounts-table-wrap table td:nth-child(3){width:6%}
+    .accounts-table-wrap table th:nth-child(4),.accounts-table-wrap table td:nth-child(4){width:6%}
+    .accounts-table-wrap table th:nth-child(5),.accounts-table-wrap table td:nth-child(5){width:7%}
+    .accounts-table-wrap table th:nth-child(6),.accounts-table-wrap table td:nth-child(6){width:8%}
+    .accounts-table-wrap table th:nth-child(7),.accounts-table-wrap table td:nth-child(7){width:8%}
+    .accounts-table-wrap table th:nth-child(8),.accounts-table-wrap table td:nth-child(8){width:4%}
+    .accounts-table-wrap table th:nth-child(9),.accounts-table-wrap table td:nth-child(9){width:8%}
+    .accounts-table-wrap table th:nth-child(10),.accounts-table-wrap table td:nth-child(10){width:30%}
     .pill{display:inline-flex;align-items:center;min-height:30px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800}
     .pill.ok{background:rgba(97,243,164,.12);color:#9cf0b7}
     .pill.off{background:rgba(255,255,255,.08);color:#c4d4ea}
@@ -1025,9 +1061,9 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .action-form{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;margin:0;min-width:0}
     .action-form input{height:38px;min-width:0}
     .credits-input{width:52px;text-align:center}
-    .reason-input{width:84px}
+    .reason-input{width:70px}
     .row{display:flex;gap:4px;flex-wrap:nowrap}
-    .account-actions{display:flex;align-items:center;justify-content:flex-start;gap:6px;padding:6px 8px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(89,170,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);overflow:visible}
+    .account-actions{display:flex;align-items:center;justify-content:flex-start;gap:6px;padding:6px 8px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid rgba(89,170,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.03);overflow:visible;flex-wrap:nowrap}
     .account-actions .action-form,.account-actions > a.icon-btn{flex:0 0 auto}
     .account-actions .action-form{padding:0}
     .account-actions .action-form + .action-form,.account-actions .action-form + a.icon-btn,.account-actions a.icon-btn + .action-form{position:relative}
@@ -1041,6 +1077,12 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .unlock{background:linear-gradient(135deg,#27d9ff,#8dfbff);color:#04111f}
     .delete{background:#ff5a7a;color:#fff}
     .icon-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:14px;line-height:1;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+    .debug-cell{display:flex;align-items:center;gap:6px;white-space:nowrap}
+    .debug-cell .pill{min-width:max-content}
+    .debug-toggle-btn{min-width:34px;padding:0 8px}
+    .date-cell{font-size:12px;color:#d8e8ff}
+    .delete-account-btn{width:auto;min-width:74px;gap:6px;padding:0 10px}
+    .delete-account-btn .btn-icon{font-size:13px}
     .actions > a.icon-btn,.actions > .action-form > .row > .icon-btn,.actions > .action-form > .icon-btn{box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
     .cell-inline-meta{display:inline-block;margin-left:6px;font-size:12px;color:var(--muted);vertical-align:middle}
     .account-id{display:inline-block;margin-left:6px;font-size:12px;color:var(--muted)}
@@ -1075,12 +1117,6 @@ function renderDashboard(array $users, string $message, string $messageType, str
     .audit-cell strong{display:block;color:#eef4ff;font-size:15px;line-height:1.45;font-weight:700}
     .audit-cell--description{grid-column:1 / -1;margin-top:10px;color:#e5eefc;font-size:14px;line-height:1.55}
     .audit-empty{padding:18px}
-    .feedback-list{display:grid;gap:14px}
-    .feedback-card{padding:16px;border:1px solid rgba(89,170,255,.14);border-radius:20px;background:rgba(8,14,27,.72);display:grid;gap:12px}
-    .feedback-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
-    .feedback-meta{display:flex;gap:8px;flex-wrap:wrap}
-    .feedback-body{white-space:pre-wrap;line-height:1.55;color:#e5eefc;background:rgba(255,255,255,.035);border:1px solid rgba(89,170,255,.1);border-radius:14px;padding:12px;max-height:260px;overflow:auto}
-    .feedback-card textarea{min-height:64px;border-radius:12px;border:1px solid rgba(89,170,255,.18);background:#081224;color:#fff;padding:10px 12px;min-width:260px;resize:vertical}
     code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:8px}
     @media (max-width:1180px){.actions,.action-form,.row{flex-wrap:wrap}}
     @media (max-width:900px){.top{flex-direction:column}.toolbar form,.admin-panel form,.audit-filters{display:grid}.toolbar .search,input,select{min-width:100%}.wrap{padding:20px 14px 40px}.panel-body{padding:18px}.table-panel .panel-body{padding:0 0 18px}table,thead,tbody,tr,td,th{display:block}thead{display:none}tr{border-bottom:1px solid rgba(89,170,255,.12)}td{padding:10px 14px}.table-panel{display:grid}.accounts-table-wrap{border-radius:0;border-left:none;border-right:none}.actions,.action-form,.row{flex-wrap:wrap}.audit-head{display:none}.audit-row{grid-template-columns:1fr 1fr}.audit-cell strong{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#9eb9df}.audit-cell--description{grid-column:1 / -1}.audit-bar-row{grid-template-columns:1fr}.audit-bar-total{text-align:right}}
@@ -1101,63 +1137,6 @@ function renderDashboard(array $users, string $message, string $messageType, str
     <?php if ($message !== ''): ?>
       <div class="msg <?php echo htmlspecialchars($messageType, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($message, ENT_QUOTES, 'UTF-8'); ?></div>
     <?php endif; ?>
-
-      <div class="admin-panel panel" id="feedback-panel">
-        <div class="panel-head"><span class="eyebrow">Beta Feedback</span></div>
-        <div class="panel-body">
-          <div class="subtitle" style="margin-top:0">Latest beta tester reports sent directly from the desktop app.</div>
-          <?php if (!$feedbackReports): ?>
-            <div class="muted">No beta feedback reports have been submitted yet.</div>
-          <?php else: ?>
-            <div class="feedback-list">
-              <?php foreach ($feedbackReports as $report): ?>
-                <article class="feedback-card">
-                  <div class="feedback-card-head">
-                    <div>
-                      <strong>#<?php echo (int) $report['id']; ?> <?php echo htmlspecialchars((string) $report['category'], ENT_QUOTES, 'UTF-8'); ?></strong>
-                      <div class="muted" style="font-size:13px;margin-top:4px;">
-                        <?php echo htmlspecialchars((string) ($report['display_name'] ?? 'Unknown user'), ENT_QUOTES, 'UTF-8'); ?>
-                        <?php if (!empty($report['email'])): ?>
-                          &middot; <?php echo htmlspecialchars((string) $report['email'], ENT_QUOTES, 'UTF-8'); ?>
-                        <?php endif; ?>
-                        &middot; <?php echo htmlspecialchars((string) $report['created_at'], ENT_QUOTES, 'UTF-8'); ?>
-                      </div>
-                    </div>
-                    <div class="feedback-meta">
-                      <span class="pill <?php echo $report['status'] === 'resolved' ? 'ok' : ($report['status'] === 'reviewing' ? 'live' : 'locked'); ?>"><?php echo htmlspecialchars((string) $report['status'], ENT_QUOTES, 'UTF-8'); ?></span>
-                      <span class="pill session"><?php echo htmlspecialchars((string) $report['severity'], ENT_QUOTES, 'UTF-8'); ?></span>
-                      <?php if (!empty($report['app_version'])): ?>
-                        <span class="pill off">v<?php echo htmlspecialchars((string) $report['app_version'], ENT_QUOTES, 'UTF-8'); ?></span>
-                      <?php endif; ?>
-                    </div>
-                  </div>
-                  <?php if (!empty($report['contact'])): ?>
-                    <div class="muted">Contact: <?php echo htmlspecialchars((string) $report['contact'], ENT_QUOTES, 'UTF-8'); ?></div>
-                  <?php endif; ?>
-                  <div class="feedback-body"><?php echo htmlspecialchars((string) $report['report_body'], ENT_QUOTES, 'UTF-8'); ?></div>
-                  <form method="post">
-                    <input type="hidden" name="action" value="update-feedback-report" />
-                    <input type="hidden" name="feedback_id" value="<?php echo (int) $report['id']; ?>" />
-                    <label>
-                      Status
-                      <select name="feedback_status">
-                        <option value="open" <?php echo $report['status'] === 'open' ? 'selected' : ''; ?>>Open</option>
-                        <option value="reviewing" <?php echo $report['status'] === 'reviewing' ? 'selected' : ''; ?>>Reviewing</option>
-                        <option value="resolved" <?php echo $report['status'] === 'resolved' ? 'selected' : ''; ?>>Resolved</option>
-                      </select>
-                    </label>
-                    <label>
-                      Admin notes
-                      <textarea name="feedback_admin_notes" placeholder="Internal note"><?php echo htmlspecialchars((string) ($report['admin_notes'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea>
-                    </label>
-                    <button type="submit" class="unlock">Update Report</button>
-                  </form>
-                </article>
-              <?php endforeach; ?>
-            </div>
-          <?php endif; ?>
-        </div>
-      </div>
 
       <div class="admin-panel panel panel-collapsed" id="security-panel">
         <div class="panel-head panel-head--toggle">
@@ -1209,6 +1188,22 @@ function renderDashboard(array $users, string $message, string $messageType, str
             <label>
               Credits granted on sign-up
               <input type="number" min="0" name="signup_credits" value="<?php echo (int) ($billingSettings['signup_credits'] ?? 5); ?>" required />
+            </label>
+            <label>
+              Sign-up promo code
+              <input type="text" name="signup_promo_code" value="<?php echo htmlspecialchars((string) ($billingSettings['signup_promo_code'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>" placeholder="WELCOME10" />
+            </label>
+            <label>
+              Sign-up promo credits
+              <input type="number" min="0" name="signup_promo_credits" value="<?php echo (int) ($billingSettings['signup_promo_credits'] ?? 0); ?>" required />
+            </label>
+            <label>
+              Referrer reward credits
+              <input type="number" min="0" name="referral_reward_credits" value="<?php echo (int) ($billingSettings['referral_reward_credits'] ?? 5); ?>" required />
+            </label>
+            <label>
+              Friend sign-up bonus credits
+              <input type="number" min="0" name="referred_signup_bonus_credits" value="<?php echo (int) ($billingSettings['referred_signup_bonus_credits'] ?? 5); ?>" required />
             </label>
             <button type="submit" class="unlock">Save Billing Settings</button>
           </form>
@@ -1345,6 +1340,7 @@ function renderDashboard(array $users, string $message, string $messageType, str
               <th>Locked</th>
               <th>Debug</th>
               <th>Active Session</th>
+              <th>Last Active</th>
               <th>Credits</th>
               <th>Created</th>
               <th>Actions</th>
@@ -1364,29 +1360,33 @@ function renderDashboard(array $users, string $message, string $messageType, str
                   </span>
                 </td>
                 <td>
+                  <div class="debug-cell">
                   <span class="pill <?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 'live' : 'off'; ?>">
                     <?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 'Debug On' : 'Debug Off'; ?>
                   </span>
-                  <form class="action-form" method="post" style="display:inline-flex;margin-left:6px;">
+                  <form class="action-form" method="post">
                     <input type="hidden" name="action" value="toggle-user-debug" />
                     <input type="hidden" name="user_id" value="<?php echo (int) $user['id']; ?>" />
                     <input type="hidden" name="debug_enabled" value="<?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 0 : 1; ?>" />
-                    <button class="<?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 'lock' : 'unlock'; ?>" type="submit">
+                    <button class="<?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 'lock' : 'unlock'; ?> debug-toggle-btn" type="submit">
                       <?php echo (int) ($user['debug_enabled'] ?? 0) === 1 ? 'Off' : 'On'; ?>
                     </button>
                   </form>
+                  </div>
                 </td>
                 <td>
                   <?php if (hasActiveLiveConnection($user)): ?>
-                    <span class="pill live" title="<?php echo htmlspecialchars((string) ($user['active_connection_started_at'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">LIVE Connected</span>
+                    <span class="pill live" title="Last live heartbeat <?php echo htmlspecialchars((string) ($user['active_connection_started_at'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">LIVE Connected</span>
                   <?php elseif (hasActiveSignedInSession($user)): ?>
                   <span class="pill session" title="Expires <?php echo htmlspecialchars((string) ($user['session_token_expires_at'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">Signed In</span>
                 <?php else: ?>
                   <span class="pill off">Offline</span>
                 <?php endif; ?>
               </td>
+              <?php $lastActiveAt = resolveUserLastActiveAt($user); ?>
+              <td class="date-cell" title="<?php echo htmlspecialchars($lastActiveAt, ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars($lastActiveAt !== '' ? $lastActiveAt : 'Never', ENT_QUOTES, 'UTF-8'); ?></td>
               <td><strong><?php echo (int) ($user['credits'] ?? 0); ?></strong></td>
-              <td title="<?php echo htmlspecialchars((string) $user['created_at'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string) $user['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
+              <td class="date-cell" title="<?php echo htmlspecialchars((string) $user['created_at'], ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string) $user['created_at'], ENT_QUOTES, 'UTF-8'); ?></td>
               <td class="cell-actions">
                   <div class="actions account-actions">
                     <form class="action-form" method="post">
@@ -1421,10 +1421,19 @@ function renderDashboard(array $users, string $message, string $messageType, str
                       <input class="reason-input" type="text" name="locked_reason" placeholder="Reason (optional)" />
                     </form>
                   <?php endif; ?>
-                  <form class="action-form" method="post" onsubmit="return confirm('Delete this account permanently?');">
+                  <form
+                    class="action-form"
+                    method="post"
+                    onsubmit="return confirm(<?php echo htmlspecialchars(json_encode('Delete account for ' . ((string) ($user['display_name'] ?? 'this user')) . ' <' . ((string) ($user['email'] ?? 'no email')) . '> permanently? This cannot be undone.'), ENT_QUOTES, 'UTF-8'); ?>);"
+                  >
                     <input type="hidden" name="action" value="delete-user" />
                     <input type="hidden" name="user_id" value="<?php echo (int) $user['id']; ?>" />
-                    <div class="row"><button class="delete icon-btn" type="submit" title="Delete account" aria-label="Delete account">&#128465;</button></div>
+                    <div class="row">
+                      <button class="delete icon-btn delete-account-btn" type="submit" title="Delete account" aria-label="Delete account">
+                        <span class="btn-icon" aria-hidden="true">&#128465;</span>
+                        <span>Delete</span>
+                      </button>
+                    </div>
                   </form>
                 </div>
               </td>

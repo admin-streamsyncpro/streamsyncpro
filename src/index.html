@@ -88,6 +88,11 @@
                 <input id="register-password-confirm" type="password" autocomplete="new-password" required />
               </label>
 
+              <label class="field">
+                <span>Promo or referral code</span>
+                <input id="register-promo-code" type="text" autocomplete="off" placeholder="Optional" />
+              </label>
+
               <div class="auth-actions-row">
                 <button type="submit" id="register-button">Create Account</button>
                 <button type="button" id="register-back-button" class="ghost">Back to Sign In</button>
@@ -289,6 +294,48 @@
                     </span>
                   </article>
                 </div>
+              </div>
+            </section>
+
+            <section class="referral-card card" data-dashboard-card="referral">
+              <div class="card-header section-head">
+                <div>
+                  <p class="eyebrow">Referral</p>
+                  <h2 class="section-title">Refer a friend</h2>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="feedback-report-head">
+                  <div>
+                    <strong>Share Stream Sync Pro and earn credits</strong>
+                    <small>When a friend signs up with your code and verifies their email, reward credits are added automatically.</small>
+                  </div>
+                </div>
+                <div class="feedback-report-grid">
+                  <label class="field">
+                    <span>Your referral code</span>
+                    <input id="referral-code-display" type="text" readonly value="Sign in to load" />
+                  </label>
+                  <label class="field">
+                    <span>Referral link</span>
+                    <input id="referral-link-display" type="text" readonly value="Sign in to load" />
+                  </label>
+                </div>
+                <div class="diagnostics-actions">
+                  <button type="button" id="referral-copy-code" class="ghost compact-button">Copy code</button>
+                  <button type="button" id="referral-copy-link" class="ghost compact-button">Copy link</button>
+                </div>
+                <div class="feedback-report-grid referral-email-grid">
+                  <label class="field">
+                    <span>Friend email address</span>
+                    <input id="referral-friend-email" type="email" autocomplete="email" placeholder="friend@example.com" />
+                  </label>
+                  <div class="field referral-email-action">
+                    <span>Send invite</span>
+                    <button type="button" id="referral-send-email" class="ghost compact-button">Send referral email</button>
+                  </div>
+                </div>
+                <p id="referral-status" class="status info">Share your code with a friend before they register.</p>
               </div>
             </section>
 
@@ -2661,12 +2708,22 @@
                     </label>
                     <label class="toggle-row feedback-diagnostics-toggle">
                       <input id="feedback-include-diagnostics" type="checkbox" checked />
-                      <span>Include diagnostics and setup health in the report</span>
+                      <span>Include private diagnostics, system details, and performance in the report</span>
                     </label>
+                    <div class="field feedback-attachment-field">
+                      <span>Private Discord attachment (optional, max 10MB)</span>
+                      <div class="feedback-attachment-row">
+                        <label class="ghost compact-button feedback-attachment-button" for="feedback-attachment">Choose attachment</label>
+                        <input id="feedback-attachment" class="visually-hidden-file" type="file" />
+                        <span id="feedback-attachment-name" class="feedback-attachment-name">No attachment selected</span>
+                        <button type="button" id="feedback-attachment-clear" class="ghost compact-button">Clear</button>
+                      </div>
+                      <small class="field-hint">Sent only to the private Discord webhook for the selected category.</small>
+                    </div>
                     <textarea id="feedback-report-preview" class="feedback-report-preview" rows="7" readonly aria-label="Feedback report preview"></textarea>
-                    <p id="feedback-status" class="status info">Copy the report or open a pre-filled email to send beta feedback.</p>
+                    <p id="feedback-status" class="status info">Send the report to Discord, copy it, or open a pre-filled email.</p>
                     <div class="diagnostics-actions">
-                      <button type="button" id="feedback-send-report" class="ghost compact-button">Send report</button>
+                      <button type="button" id="feedback-send-report" class="ghost compact-button">Send to Discord</button>
                       <button type="button" id="feedback-copy-report" class="ghost compact-button">Copy report</button>
                       <button type="button" id="feedback-email-report" class="ghost compact-button">Email report</button>
                     </div>
@@ -2677,6 +2734,7 @@
                     <button type="button" class="ghost compact-button" data-diagnostics-open="music">Music</button>
                     <button type="button" class="ghost compact-button" data-diagnostics-open="games">Games</button>
                     <button type="button" class="ghost compact-button" data-diagnostics-open="users">Users</button>
+                    <button type="button" id="delete-account-open" class="ghost compact-button danger">Delete account</button>
                     <button type="button" id="factory-reset-open" class="ghost compact-button danger">Factory reset app</button>
                   </div>
                 </div>
@@ -2880,6 +2938,34 @@
               <button type="button" id="factory-reset-export" class="ghost compact-button">Export backup first</button>
               <button type="button" id="factory-reset-cancel" class="ghost compact-button">Cancel</button>
               <button type="button" id="factory-reset-run" class="ghost compact-button danger" disabled>Reset and relaunch</button>
+            </div>
+          </section>
+        </div>
+
+        <div id="delete-account-modal" class="chat-notes-overlay" hidden>
+          <section class="chat-notes-panel settings-profile-modal factory-reset-modal" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <div class="chat-notes-head">
+              <div>
+                <p class="eyebrow">Account Deletion</p>
+                <h3 id="delete-account-title" class="section-title">Delete signed-in account</h3>
+              </div>
+              <button type="button" id="delete-account-close" class="ghost compact-button">Close</button>
+            </div>
+
+            <p class="helper-text danger-copy">
+              This permanently deletes the signed-in Stream Sync Pro account from the website service. It also signs this app out and clears remembered sign-in details locally. This cannot be undone.
+            </p>
+
+            <label class="field">
+              <span>Type DELETE to confirm</span>
+              <input id="delete-account-confirmation" type="text" autocomplete="off" placeholder="DELETE" />
+            </label>
+
+            <p id="delete-account-status" class="status info">Only the currently signed-in account can be deleted.</p>
+
+            <div class="chat-notes-actions">
+              <button type="button" id="delete-account-cancel" class="ghost compact-button">Cancel</button>
+              <button type="button" id="delete-account-run" class="ghost compact-button danger" disabled>Delete account</button>
             </div>
           </section>
         </div>

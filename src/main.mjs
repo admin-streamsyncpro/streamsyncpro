@@ -336,7 +336,12 @@ function getSystemUsageSnapshot() {
     cpuUsagePercent: Number(cpuUsagePercent.toFixed(1)),
     ramUsagePercent: Number(ramUsagePercent.toFixed(1)),
     usedMemoryMb: Math.round(usedMemoryBytes / (1024 * 1024)),
-    totalMemoryMb: Math.round(totalMemoryBytes / (1024 * 1024))
+    totalMemoryMb: Math.round(totalMemoryBytes / (1024 * 1024)),
+    platform: os.platform(),
+    architecture: os.arch(),
+    release: os.release(),
+    cpuCores: os.cpus().length,
+    uptimeSeconds: Math.round(os.uptime())
   };
 }
 

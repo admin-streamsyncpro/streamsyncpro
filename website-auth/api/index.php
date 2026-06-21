@@ -123,7 +123,7 @@ function routeRequest(PDO $pdo, array $config): void
         jsonResponse(404, ['ok' => false, 'error' => 'Not found']);
     }
 
-    $input = getJsonInput();
+    $input = isMultipartRequest() ? getMultipartInput() : getJsonInput();
 
     switch ($requestPath) {
         case '/auth/register':
@@ -137,6 +137,12 @@ function routeRequest(PDO $pdo, array $config): void
             return;
         case '/auth/logout':
             handleLogout($pdo, $input);
+            return;
+        case '/auth/delete-account':
+            handleDeleteAccount($pdo, $input);
+            return;
+        case '/auth/send-referral-email':
+            handleSendReferralEmail($pdo, $config, $input);
             return;
         case '/auth/session':
             handleSession($pdo, $input);
@@ -154,7 +160,10 @@ function routeRequest(PDO $pdo, array $config): void
             handleCheckConnectCredit($pdo, $input);
             return;
         case '/auth/consume-connect-credit':
-            handleConsumeConnectCredit($pdo, $input);
+            handleConsumeConnectCredit($pdo, $config, $input);
+            return;
+        case '/auth/live-connected':
+            handleLiveConnectedNotification($pdo, $config, $input);
             return;
         case '/auth/forgot-password':
             handleForgotPassword($pdo, $config, $input);
@@ -193,7 +202,7 @@ function routeRequest(PDO $pdo, array $config): void
             handleContactSubmit($pdo, $config, $input);
             return;
         case '/feedback/submit':
-            handleFeedbackSubmit($pdo, $input);
+            handleFeedbackSubmit($pdo, $config, $input);
             return;
         case '/billing/session':
             handleBillingSession($pdo, $config, $input);
@@ -293,8 +302,14 @@ function ensureSchema(PDO $pdo, array $config = []): void
             verification_code_expires_at DATETIME NULL,
             password_reset_code_hash VARCHAR(255) NULL,
             password_reset_expires_at DATETIME NULL,
+            referral_code VARCHAR(32) NULL,
+            referred_by_user_id INT UNSIGNED NULL,
+            signup_promo_code VARCHAR(80) NULL,
+            referral_reward_granted_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_user_referral_code (referral_code),
+            INDEX idx_user_referred_by (referred_by_user_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
 
@@ -432,6 +447,10 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_users', 'forced_logout_at', 'ALTER TABLE auth_users ADD COLUMN forced_logout_at DATETIME NULL AFTER forced_logout_reason');
     ensureColumn($pdo, 'auth_users', 'billing_link_token_hash', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_hash VARCHAR(255) NULL AFTER forced_logout_at');
     ensureColumn($pdo, 'auth_users', 'billing_link_token_expires_at', 'ALTER TABLE auth_users ADD COLUMN billing_link_token_expires_at DATETIME NULL AFTER billing_link_token_hash');
+    ensureColumn($pdo, 'auth_users', 'referral_code', 'ALTER TABLE auth_users ADD COLUMN referral_code VARCHAR(32) NULL AFTER billing_link_token_expires_at');
+    ensureColumn($pdo, 'auth_users', 'referred_by_user_id', 'ALTER TABLE auth_users ADD COLUMN referred_by_user_id INT UNSIGNED NULL AFTER referral_code');
+    ensureColumn($pdo, 'auth_users', 'signup_promo_code', 'ALTER TABLE auth_users ADD COLUMN signup_promo_code VARCHAR(80) NULL AFTER referred_by_user_id');
+    ensureColumn($pdo, 'auth_users', 'referral_reward_granted_at', 'ALTER TABLE auth_users ADD COLUMN referral_reward_granted_at DATETIME NULL AFTER signup_promo_code');
     ensureColumn($pdo, 'auth_credit_transactions', 'discount_amount', 'ALTER TABLE auth_credit_transactions ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER amount_value');
     ensureColumn($pdo, 'auth_user_overlay_state', 'overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD COLUMN overlay_public_id VARCHAR(80) NULL AFTER user_id');
     ensureColumn($pdo, 'auth_user_overlay_state', 'command_feedback_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN command_feedback_json LONGTEXT NULL AFTER queue_state_json');
@@ -446,7 +465,10 @@ function ensureSchema(PDO $pdo, array $config = []): void
     ensureColumn($pdo, 'auth_user_overlay_state', 'progress_bar_overlay_json', 'ALTER TABLE auth_user_overlay_state ADD COLUMN progress_bar_overlay_json LONGTEXT NULL AFTER spin_wheel_overlay_json');
     ensureColumn($pdo, 'auth_beta_feedback_reports', 'admin_notes', 'ALTER TABLE auth_beta_feedback_reports ADD COLUMN admin_notes TEXT NULL AFTER status');
     ensureIndex($pdo, 'auth_user_overlay_state', 'uniq_overlay_public_id', 'ALTER TABLE auth_user_overlay_state ADD UNIQUE KEY uniq_overlay_public_id (overlay_public_id)');
+    ensureIndex($pdo, 'auth_users', 'uniq_user_referral_code', 'ALTER TABLE auth_users ADD UNIQUE KEY uniq_user_referral_code (referral_code)');
+    ensureIndex($pdo, 'auth_users', 'idx_user_referred_by', 'ALTER TABLE auth_users ADD INDEX idx_user_referred_by (referred_by_user_id)');
     seedDefaultBillingSettings($pdo, $config ?? []);
+    backfillMissingReferralCodes($pdo);
 }
 
 function ensureColumn(PDO $pdo, string $table, string $column, string $sql): void
@@ -498,13 +520,49 @@ function getJsonInput(): array
     return $decoded;
 }
 
+function isMultipartRequest(): bool
+{
+    $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''));
+    return str_contains($contentType, 'multipart/form-data');
+}
+
+function getMultipartInput(): array
+{
+    $input = [];
+
+    foreach ($_POST as $key => $value) {
+        $input[$key] = is_string($value) ? $value : '';
+    }
+
+    if (!$input && !$_FILES && ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0)) > 0) {
+        jsonResponse(413, [
+            'ok' => false,
+            'error' => 'The upload was rejected before it reached the API. Check the website PHP upload_max_filesize and post_max_size settings; attachments must be 10MB or smaller.',
+        ]);
+    }
+
+    foreach (['diagnostics'] as $jsonField) {
+        if (!array_key_exists($jsonField, $input) || trim((string) $input[$jsonField]) === '') {
+            continue;
+        }
+
+        $decoded = json_decode((string) $input[$jsonField], true);
+        if (!is_array($decoded)) {
+            jsonResponse(400, ['ok' => false, 'error' => 'Invalid ' . $jsonField . ' payload']);
+        }
+
+        $input[$jsonField] = $decoded;
+    }
+
+    return $input;
+}
+
 function handleRegister(PDO $pdo, array $config, array $input): void
 {
     $displayName = trim((string) ($input['displayName'] ?? ''));
     $email = normalizeEmail((string) ($input['email'] ?? ''));
     $password = (string) ($input['password'] ?? '');
-    $billingSettings = getBillingSettings($pdo, $config);
-    $signupCredits = max(0, (int) ($billingSettings['signup_credits'] ?? 5));
+    $promoCode = normalizeSignupCode((string) ($input['promoCode'] ?? ''));
 
     if ($displayName === '' || $email === '' || $password === '') {
         jsonResponse(400, ['ok' => false, 'error' => 'Display name, email, and password are required.']);
@@ -517,6 +575,11 @@ function handleRegister(PDO $pdo, array $config, array $input): void
     if (strlen($password) < 8) {
         jsonResponse(400, ['ok' => false, 'error' => 'Password must be at least 8 characters long.']);
     }
+
+    $billingSettings = getBillingSettings($pdo, $config);
+    $signupCredits = max(0, (int) ($billingSettings['signup_credits'] ?? 5));
+    $signupCodeResult = resolveSignupPromoOrReferral($pdo, $billingSettings, $promoCode, $email);
+    $totalSignupCredits = $signupCredits + (int) ($signupCodeResult['signupBonusCredits'] ?? 0);
 
     $existingUser = findUserByEmail($pdo, $email);
     $code = createNumericCode();
@@ -537,6 +600,9 @@ function handleRegister(PDO $pdo, array $config, array $input): void
              SET display_name = :display_name,
                  password_hash = :password_hash,
                  credits = :credits,
+                 referred_by_user_id = :referred_by_user_id,
+                 signup_promo_code = :signup_promo_code,
+                 referral_reward_granted_at = NULL,
                  verification_code_hash = :verification_code_hash,
                  verification_code_expires_at = :verification_code_expires_at
              WHERE id = :id'
@@ -544,7 +610,9 @@ function handleRegister(PDO $pdo, array $config, array $input): void
         $statement->execute([
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
-            ':credits' => $signupCredits,
+            ':credits' => $totalSignupCredits,
+            ':referred_by_user_id' => $signupCodeResult['referrerUserId'] ?? null,
+            ':signup_promo_code' => $signupCodeResult['appliedCode'] ?? null,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
             ':id' => (int) $existingUser['id'],
@@ -556,6 +624,9 @@ function handleRegister(PDO $pdo, array $config, array $input): void
                 display_name,
                 password_hash,
                 credits,
+                referral_code,
+                referred_by_user_id,
+                signup_promo_code,
                 verification_code_hash,
                 verification_code_expires_at
              ) VALUES (
@@ -563,6 +634,9 @@ function handleRegister(PDO $pdo, array $config, array $input): void
                 :display_name,
                 :password_hash,
                 :credits,
+                :referral_code,
+                :referred_by_user_id,
+                :signup_promo_code,
                 :verification_code_hash,
                 :verification_code_expires_at
              )'
@@ -571,9 +645,20 @@ function handleRegister(PDO $pdo, array $config, array $input): void
             ':email' => $email,
             ':display_name' => $displayName,
             ':password_hash' => $passwordHash,
-            ':credits' => $signupCredits,
+            ':credits' => $totalSignupCredits,
+            ':referral_code' => null,
+            ':referred_by_user_id' => $signupCodeResult['referrerUserId'] ?? null,
+            ':signup_promo_code' => $signupCodeResult['appliedCode'] ?? null,
             ':verification_code_hash' => $codeHash,
             ':verification_code_expires_at' => $expiresAt,
+        ]);
+
+        $newUserId = (int) $pdo->lastInsertId();
+        $referralCode = generateUniqueReferralCode($pdo, $newUserId);
+        $update = $pdo->prepare('UPDATE auth_users SET referral_code = :referral_code WHERE id = :id');
+        $update->execute([
+            ':referral_code' => $referralCode,
+            ':id' => $newUserId,
         ]);
     }
 
@@ -587,13 +672,15 @@ function handleRegister(PDO $pdo, array $config, array $input): void
     sendSignupNotificationEmailSafe($config, [
         'displayName' => $displayName,
         'email' => $email,
-        'credits' => $signupCredits,
+        'credits' => $totalSignupCredits,
         'isExistingUnverified' => (bool) $existingUser,
     ]);
 
     jsonResponse(200, [
         'ok' => true,
-        'message' => 'Registration started. Check your email for the verification code.',
+        'message' => $signupCodeResult['message']
+            ? 'Registration started. ' . $signupCodeResult['message'] . ' Check your email for the verification code.'
+            : 'Registration started. Check your email for the verification code.',
     ]);
 }
 
@@ -637,10 +724,78 @@ function handleVerifyEmail(PDO $pdo, array $input): void
     );
     $statement->execute([':id' => (int) $user['id']]);
 
+    $referralReward = grantReferralRewardIfNeeded($pdo, $user);
+
     jsonResponse(200, [
         'ok' => true,
-        'message' => 'Email verified successfully.',
+        'message' => $referralReward['message'] ?? 'Email verified successfully.',
     ]);
+}
+
+function grantReferralRewardIfNeeded(PDO $pdo, array $newUser): array
+{
+    $referrerUserId = (int) ($newUser['referred_by_user_id'] ?? 0);
+    if ($referrerUserId <= 0 || !empty($newUser['referral_reward_granted_at'])) {
+        return ['ok' => false, 'message' => 'Email verified successfully.'];
+    }
+
+    $billingSettings = getBillingSettings($pdo, []);
+    $rewardCredits = max(0, (int) ($billingSettings['referral_reward_credits'] ?? 5));
+    if ($rewardCredits <= 0) {
+        $mark = $pdo->prepare('UPDATE auth_users SET referral_reward_granted_at = :granted_at WHERE id = :id AND referral_reward_granted_at IS NULL');
+        $mark->execute([
+            ':granted_at' => gmdate('Y-m-d H:i:s'),
+            ':id' => (int) $newUser['id'],
+        ]);
+        return ['ok' => true, 'message' => 'Email verified successfully.'];
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $mark = $pdo->prepare('UPDATE auth_users SET referral_reward_granted_at = :granted_at WHERE id = :id AND referral_reward_granted_at IS NULL');
+        $mark->execute([
+            ':granted_at' => gmdate('Y-m-d H:i:s'),
+            ':id' => (int) $newUser['id'],
+        ]);
+
+        if ($mark->rowCount() !== 1) {
+            $pdo->commit();
+            return ['ok' => false, 'message' => 'Email verified successfully.'];
+        }
+
+        $credit = $pdo->prepare('UPDATE auth_users SET credits = credits + :credits WHERE id = :id');
+        $credit->execute([
+            ':credits' => $rewardCredits,
+            ':id' => $referrerUserId,
+        ]);
+
+        $referrer = findUserById($pdo, $referrerUserId);
+        if ($referrer) {
+            logAuditEvent(
+                $pdo,
+                $referrerUserId,
+                'referral_reward',
+                sprintf('Referral reward: %d credit%s added after %s verified their email.', $rewardCredits, $rewardCredits === 1 ? '' : 's', (string) ($newUser['email'] ?? 'a referred user')),
+                (int) ($referrer['credits'] ?? 0) + $rewardCredits,
+                [
+                    'referredUserId' => (int) $newUser['id'],
+                    'rewardCredits' => $rewardCredits,
+                ]
+            );
+        }
+
+        $pdo->commit();
+    } catch (Throwable $exception) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $exception;
+    }
+
+    return [
+        'ok' => true,
+        'message' => sprintf('Email verified successfully. Referral reward granted: %d credit%s added to the referrer.', $rewardCredits, $rewardCredits === 1 ? '' : 's'),
+    ];
 }
 
 function handleLogin(PDO $pdo, array $input): void
@@ -759,12 +914,89 @@ function handleLogout(PDO $pdo, array $input): void
     ]);
 }
 
-function handleConsumeConnectCredit(PDO $pdo, array $input): void
+function handleDeleteAccount(PDO $pdo, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+    $requestedUserId = max(0, (int) ($input['userId'] ?? 0));
+    $confirmation = strtoupper(trim((string) ($input['confirmation'] ?? '')));
+
+    if ($confirmation !== 'DELETE') {
+        jsonResponse(400, ['ok' => false, 'error' => 'Type DELETE to confirm account deletion.']);
+    }
+
+    if ($requestedUserId <= 0 || $requestedUserId !== (int) $user['id']) {
+        jsonResponse(403, ['ok' => false, 'error' => 'You can only delete the account you are currently signed into.']);
+    }
+
+    $statement = $pdo->prepare('DELETE FROM auth_users WHERE id = :id LIMIT 1');
+    $statement->execute([':id' => (int) $user['id']]);
+
+    if ($statement->rowCount() !== 1) {
+        jsonResponse(404, ['ok' => false, 'error' => 'Account could not be found or was already deleted.']);
+    }
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Account deleted successfully.',
+    ]);
+}
+
+function handleSendReferralEmail(PDO $pdo, array $config, array $input): void
+{
+    [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
+    $friendEmail = normalizeEmail((string) ($input['friendEmail'] ?? ''));
+    $referralCode = normalizeSignupCode((string) ($user['referral_code'] ?? ''));
+
+    if ($friendEmail === '' || !filter_var($friendEmail, FILTER_VALIDATE_EMAIL)) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Enter a valid friend email address.']);
+    }
+
+    if (normalizeEmail((string) ($user['email'] ?? '')) === $friendEmail) {
+        jsonResponse(400, ['ok' => false, 'error' => 'You cannot send a referral invite to your own account email.']);
+    }
+
+    if ($referralCode === '') {
+        $referralCode = generateUniqueReferralCode($pdo, (int) $user['id']);
+        $statement = $pdo->prepare('UPDATE auth_users SET referral_code = :referral_code WHERE id = :id');
+        $statement->execute([
+            ':referral_code' => $referralCode,
+            ':id' => (int) $user['id'],
+        ]);
+        $user['referral_code'] = $referralCode;
+    }
+
+    $referralLink = 'https://streamsyncpro.co.uk/?ref=' . rawurlencode($referralCode) . '#download';
+    sendReferralInviteEmail($config, $user, $friendEmail, $referralCode, $referralLink);
+
+    logAuditEvent(
+        $pdo,
+        (int) $user['id'],
+        'referral_email_sent',
+        'Referral email sent to ' . $friendEmail . '.',
+        (int) ($user['credits'] ?? 0),
+        [
+            'friendEmail' => $friendEmail,
+            'referralCode' => $referralCode,
+        ]
+    );
+
+    $updatedUser = findUserById($pdo, (int) $user['id']) ?: $user;
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => 'Referral email sent to ' . $friendEmail . '.',
+        'user' => sanitizeUser($updatedUser, $sessionToken),
+    ]);
+}
+
+function handleConsumeConnectCredit(PDO $pdo, array $config, array $input): void
 {
     [$user, $sessionToken] = requireValidConnectSession($pdo, $input);
     $sessionTokenHash = hash('sha256', $sessionToken);
     $tiktokUsername = trim((string) ($input['tiktokUsername'] ?? ''));
     $normalizedTiktokUsername = ltrim($tiktokUsername, '@');
+    $profileImageUrl = trim((string) ($input['profileImageUrl'] ?? ''));
+    $profileBio = trim((string) ($input['profileBio'] ?? ''));
 
     if (hasAnotherActiveConnection($user, $sessionTokenHash)) {
         jsonResponse(409, ['ok' => false, 'error' => 'This account is already connected on another device or session.']);
@@ -805,11 +1037,396 @@ function handleConsumeConnectCredit(PDO $pdo, array $input): void
         $normalizedTiktokUsername !== '' ? ['tiktokUsername' => $normalizedTiktokUsername] : []
     );
 
+    $liveNotification = null;
+    if ($normalizedTiktokUsername !== '') {
+        $liveNotification = sendLiveConnectedNotificationToDiscord($pdo, $config, $updatedUser ?: $user, $normalizedTiktokUsername, [
+            'imageUrl' => $profileImageUrl,
+            'bio' => $profileBio,
+        ]);
+    }
+
     jsonResponse(200, [
         'ok' => true,
         'message' => '1 credit used to connect.',
         'user' => sanitizeUser($updatedUser, $sessionToken),
+        'liveNotification' => $liveNotification,
     ]);
+}
+
+function handleLiveConnectedNotification(PDO $pdo, array $config, array $input): void
+{
+    [$user] = requireValidConnectSession($pdo, $input);
+
+    $tiktokUsername = normalizeTikTokUsername((string) ($input['tiktokUsername'] ?? ''));
+    if ($tiktokUsername === '') {
+        jsonResponse(400, ['ok' => false, 'error' => 'TikTok username is required for the live connection notification.']);
+    }
+
+    $notification = sendLiveConnectedNotificationToDiscord($pdo, $config, $user, $tiktokUsername, [
+        'imageUrl' => trim((string) ($input['profileImageUrl'] ?? '')),
+        'bio' => trim((string) ($input['profileBio'] ?? '')),
+    ]);
+
+    jsonResponse(200, [
+        'ok' => true,
+        'message' => $notification['message'] ?? 'Live connected notification handled.',
+        'notification' => $notification,
+    ]);
+}
+
+function sendLiveConnectedNotificationToDiscord(PDO $pdo, array $config, array $user, string $tiktokUsername, array $profileMeta = []): array
+{
+    $discordConfig = is_array($config['discord'] ?? null) ? $config['discord'] : [];
+    $webhookUrl = trim((string) ($discordConfig['live_connected_webhook_url'] ?? ''));
+    if ($webhookUrl === '') {
+        return [
+            'ok' => false,
+            'message' => 'Live connected notification webhook is not configured.',
+        ];
+    }
+
+    $profileUrl = 'https://www.tiktok.com/@' . rawurlencode($tiktokUsername);
+    $liveUrl = $profileUrl . '/live';
+    $fetchedProfileMeta = fetchTikTokProfileMetadata($profileUrl);
+    $profileMeta = [
+        'imageUrl' => trim((string) ($profileMeta['imageUrl'] ?? '')) ?: ($fetchedProfileMeta['imageUrl'] ?? ''),
+        'bio' => trim((string) ($profileMeta['bio'] ?? '')) ?: ($fetchedProfileMeta['bio'] ?? ''),
+    ];
+
+    try {
+        postJsonToDiscordWebhook($webhookUrl, buildLiveConnectedDiscordPayload([
+            'user' => $user,
+            'tiktokUsername' => $tiktokUsername,
+            'profileUrl' => $profileUrl,
+            'liveUrl' => $liveUrl,
+            'profileImageUrl' => $profileMeta['imageUrl'] ?? '',
+            'profileBio' => $profileMeta['bio'] ?? '',
+            'createdAt' => gmdate('c'),
+        ]));
+
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'live_connected_notification',
+            sprintf('Posted TikTok LIVE URL for @%s to Discord.', $tiktokUsername),
+            (int) ($user['credits'] ?? 0),
+            [
+                'tiktokUsername' => $tiktokUsername,
+                'profileUrl' => $profileUrl,
+                'liveUrl' => $liveUrl,
+                'profileImageFound' => !empty($profileMeta['imageUrl']),
+                'profileBioFound' => !empty($profileMeta['bio']),
+            ]
+        );
+
+        return [
+            'ok' => true,
+            'message' => 'Live connected notification sent.',
+            'profileUrl' => $profileUrl,
+            'liveUrl' => $liveUrl,
+            'profileImageFound' => !empty($profileMeta['imageUrl']),
+            'profileBioFound' => !empty($profileMeta['bio']),
+        ];
+    } catch (Throwable $exception) {
+        logAuditEvent(
+            $pdo,
+            (int) $user['id'],
+            'live_connected_notification_failed',
+            sprintf('Failed to post TikTok LIVE URL for @%s to Discord: %s', $tiktokUsername, $exception->getMessage()),
+            (int) ($user['credits'] ?? 0),
+            [
+                'tiktokUsername' => $tiktokUsername,
+                'profileUrl' => $profileUrl,
+                'liveUrl' => $liveUrl,
+                'error' => $exception->getMessage(),
+            ]
+        );
+
+        return [
+            'ok' => false,
+            'message' => 'Live connected notification failed: ' . $exception->getMessage(),
+            'profileUrl' => $profileUrl,
+            'liveUrl' => $liveUrl,
+        ];
+    }
+}
+
+function normalizeTikTokUsername(string $username): string
+{
+    $username = trim($username);
+    $username = ltrim($username, '@');
+    $username = preg_replace('/[^A-Za-z0-9._-]/', '', $username) ?? '';
+
+    return mb_substr($username, 0, 64);
+}
+
+function fetchTikTokProfileMetadata(string $profileUrl): array
+{
+    $html = fetchRemoteText($profileUrl, 6);
+    if ($html === '') {
+        return [];
+    }
+
+    $metadata = [
+        'imageUrl' => extractHtmlMetaContent($html, 'property', 'og:image'),
+        'bio' => extractHtmlMetaContent($html, 'name', 'description'),
+    ];
+
+    if ($metadata['bio'] === '') {
+        $metadata['bio'] = extractHtmlMetaContent($html, 'property', 'og:description');
+    }
+
+    $jsonMetadata = extractTikTokProfileMetadataFromJsonState($html);
+    if ($metadata['imageUrl'] === '') {
+        $metadata['imageUrl'] = $jsonMetadata['imageUrl'] ?? '';
+    }
+    if ($metadata['bio'] === '') {
+        $metadata['bio'] = $jsonMetadata['bio'] ?? '';
+    }
+
+    $metadata['imageUrl'] = trim(html_entity_decode($metadata['imageUrl'], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $metadata['bio'] = trim(html_entity_decode($metadata['bio'], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+    return array_filter($metadata, static fn($value) => is_string($value) && trim($value) !== '');
+}
+
+function extractTikTokProfileMetadataFromJsonState(string $html): array
+{
+    foreach (['SIGI_STATE', '__UNIVERSAL_DATA_FOR_REHYDRATION__'] as $scriptId) {
+        $json = extractScriptJsonById($html, $scriptId);
+        if ($json === '') {
+            continue;
+        }
+
+        $decoded = json_decode(html_entity_decode($json, ENT_QUOTES | ENT_HTML5, 'UTF-8'), true);
+        if (!is_array($decoded)) {
+            continue;
+        }
+
+        $metadata = findTikTokProfileMetadataInDecodedState($decoded);
+        if ($metadata) {
+            return $metadata;
+        }
+    }
+
+    return [];
+}
+
+function extractScriptJsonById(string $html, string $scriptId): string
+{
+    $pattern = '/<script\b(?=[^>]*\bid\s*=\s*["\']' . preg_quote($scriptId, '/') . '["\'])[^>]*>(.*?)<\/script>/is';
+    if (!preg_match($pattern, $html, $matches)) {
+        return '';
+    }
+
+    return trim((string) ($matches[1] ?? ''));
+}
+
+function findTikTokProfileMetadataInDecodedState(array $state): array
+{
+    $visited = [];
+    $best = [];
+
+    $visit = static function ($value) use (&$visit, &$visited, &$best): void {
+        if (!is_array($value)) {
+            return;
+        }
+
+        $hash = md5(json_encode(array_slice($value, 0, 8), JSON_PARTIAL_OUTPUT_ON_ERROR) ?: spl_object_id((object) $value));
+        if (isset($visited[$hash])) {
+            return;
+        }
+        $visited[$hash] = true;
+
+        $bio = trim((string) ($value['signature'] ?? $value['bio'] ?? $value['desc'] ?? $value['description'] ?? ''));
+        $imageUrl = extractTikTokProfileImageCandidate($value);
+        if (($bio !== '' || $imageUrl !== '') && (empty($best['bio']) || empty($best['imageUrl']))) {
+            $best = [
+                'bio' => $bio ?: ($best['bio'] ?? ''),
+                'imageUrl' => $imageUrl ?: ($best['imageUrl'] ?? ''),
+            ];
+        }
+
+        foreach ($value as $child) {
+            $visit($child);
+        }
+    };
+
+    $visit($state);
+
+    return array_filter($best, static fn($value) => is_string($value) && trim($value) !== '');
+}
+
+function extractTikTokProfileImageCandidate(array $value): string
+{
+    $candidateKeys = [
+        'avatarLarger',
+        'avatarMedium',
+        'avatarThumb',
+        'avatar_larger',
+        'avatar_medium',
+        'avatar_thumb',
+        'profilePictureUrl',
+        'image',
+    ];
+
+    foreach ($candidateKeys as $key) {
+        if (!array_key_exists($key, $value)) {
+            continue;
+        }
+
+        $url = extractUrlFromMixedValue($value[$key]);
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+function extractUrlFromMixedValue(mixed $value): string
+{
+    if (is_string($value)) {
+        return preg_match('/^https?:\/\//i', $value) ? preg_replace('/^http:\/\//i', 'https://', $value) : '';
+    }
+
+    if (!is_array($value)) {
+        return '';
+    }
+
+    foreach (['url', 'uri', 'urlList', 'url_list', 0] as $key) {
+        if (array_key_exists($key, $value)) {
+            $url = extractUrlFromMixedValue($value[$key]);
+            if ($url !== '') {
+                return $url;
+            }
+        }
+    }
+
+    foreach ($value as $child) {
+        $url = extractUrlFromMixedValue($child);
+        if ($url !== '') {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+function fetchRemoteText(string $url, int $timeoutSeconds = 8): string
+{
+    if (function_exists('curl_init')) {
+        $handle = curl_init($url);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_CONNECTTIMEOUT => $timeoutSeconds,
+            CURLOPT_TIMEOUT => $timeoutSeconds,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; StreamSyncPro/1.0)',
+            CURLOPT_HTTPHEADER => [
+                'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language: en-GB,en;q=0.9',
+            ],
+        ]);
+
+        $body = curl_exec($handle);
+        $statusCode = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        curl_close($handle);
+
+        return is_string($body) && $statusCode >= 200 && $statusCode < 400 ? $body : '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => "User-Agent: Mozilla/5.0 (compatible; StreamSyncPro/1.0)\r\nAccept: text/html\r\n",
+            'timeout' => $timeoutSeconds,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $body = file_get_contents($url, false, $context);
+
+    return is_string($body) ? $body : '';
+}
+
+function extractHtmlMetaContent(string $html, string $attributeName, string $attributeValue): string
+{
+    $attributeName = preg_quote($attributeName, '/');
+    $attributeValue = preg_quote($attributeValue, '/');
+    $pattern = '/<meta\b(?=[^>]*\b' . $attributeName . '\s*=\s*["\']' . $attributeValue . '["\'])(?=[^>]*\bcontent\s*=\s*(["\'])(.*?)\1)[^>]*>/is';
+
+    if (!preg_match($pattern, $html, $matches)) {
+        return '';
+    }
+
+    return (string) ($matches[2] ?? '');
+}
+
+function buildLiveConnectedDiscordPayload(array $payload): array
+{
+    $user = is_array($payload['user'] ?? null) ? $payload['user'] : [];
+    $tiktokUsername = trim((string) ($payload['tiktokUsername'] ?? ''));
+    $profileUrl = trim((string) ($payload['profileUrl'] ?? ''));
+    $liveUrl = trim((string) ($payload['liveUrl'] ?? ''));
+    $profileImageUrl = trim((string) ($payload['profileImageUrl'] ?? ''));
+    $profileBio = trim((string) ($payload['profileBio'] ?? ''));
+    $createdAt = trim((string) ($payload['createdAt'] ?? gmdate('c')));
+    if ($profileUrl === '' && $tiktokUsername !== '') {
+        $profileUrl = 'https://www.tiktok.com/@' . rawurlencode($tiktokUsername);
+    }
+
+    $embed = [
+        'title' => 'TikTok LIVE Connected',
+        'url' => $liveUrl,
+        'color' => 0x4de7ff,
+        'fields' => [
+            [
+                'name' => 'TikTok LIVE',
+                'value' => sprintf('[Watch LIVE](%s)', $liveUrl),
+                'inline' => false,
+            ],
+            [
+                'name' => 'TikTok Profile',
+                'value' => sprintf('[View Profile](%s)', $profileUrl),
+                'inline' => false,
+            ],
+            [
+                'name' => 'Username',
+                'value' => '@' . $tiktokUsername,
+                'inline' => true,
+            ],
+            [
+                'name' => 'App User',
+                'value' => truncateDiscordText((string) ($user['display_name'] ?? 'Unknown'), 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'Created',
+                'value' => truncateDiscordText($createdAt, 1024),
+                'inline' => true,
+            ],
+        ],
+    ];
+
+    if ($profileBio !== '') {
+        array_splice($embed['fields'], 2, 0, [[
+            'name' => 'Bio',
+            'value' => truncateDiscordText($profileBio, 1024),
+            'inline' => false,
+        ]]);
+    }
+
+    if ($profileImageUrl !== '') {
+        $embed['thumbnail'] = ['url' => $profileImageUrl];
+    }
+
+    return [
+        'username' => 'Stream Sync Pro LIVE',
+        'content' => sprintf('[View TikTok Profile](%s) | [Watch LIVE](%s)', $profileUrl, $liveUrl),
+        'embeds' => [$embed],
+        'allowed_mentions' => ['parse' => []],
+    ];
 }
 
 function handleCheckConnectCredit(PDO $pdo, array $input): void
@@ -902,6 +1519,19 @@ function handleSelfCheck(PDO $pdo, array $input): void
                 'code' => 'session_expired',
                 'message' => 'Your session has expired. Please sign in again.',
             ]);
+        }
+
+        if (hash_equals((string) ($user['active_connection_token_hash'] ?? ''), $sessionTokenHash)) {
+            $heartbeatStatement = $pdo->prepare(
+                'UPDATE auth_users
+                 SET active_connection_started_at = :active_connection_started_at
+                 WHERE id = :id'
+            );
+            $heartbeatStatement->execute([
+                ':active_connection_started_at' => gmdate('Y-m-d H:i:s'),
+                ':id' => (int) $user['id'],
+            ]);
+            $user['active_connection_started_at'] = gmdate('Y-m-d H:i:s');
         }
 
         jsonResponse(200, [
@@ -2114,6 +2744,11 @@ function resolveBillingSettings(array $config): array
         'currency' => strtoupper((string) (($config['billing']['currency'] ?? 'GBP'))),
         'minimum_credits' => max(1, (int) (($config['billing']['minimum_credits'] ?? 1))),
         'maximum_credits' => max(1, (int) (($config['billing']['maximum_credits'] ?? 5000))),
+        'signup_credits' => max(0, (int) (($config['billing']['signup_credits'] ?? 5))),
+        'signup_promo_code' => strtoupper(trim((string) (($config['billing']['signup_promo_code'] ?? '')))),
+        'signup_promo_credits' => max(0, (int) (($config['billing']['signup_promo_credits'] ?? 0))),
+        'referral_reward_credits' => max(0, (int) (($config['billing']['referral_reward_credits'] ?? 5))),
+        'referred_signup_bonus_credits' => max(0, (int) (($config['billing']['referred_signup_bonus_credits'] ?? 5))),
         'topup_session_expiry_minutes' => max(5, (int) (($config['billing']['topup_session_expiry_minutes'] ?? 20))),
     ];
 }
@@ -2133,6 +2768,101 @@ function seedDefaultBillingSettings(PDO $pdo, array $config): void
     }
 }
 
+function backfillMissingReferralCodes(PDO $pdo): void
+{
+    $statement = $pdo->query('SELECT id FROM auth_users WHERE referral_code IS NULL OR referral_code = ""');
+    foreach ($statement->fetchAll() as $row) {
+        $code = generateUniqueReferralCode($pdo, (int) $row['id']);
+        $update = $pdo->prepare('UPDATE auth_users SET referral_code = :referral_code WHERE id = :id');
+        $update->execute([
+            ':referral_code' => $code,
+            ':id' => (int) $row['id'],
+        ]);
+    }
+}
+
+function generateUniqueReferralCode(PDO $pdo, int $userId): string
+{
+    $prefix = 'SSP' . max(1, $userId);
+
+    for ($attempt = 0; $attempt < 8; $attempt += 1) {
+        $code = strtoupper($prefix . substr(bin2hex(random_bytes(3)), 0, 6));
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM auth_users WHERE referral_code = :referral_code');
+        $statement->execute([':referral_code' => $code]);
+        if ((int) $statement->fetchColumn() === 0) {
+            return $code;
+        }
+    }
+
+    return strtoupper('SSP' . bin2hex(random_bytes(8)));
+}
+
+function findUserByReferralCode(PDO $pdo, string $code): ?array
+{
+    $normalizedCode = normalizeSignupCode($code);
+    if ($normalizedCode === '') {
+        return null;
+    }
+
+    $statement = $pdo->prepare('SELECT * FROM auth_users WHERE referral_code = :referral_code LIMIT 1');
+    $statement->execute([':referral_code' => $normalizedCode]);
+    $user = $statement->fetch();
+
+    return $user ?: null;
+}
+
+function normalizeSignupCode(string $code): string
+{
+    return strtoupper(preg_replace('/[^A-Z0-9_-]/i', '', trim($code)) ?? '');
+}
+
+function resolveSignupPromoOrReferral(PDO $pdo, array $billingSettings, string $promoCode, string $email): array
+{
+    $empty = [
+        'appliedCode' => null,
+        'referrerUserId' => null,
+        'signupBonusCredits' => 0,
+        'message' => '',
+    ];
+
+    if ($promoCode === '') {
+        return $empty;
+    }
+
+    $signupPromoCode = normalizeSignupCode((string) ($billingSettings['signup_promo_code'] ?? ''));
+    $signupPromoCredits = max(0, (int) ($billingSettings['signup_promo_credits'] ?? 0));
+    if ($signupPromoCode !== '' && hash_equals($signupPromoCode, $promoCode)) {
+        return [
+            'appliedCode' => $promoCode,
+            'referrerUserId' => null,
+            'signupBonusCredits' => $signupPromoCredits,
+            'message' => $signupPromoCredits > 0
+                ? sprintf('Promo code applied: %d bonus credit%s added.', $signupPromoCredits, $signupPromoCredits === 1 ? '' : 's')
+                : 'Promo code applied.',
+        ];
+    }
+
+    $referrer = findUserByReferralCode($pdo, $promoCode);
+    if (!$referrer) {
+        jsonResponse(400, ['ok' => false, 'error' => 'That promo or referral code was not found.']);
+    }
+
+    if (normalizeEmail((string) ($referrer['email'] ?? '')) === $email) {
+        jsonResponse(400, ['ok' => false, 'error' => 'You cannot use your own referral code.']);
+    }
+
+    $bonusCredits = max(0, (int) ($billingSettings['referred_signup_bonus_credits'] ?? 5));
+
+    return [
+        'appliedCode' => $promoCode,
+        'referrerUserId' => (int) $referrer['id'],
+        'signupBonusCredits' => $bonusCredits,
+        'message' => $bonusCredits > 0
+            ? sprintf('Referral code applied: %d bonus credit%s added.', $bonusCredits, $bonusCredits === 1 ? '' : 's')
+            : 'Referral code applied.',
+    ];
+}
+
 function getBillingSettings(PDO $pdo, array $config): array
 {
     $settings = resolveBillingSettings($config);
@@ -2146,6 +2876,10 @@ function getBillingSettings(PDO $pdo, array $config): array
     $settings['minimum_credits'] = max(1, (int) ($settings['minimum_credits'] ?? 1));
     $settings['maximum_credits'] = max((int) $settings['minimum_credits'], (int) ($settings['maximum_credits'] ?? 5000));
     $settings['signup_credits'] = max(0, (int) ($settings['signup_credits'] ?? 5));
+    $settings['signup_promo_code'] = strtoupper(trim((string) ($settings['signup_promo_code'] ?? '')));
+    $settings['signup_promo_credits'] = max(0, (int) ($settings['signup_promo_credits'] ?? 0));
+    $settings['referral_reward_credits'] = max(0, (int) ($settings['referral_reward_credits'] ?? 5));
+    $settings['referred_signup_bonus_credits'] = max(0, (int) ($settings['referred_signup_bonus_credits'] ?? 5));
     $settings['topup_session_expiry_minutes'] = max(5, (int) ($settings['topup_session_expiry_minutes'] ?? 20));
 
     return $settings;
@@ -2663,7 +3397,7 @@ function handleContactSubmit(PDO $pdo, array $config, array $input): void
     ]);
 }
 
-function handleFeedbackSubmit(PDO $pdo, array $input): void
+function handleFeedbackSubmit(PDO $pdo, array $config, array $input): void
 {
     [$user] = requireValidConnectSession($pdo, $input);
 
@@ -2672,6 +3406,7 @@ function handleFeedbackSubmit(PDO $pdo, array $input): void
     $contact = trim((string) ($input['contact'] ?? ''));
     $appVersion = trim((string) ($input['appVersion'] ?? ''));
     $reportBody = trim((string) ($input['report'] ?? ''));
+    $publicMessage = trim((string) ($input['message'] ?? ''));
     $diagnostics = $input['diagnostics'] ?? null;
 
     $allowedCategories = ['Bug', 'Feature request', 'UI feedback', 'Performance', 'Question'];
@@ -2689,54 +3424,28 @@ function handleFeedbackSubmit(PDO $pdo, array $input): void
         jsonResponse(400, ['ok' => false, 'error' => 'Please enter a fuller feedback report before sending.']);
     }
 
-    $diagnosticsJson = null;
-    if (is_array($diagnostics)) {
-        $diagnosticsJson = json_encode($diagnostics, JSON_UNESCAPED_SLASHES);
-    }
+    $attachment = resolveFeedbackAttachment($input);
 
-    $statement = $pdo->prepare(
-        'INSERT INTO auth_beta_feedback_reports (
-            user_id,
-            category,
-            severity,
-            contact,
-            app_version,
-            report_body,
-            diagnostics_json,
-            status,
-            ip_address
-         ) VALUES (
-            :user_id,
-            :category,
-            :severity,
-            :contact,
-            :app_version,
-            :report_body,
-            :diagnostics_json,
-            "open",
-            :ip_address
-         )'
-    );
-    $statement->execute([
-        ':user_id' => (int) $user['id'],
-        ':category' => mb_substr($category, 0, 80),
-        ':severity' => mb_substr($severity, 0, 40),
-        ':contact' => $contact !== '' ? mb_substr($contact, 0, 255) : null,
-        ':app_version' => $appVersion !== '' ? mb_substr($appVersion, 0, 40) : null,
-        ':report_body' => $reportBody,
-        ':diagnostics_json' => $diagnosticsJson,
-        ':ip_address' => resolveClientIp(),
+    sendBugReportToDiscord($config, [
+        'user' => $user,
+        'category' => $category,
+        'severity' => $severity,
+        'contact' => $contact,
+        'appVersion' => $appVersion,
+        'reportBody' => $reportBody,
+        'publicMessage' => $publicMessage !== '' ? $publicMessage : $reportBody,
+        'diagnostics' => is_array($diagnostics) ? $diagnostics : null,
+        'attachment' => $attachment,
+        'ipAddress' => resolveClientIp(),
     ]);
-    $reportId = (int) $pdo->lastInsertId();
 
     logAuditEvent(
         $pdo,
         (int) $user['id'],
-        'beta_feedback_submitted',
-        sprintf('Submitted beta feedback report: %s / %s.', $category, $severity),
+        'bug_report_submitted',
+        sprintf('Submitted Discord bug report: %s / %s.', $category, $severity),
         (int) ($user['credits'] ?? 0),
         [
-            'feedbackReportId' => $reportId,
             'category' => $category,
             'severity' => $severity,
         ]
@@ -2744,9 +3453,533 @@ function handleFeedbackSubmit(PDO $pdo, array $input): void
 
     jsonResponse(200, [
         'ok' => true,
-        'message' => 'Thanks, your beta feedback report was sent successfully.',
-        'reportId' => $reportId,
+        'message' => 'Thanks, your report was sent to Discord successfully.',
     ]);
+}
+
+function resolveFeedbackAttachment(array $input = []): ?array
+{
+    $jsonAttachment = is_array($input['attachment'] ?? null) ? $input['attachment'] : null;
+    if ($jsonAttachment) {
+        return resolveJsonFeedbackAttachment($jsonAttachment);
+    }
+
+    if (!isset($_FILES['attachment']) || !is_array($_FILES['attachment'])) {
+        return null;
+    }
+
+    $file = $_FILES['attachment'];
+    $error = (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+
+    if ($error !== UPLOAD_ERR_OK) {
+        jsonResponse(400, ['ok' => false, 'error' => 'The attachment could not be uploaded. Please try again.']);
+    }
+
+    $maxBytes = 10 * 1024 * 1024;
+    $size = (int) ($file['size'] ?? 0);
+    if ($size <= 0) {
+        jsonResponse(400, ['ok' => false, 'error' => 'The selected attachment is empty.']);
+    }
+
+    if ($size > $maxBytes) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Attachments must be 10MB or smaller.']);
+    }
+
+    $tmpName = (string) ($file['tmp_name'] ?? '');
+    if ($tmpName === '' || !is_uploaded_file($tmpName)) {
+        jsonResponse(400, ['ok' => false, 'error' => 'The attachment upload was not valid.']);
+    }
+
+    $originalName = basename((string) ($file['name'] ?? 'stream-sync-pro-report-attachment'));
+    $mimeType = trim((string) ($file['type'] ?? ''));
+
+    return [
+        'path' => $tmpName,
+        'name' => $originalName !== '' ? $originalName : 'stream-sync-pro-report-attachment',
+        'type' => $mimeType !== '' ? $mimeType : 'application/octet-stream',
+        'size' => $size,
+    ];
+}
+
+function resolveJsonFeedbackAttachment(array $attachment): ?array
+{
+    $name = basename((string) ($attachment['name'] ?? 'stream-sync-pro-report-attachment'));
+    $mimeType = trim((string) ($attachment['type'] ?? ''));
+    $declaredSize = (int) ($attachment['size'] ?? 0);
+    $contentBase64 = trim((string) ($attachment['contentBase64'] ?? ''));
+
+    if ($contentBase64 === '') {
+        return null;
+    }
+
+    $maxBytes = 10 * 1024 * 1024;
+    if ($declaredSize > $maxBytes) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Attachments must be 10MB or smaller.']);
+    }
+
+    $content = base64_decode($contentBase64, true);
+    if ($content === false || $content === '') {
+        jsonResponse(400, ['ok' => false, 'error' => 'The selected attachment could not be decoded.']);
+    }
+
+    $actualSize = strlen($content);
+    if ($actualSize > $maxBytes) {
+        jsonResponse(400, ['ok' => false, 'error' => 'Attachments must be 10MB or smaller.']);
+    }
+
+    $tempPath = tempnam(sys_get_temp_dir(), 'ssp-feedback-');
+    if ($tempPath === false || file_put_contents($tempPath, $content) === false) {
+        jsonResponse(500, ['ok' => false, 'error' => 'The server could not prepare the attachment for Discord.']);
+    }
+
+    return [
+        'path' => $tempPath,
+        'name' => $name !== '' ? $name : 'stream-sync-pro-report-attachment',
+        'type' => $mimeType !== '' ? $mimeType : 'application/octet-stream',
+        'size' => $actualSize,
+        'temporary' => true,
+    ];
+}
+
+function sendBugReportToDiscord(array $config, array $payload): void
+{
+    $user = is_array($payload['user'] ?? null) ? $payload['user'] : [];
+    $category = trim((string) ($payload['category'] ?? 'Bug'));
+
+    $severity = trim((string) ($payload['severity'] ?? 'Normal'));
+    $contact = trim((string) ($payload['contact'] ?? ''));
+    $appVersion = trim((string) ($payload['appVersion'] ?? ''));
+    $reportBody = trim((string) ($payload['reportBody'] ?? ''));
+    $publicMessage = trim((string) ($payload['publicMessage'] ?? $reportBody));
+    $diagnostics = is_array($payload['diagnostics'] ?? null) ? $payload['diagnostics'] : null;
+    $attachment = is_array($payload['attachment'] ?? null) ? $payload['attachment'] : null;
+    $ipAddress = trim((string) ($payload['ipAddress'] ?? ''));
+    $diagnosticsText = $diagnostics
+        ? json_encode($diagnostics, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        : '';
+    $createdAt = gmdate('c');
+
+    $publicWebhookUrl = resolveDiscordPublicFeedbackWebhookUrl($config, $category);
+    if ($publicWebhookUrl !== '') {
+        postJsonToDiscordWebhook($publicWebhookUrl, buildPublicDiscordFeedbackPayload([
+            'createdAt' => $createdAt,
+            'category' => $category,
+            'severity' => $severity,
+            'appVersion' => $appVersion,
+            'reportBody' => $publicMessage,
+        ]));
+    }
+
+    $privateWebhookUrl = resolveDiscordPrivateFeedbackWebhookUrl($config, $category);
+    $privatePayload = buildPrivateDiscordFeedbackPayload([
+        'createdAt' => $createdAt,
+        'user' => $user,
+        'category' => $category,
+        'severity' => $severity,
+        'contact' => $contact,
+        'appVersion' => $appVersion,
+        'reportBody' => $reportBody,
+        'diagnosticsText' => $diagnosticsText,
+        'attachment' => $attachment,
+        'ipAddress' => $ipAddress,
+    ]);
+
+    if ($attachment) {
+        try {
+            postMultipartToDiscordWebhook($privateWebhookUrl, $privatePayload, $attachment);
+            return;
+        } finally {
+            if (!empty($attachment['temporary']) && !empty($attachment['path']) && is_string($attachment['path']) && file_exists($attachment['path'])) {
+                @unlink($attachment['path']);
+            }
+        }
+    }
+
+    postJsonToDiscordWebhook($privateWebhookUrl, $privatePayload);
+}
+
+function buildPublicDiscordFeedbackPayload(array $payload): array
+{
+    $createdAt = trim((string) ($payload['createdAt'] ?? gmdate('c')));
+    $category = trim((string) ($payload['category'] ?? 'Bug'));
+    $severity = trim((string) ($payload['severity'] ?? 'Normal'));
+    $appVersion = trim((string) ($payload['appVersion'] ?? ''));
+    $summary = summarizePublicFeedbackReport((string) ($payload['reportBody'] ?? ''));
+
+    return [
+        'username' => 'Stream Sync Pro Public Feedback',
+        'embeds' => [[
+            'color' => resolveDiscordSeverityColor($severity),
+            'fields' => [
+                [
+                    'name' => 'Created',
+                    'value' => truncateDiscordText($createdAt, 1024),
+                    'inline' => true,
+                ],
+                [
+                    'name' => 'Category',
+                    'value' => truncateDiscordText($category, 1024),
+                    'inline' => true,
+                ],
+                [
+                    'name' => 'Severity',
+                    'value' => truncateDiscordText($severity, 1024),
+                    'inline' => true,
+                ],
+                [
+                    'name' => 'Version',
+                    'value' => truncateDiscordText($appVersion !== '' ? $appVersion : 'Unknown', 1024),
+                    'inline' => true,
+                ],
+                [
+                    'name' => 'Message',
+                    'value' => truncateDiscordText($summary, 1024),
+                    'inline' => false,
+                ],
+            ],
+        ]],
+        'allowed_mentions' => ['parse' => []],
+    ];
+}
+
+function buildPrivateDiscordFeedbackPayload(array $payload): array
+{
+    $createdAt = trim((string) ($payload['createdAt'] ?? gmdate('c')));
+    $user = is_array($payload['user'] ?? null) ? $payload['user'] : [];
+    $category = trim((string) ($payload['category'] ?? 'Bug'));
+    $severity = trim((string) ($payload['severity'] ?? 'Normal'));
+    $contact = trim((string) ($payload['contact'] ?? ''));
+    $appVersion = trim((string) ($payload['appVersion'] ?? ''));
+    $reportBody = trim((string) ($payload['reportBody'] ?? ''));
+    $diagnosticsText = trim((string) ($payload['diagnosticsText'] ?? ''));
+    $attachment = is_array($payload['attachment'] ?? null) ? $payload['attachment'] : null;
+    $ipAddress = trim((string) ($payload['ipAddress'] ?? ''));
+
+    $embed = [
+        'title' => 'Stream Sync Pro Full ' . $category . ' Report',
+        'description' => truncateDiscordText($reportBody, 3800),
+        'color' => resolveDiscordSeverityColor($severity),
+        'timestamp' => gmdate('c'),
+        'fields' => [
+            [
+                'name' => 'Created',
+                'value' => truncateDiscordText($createdAt, 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'Category',
+                'value' => truncateDiscordText($category, 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'Severity',
+                'value' => truncateDiscordText($severity, 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'App Version',
+                'value' => truncateDiscordText($appVersion !== '' ? $appVersion : 'Unknown', 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'Account',
+                'value' => truncateDiscordText(sprintf(
+                    '%s <%s> (ID %s)',
+                    (string) ($user['display_name'] ?? 'Unknown'),
+                    (string) ($user['email'] ?? 'unknown'),
+                    (string) ($user['id'] ?? 'unknown')
+                ), 1024),
+                'inline' => false,
+            ],
+            [
+                'name' => 'Contact',
+                'value' => truncateDiscordText($contact !== '' ? $contact : 'Not provided', 1024),
+                'inline' => true,
+            ],
+            [
+                'name' => 'IP Address',
+                'value' => truncateDiscordText($ipAddress !== '' ? $ipAddress : 'Unknown', 1024),
+                'inline' => true,
+            ],
+        ],
+        'footer' => [
+            'text' => 'Private full report. Do not repost publicly.',
+        ],
+    ];
+
+    if ($diagnosticsText !== '') {
+        $embed['fields'][] = [
+            'name' => 'Diagnostics',
+            'value' => '```json' . "\n" . truncateDiscordText($diagnosticsText, 950) . "\n" . '```',
+            'inline' => false,
+        ];
+    }
+
+    if ($attachment) {
+        $embed['fields'][] = [
+            'name' => 'Attachment',
+            'value' => truncateDiscordText(sprintf(
+                '%s (%s, %s)',
+                (string) ($attachment['name'] ?? 'attachment'),
+                formatBytes((int) ($attachment['size'] ?? 0)),
+                (string) ($attachment['type'] ?? 'application/octet-stream')
+            ), 1024),
+            'inline' => false,
+        ];
+    }
+
+    return [
+        'username' => 'Stream Sync Pro Private Reports',
+        'content' => sprintf('Private full %s report received: **%s**', $category, $severity),
+        'embeds' => [$embed],
+        'allowed_mentions' => ['parse' => []],
+    ];
+}
+
+function formatBytes(int $bytes): string
+{
+    if ($bytes >= 1024 * 1024) {
+        return round($bytes / (1024 * 1024), 2) . 'MB';
+    }
+
+    if ($bytes >= 1024) {
+        return round($bytes / 1024, 1) . 'KB';
+    }
+
+    return $bytes . 'B';
+}
+
+function resolveDiscordPrivateFeedbackWebhookUrl(array $config, string $category): string
+{
+    $discordConfig = is_array($config['discord'] ?? null) ? $config['discord'] : [];
+    $categoryKey = match ($category) {
+        'Feature request' => 'private_feature_request_webhook_url',
+        'UI feedback' => 'private_ui_feedback_webhook_url',
+        'Performance' => 'private_performance_webhook_url',
+        'Question' => 'private_question_webhook_url',
+        default => 'private_bug_report_webhook_url',
+    };
+
+    $webhookUrl = trim((string) ($discordConfig[$categoryKey] ?? ''));
+    if ($webhookUrl === '') {
+        $webhookUrl = trim((string) ($discordConfig['private_feedback_webhook_url'] ?? ''));
+    }
+
+    if ($webhookUrl === '') {
+        throw new RuntimeException('Private Discord feedback webhook is not configured.');
+    }
+
+    return $webhookUrl;
+}
+
+function resolveDiscordPublicFeedbackWebhookUrl(array $config, string $category): string
+{
+    $discordConfig = is_array($config['discord'] ?? null) ? $config['discord'] : [];
+    $categoryKey = match ($category) {
+        'Feature request' => 'feature_request_webhook_url',
+        'UI feedback' => 'ui_feedback_webhook_url',
+        'Performance' => 'performance_webhook_url',
+        'Question' => 'question_webhook_url',
+        default => 'bug_report_webhook_url',
+    };
+
+    return trim((string) ($discordConfig[$categoryKey] ?? ''));
+}
+
+function resolveDiscordSeverityColor(string $severity): int
+{
+    return match ($severity) {
+        'Blocking' => 0xff315d,
+        'High' => 0xff9f1c,
+        'Low' => 0x4de7ff,
+        default => 0x9068ff,
+    };
+}
+
+function summarizePublicFeedbackReport(string $reportBody): string
+{
+    $summary = preg_replace('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}/i', '[email removed]', $reportBody);
+    $summary = preg_replace('/\b(?:\d{1,3}\.){3}\d{1,3}\b/', '[ip removed]', (string) $summary);
+    $summary = preg_replace('/https?:\/\/\S+|www\.\S+/i', '[link removed]', (string) $summary);
+    $summary = preg_replace('/(?<!\w)@\w{2,32}\b/', '[handle removed]', (string) $summary);
+    $summary = preg_replace('/\b(?:\+?\d[\d\s().-]{7,}\d)\b/', '[phone removed]', (string) $summary);
+    $summary = preg_replace('/\b(contact|email|e-mail|phone|ip address|username|account)\s*:\s*[^\r\n]+/i', '$1: [removed]', (string) $summary);
+    $summary = preg_replace('/\s+/', ' ', (string) $summary);
+    $summary = trim((string) $summary);
+
+    if ($summary === '') {
+        return 'A new issue was reported. Private details were removed from the public summary.';
+    }
+
+    return truncateDiscordText($summary, 900);
+}
+
+function truncateDiscordText(string $value, int $maxLength): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return 'Not provided';
+    }
+
+    if (mb_strlen($value) <= $maxLength) {
+        return $value;
+    }
+
+    return mb_substr($value, 0, max(0, $maxLength - 3)) . '...';
+}
+
+function postJsonToDiscordWebhook(string $webhookUrl, array $payload): void
+{
+    $body = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($body === false) {
+        throw new RuntimeException('Unable to encode Discord bug report payload.');
+    }
+
+    if (function_exists('curl_init')) {
+        $handle = curl_init($webhookUrl);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_TIMEOUT => 15,
+        ]);
+
+        $responseBody = curl_exec($handle);
+        if ($responseBody === false) {
+            $error = curl_error($handle);
+            curl_close($handle);
+            throw new RuntimeException('Discord bug report webhook failed: ' . $error);
+        }
+
+        $statusCode = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        curl_close($handle);
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            throw new RuntimeException('Discord bug report webhook returned status ' . $statusCode . '.');
+        }
+
+        return;
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: application/json\r\n",
+            'content' => $body,
+            'timeout' => 15,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $response = file_get_contents($webhookUrl, false, $context);
+    $statusLine = is_array($http_response_header ?? null) ? ($http_response_header[0] ?? '') : '';
+
+    if ($response === false || !preg_match('/\s2\d\d\s/', $statusLine)) {
+        throw new RuntimeException('Discord bug report webhook failed.');
+    }
+}
+
+function postMultipartToDiscordWebhook(string $webhookUrl, array $payload, array $attachment): void
+{
+    $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if ($payloadJson === false) {
+        throw new RuntimeException('Unable to encode Discord bug report payload.');
+    }
+
+    $filePath = (string) ($attachment['path'] ?? '');
+    $fileName = (string) ($attachment['name'] ?? 'stream-sync-pro-report-attachment');
+    $mimeType = (string) ($attachment['type'] ?? 'application/octet-stream');
+
+    if ($filePath === '' || !is_readable($filePath)) {
+        throw new RuntimeException('Feedback attachment is not readable.');
+    }
+
+    if (function_exists('curl_init') && class_exists('CURLFile')) {
+        $handle = curl_init($webhookUrl);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => [
+                'payload_json' => $payloadJson,
+                'files[0]' => new CURLFile($filePath, $mimeType, $fileName),
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
+
+        $responseBody = curl_exec($handle);
+        if ($responseBody === false) {
+            $error = curl_error($handle);
+            curl_close($handle);
+            throw new RuntimeException('Discord bug report webhook failed: ' . $error);
+        }
+
+        $statusCode = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        curl_close($handle);
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            throw new RuntimeException('Discord bug report webhook returned status ' . $statusCode . '.');
+        }
+
+        return;
+    }
+
+    [$body, $contentType] = buildMultipartBody([
+        'payload_json' => $payloadJson,
+    ], [
+        [
+            'field' => 'files[0]',
+            'path' => $filePath,
+            'name' => $fileName,
+            'type' => $mimeType,
+        ],
+    ]);
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => "Content-Type: {$contentType}\r\n",
+            'content' => $body,
+            'timeout' => 30,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $response = file_get_contents($webhookUrl, false, $context);
+    $statusLine = is_array($http_response_header ?? null) ? ($http_response_header[0] ?? '') : '';
+
+    if ($response === false || !preg_match('/\s2\d\d\s/', $statusLine)) {
+        throw new RuntimeException('Discord bug report webhook failed.');
+    }
+}
+
+function buildMultipartBody(array $fields, array $files): array
+{
+    $boundary = '----StreamSyncPro' . bin2hex(random_bytes(12));
+    $body = '';
+
+    foreach ($fields as $name => $value) {
+        $body .= "--{$boundary}\r\n";
+        $body .= 'Content-Disposition: form-data; name="' . addcslashes((string) $name, "\"\\") . "\"\r\n\r\n";
+        $body .= (string) $value . "\r\n";
+    }
+
+    foreach ($files as $file) {
+        $content = file_get_contents((string) ($file['path'] ?? ''));
+        if ($content === false) {
+            throw new RuntimeException('Feedback attachment is not readable.');
+        }
+
+        $body .= "--{$boundary}\r\n";
+        $body .= 'Content-Disposition: form-data; name="' . addcslashes((string) ($file['field'] ?? 'file'), "\"\\") . '"; filename="' . addcslashes((string) ($file['name'] ?? 'attachment'), "\"\\") . "\"\r\n";
+        $body .= 'Content-Type: ' . ((string) ($file['type'] ?? 'application/octet-stream')) . "\r\n\r\n";
+        $body .= $content . "\r\n";
+    }
+
+    $body .= "--{$boundary}--\r\n";
+
+    return [$body, 'multipart/form-data; boundary=' . $boundary];
 }
 
 function findUserByEmail(PDO $pdo, string $email): ?array
@@ -3897,6 +5130,7 @@ function sanitizeUser(array $user, ?string $sessionToken = null): array
         'isLocked' => (int) ($user['is_locked'] ?? 0) === 1,
         'debugEnabled' => (int) ($user['debug_enabled'] ?? 0) === 1,
         'credits' => (int) ($user['credits'] ?? 0),
+        'referralCode' => (string) ($user['referral_code'] ?? ''),
         'createdAt' => (string) $user['created_at'],
     ];
 
@@ -4141,6 +5375,60 @@ function sendSignupNotificationEmail(array $config, array $payload): void
 
     if (!$sent) {
         throw new RuntimeException('Signup notification email could not be sent. Your hosting mail() setup may need to be configured.');
+    }
+}
+
+function sendReferralInviteEmail(array $config, array $referrer, string $friendEmail, string $referralCode, string $referralLink): void
+{
+    $fromEmail = (string) ($config['mail']['from_email'] ?? '');
+    $fromName = (string) ($config['mail']['from_name'] ?? 'Stream Sync Pro');
+    $appName = (string) ($config['app']['name'] ?? 'Stream Sync Pro');
+
+    if ($fromEmail === '') {
+        throw new RuntimeException('Mail sender address is missing in config.php.');
+    }
+
+    $referrerName = trim((string) ($referrer['display_name'] ?? 'A Stream Sync Pro user'));
+    $safeReferrerName = $referrerName !== '' ? $referrerName : 'A Stream Sync Pro user';
+    $subject = $safeReferrerName . ' invited you to Stream Sync Pro LIVE';
+    $textBody = implode("\n\n", [
+        $safeReferrerName . ' has invited you to try Stream Sync Pro LIVE.',
+        'Your referral code is: ' . $referralCode,
+        'Step 1: Open the referral page: ' . $referralLink,
+        'Step 2: Download and install Stream Sync Pro LIVE.',
+        'Step 3: Open the app, choose Register, and enter this code in the Promo or referral code field.',
+        'Step 4: Verify your email address to activate the account and any available referral reward credits.',
+        'If you were not expecting this invite, you can ignore this email.',
+    ]);
+    $htmlBody = renderBrandedEmailHtml($appName, [
+        'eyebrow' => 'Referral Invite',
+        'title' => 'You have been invited to Stream Sync Pro LIVE',
+        'intro' => $safeReferrerName . ' thinks Stream Sync Pro LIVE could help you level up your TikTok LIVE streams. Follow the steps below to create your account with their referral code.',
+        'sections' => [
+            ['label' => 'Referral code', 'value' => $referralCode],
+            ['label' => 'Step 1', 'value' => 'Open your referral page: ' . $referralLink],
+            ['label' => 'Step 2', 'value' => 'Download and install Stream Sync Pro LIVE for Windows.'],
+            ['label' => 'Step 3', 'value' => 'Open the app, select Register, and paste the referral code into the Promo or referral code field.'],
+            ['label' => 'Step 4', 'value' => 'Verify your email address to activate your account and apply any available referral reward credits.'],
+        ],
+        'footnote' => 'Referral rewards depend on the current Stream Sync Pro LIVE beta settings. If you were not expecting this invite, you can safely ignore this email.',
+    ]);
+
+    $sent = sendBrandedEmail(
+        $friendEmail,
+        $subject,
+        $textBody,
+        $htmlBody,
+        [
+            'fromEmail' => $fromEmail,
+            'fromName' => $fromName,
+            'replyToEmail' => (string) ($referrer['email'] ?? $fromEmail),
+            'replyToName' => $safeReferrerName,
+        ]
+    );
+
+    if (!$sent) {
+        throw new RuntimeException('Referral email could not be sent. Your hosting mail() setup may need to be configured.');
     }
 }
 

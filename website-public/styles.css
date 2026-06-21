@@ -185,6 +185,64 @@ img {
   z-index: 1;
 }
 
+.referral-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 24px;
+  padding: 22px;
+  border-color: rgba(85, 242, 165, 0.42);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(85, 242, 165, 0.2), transparent 34%),
+    linear-gradient(135deg, rgba(8, 36, 35, 0.96), rgba(9, 17, 35, 0.94));
+}
+
+.referral-panel[hidden] {
+  display: none;
+}
+
+.referral-panel-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.referral-panel h2,
+.referral-panel p {
+  margin: 0;
+}
+
+.referral-panel h2 {
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+  letter-spacing: -0.04em;
+}
+
+.referral-code-box {
+  min-width: min(100%, 280px);
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid rgba(85, 242, 165, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(1, 8, 16, 0.58);
+}
+
+.referral-code-box span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.referral-code-box strong {
+  color: var(--green);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.45rem;
+  letter-spacing: 0.08em;
+}
+
 .card-header {
   min-height: 58px;
   display: flex;
@@ -882,6 +940,7 @@ img {
   }
 
   .hero,
+  .referral-panel,
   .release-grid,
   .steps,
   .contact-layout,

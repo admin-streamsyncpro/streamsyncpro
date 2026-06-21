@@ -22,6 +22,7 @@ const registerDisplayNameInput = document.getElementById("register-display-name"
 const registerEmailInput = document.getElementById("register-email");
 const registerPasswordInput = document.getElementById("register-password");
 const registerPasswordConfirmInput = document.getElementById("register-password-confirm");
+const registerPromoCodeInput = document.getElementById("register-promo-code");
 const registerBackButton = document.getElementById("register-back-button");
 const verifyEmailInput = document.getElementById("verify-email");
 const verifyCodeInput = document.getElementById("verify-code");
@@ -128,6 +129,13 @@ const diagnosticsGrid = document.getElementById("diagnostics-grid");
 const setupWizardList = document.getElementById("setup-wizard-list");
 const setupWizardProgressBar = document.getElementById("setup-wizard-progress-bar");
 const setupWizardProgressLabel = document.getElementById("setup-wizard-progress-label");
+const referralCodeDisplay = document.getElementById("referral-code-display");
+const referralLinkDisplay = document.getElementById("referral-link-display");
+const referralCopyCodeButton = document.getElementById("referral-copy-code");
+const referralCopyLinkButton = document.getElementById("referral-copy-link");
+const referralFriendEmailInput = document.getElementById("referral-friend-email");
+const referralSendEmailButton = document.getElementById("referral-send-email");
+const referralStatus = document.getElementById("referral-status");
 const liveControlAlerts = document.getElementById("live-control-alerts");
 const liveControlSafeModeButton = document.getElementById("live-control-safe-mode");
 const liveControlTtsStatus = document.getElementById("live-control-tts-status");
@@ -143,11 +151,21 @@ const factoryResetExportButton = document.getElementById("factory-reset-export")
 const factoryResetRunButton = document.getElementById("factory-reset-run");
 const factoryResetConfirmationInput = document.getElementById("factory-reset-confirmation");
 const factoryResetStatus = document.getElementById("factory-reset-status");
+const deleteAccountOpenButton = document.getElementById("delete-account-open");
+const deleteAccountModal = document.getElementById("delete-account-modal");
+const deleteAccountCloseButton = document.getElementById("delete-account-close");
+const deleteAccountCancelButton = document.getElementById("delete-account-cancel");
+const deleteAccountRunButton = document.getElementById("delete-account-run");
+const deleteAccountConfirmationInput = document.getElementById("delete-account-confirmation");
+const deleteAccountStatus = document.getElementById("delete-account-status");
 const feedbackCategoryInput = document.getElementById("feedback-category");
 const feedbackSeverityInput = document.getElementById("feedback-severity");
 const feedbackContactInput = document.getElementById("feedback-contact");
 const feedbackMessageInput = document.getElementById("feedback-message");
 const feedbackIncludeDiagnosticsInput = document.getElementById("feedback-include-diagnostics");
+const feedbackAttachmentInput = document.getElementById("feedback-attachment");
+const feedbackAttachmentName = document.getElementById("feedback-attachment-name");
+const feedbackAttachmentClearButton = document.getElementById("feedback-attachment-clear");
 const feedbackReportPreview = document.getElementById("feedback-report-preview");
 const feedbackSendReportButton = document.getElementById("feedback-send-report");
 const feedbackCopyReportButton = document.getElementById("feedback-copy-report");
@@ -862,7 +880,19 @@ const LIKE_RACE_COMMENTARY_PRESETS = {
 LIKE_RACE_COMMENTARY_PRESETS.custom = DEFAULT_LIKE_RACE_COMMENTARY;
 const OVERLAY_DESIGNER_GRID_SIZE = 10;
 const OVERLAY_DESIGNER_MIN_SIZE = 40;
-const OVERLAY_DESIGNER_ASSIGNMENT_KEYS = ["queue", "chat", "gift", "likes", "viewerStats", "commandFeedback", "vote"];
+const OVERLAY_DESIGNER_ASSIGNMENT_KEYS = [
+  "queue",
+  "chat",
+  "gift",
+  "likes",
+  "viewerStats",
+  "commandFeedback",
+  "vote",
+  "progressBar",
+  "likeRace",
+  "spinWheel",
+  "joke"
+];
 
 function createOverlayDesignerId(prefix = "overlay-item") {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -2095,6 +2125,38 @@ function getAuthApiBaseUrl() {
   return String(state.settings?.authApiBaseUrl || "https://streamsyncpro.co.uk").replace(/\/+$/, "");
 }
 
+function getReferralSignupLink(referralCode = "") {
+  const code = String(referralCode || "").trim();
+  if (!code) {
+    return "";
+  }
+
+  return `${getAuthApiBaseUrl()}/?ref=${encodeURIComponent(code)}#download`;
+}
+
+function isLocalOverlayUrl(value) {
+  return /^http:\/\/(?:localhost|127\.0\.0\.1):/i.test(String(value ?? "").trim());
+}
+
+function isHostedOverlayUrl(value) {
+  const normalizedValue = String(value ?? "").trim();
+  if (!normalizedValue) {
+    return false;
+  }
+
+  try {
+    const currentHost = new URL(getAuthApiBaseUrl()).hostname.toLowerCase();
+    const candidateUrl = new URL(normalizedValue);
+    return candidateUrl.protocol === "https:" && candidateUrl.hostname.toLowerCase() === currentHost;
+  } catch {
+    return /^https:\/\/streamsyncpro\.co\.uk\//i.test(normalizedValue);
+  }
+}
+
+function shouldKeepExistingHostedOverlayUrl(currentUrl, nextUrl) {
+  return Boolean(state.authenticatedUser?.id && isHostedOverlayUrl(currentUrl) && isLocalOverlayUrl(nextUrl));
+}
+
 function isAuthServiceUnavailableError(error) {
   const message = String(error?.message || "").trim().toLowerCase();
   return (
@@ -2657,7 +2719,10 @@ function updateVoteOverlayControls(info = {}) {
 
 function updateLikeRaceOverlayControls(info = {}) {
   if (Object.prototype.hasOwnProperty.call(info, "url")) {
-    state.likeRaceOverlayBaseUrl = String(info.url ?? "").trim();
+    const nextUrl = String(info.url ?? "").trim();
+    if (!shouldKeepExistingHostedOverlayUrl(state.likeRaceOverlayBaseUrl, nextUrl)) {
+      state.likeRaceOverlayBaseUrl = nextUrl;
+    }
   }
 
   const overlayUrl = getLikeRaceOverlayUrl();
@@ -2681,7 +2746,10 @@ function updateLikeRaceOverlayControls(info = {}) {
 
 function updateProgressBarOverlayControls(info = {}) {
   if (Object.prototype.hasOwnProperty.call(info, "url")) {
-    state.progressBarOverlayBaseUrl = String(info.url ?? "").trim();
+    const nextUrl = String(info.url ?? "").trim();
+    if (!shouldKeepExistingHostedOverlayUrl(state.progressBarOverlayBaseUrl, nextUrl)) {
+      state.progressBarOverlayBaseUrl = nextUrl;
+    }
   }
 
   const overlayUrl = getProgressBarOverlayUrl();
@@ -2928,7 +2996,11 @@ function getHostedOverlayUrlForDesignerTemplate(templateId = "") {
     likes: state.likesOverlayBaseUrl,
     viewerStats: state.viewerStatsOverlayBaseUrl,
     commandFeedback: state.commandFeedbackOverlayBaseUrl,
-    vote: state.voteOverlayBaseUrl
+    vote: state.voteOverlayBaseUrl,
+    progressBar: state.progressBarOverlayBaseUrl,
+    likeRace: state.likeRaceOverlayBaseUrl,
+    spinWheel: state.spinWheelOverlayBaseUrl,
+    joke: state.jokeOverlayBaseUrl
   };
 
   for (const [overlayKey, assignedTemplateId] of Object.entries(assignments)) {
@@ -3522,7 +3594,7 @@ function renderOverlayDesignerControls() {
     hostedUrl ? "success" : "info",
     hostedUrl
       ? "Hosted overlay URL ready. Use this public website URL in TikTok, OBS, or Streamlabs."
-      : "Assign this custom template to Queue, Chat, Gift, Likes, Viewer Stats, Command Feedback, or Voting to get a public hosted URL."
+      : "Assign this custom template to an overlay to get a public hosted URL."
   );
   updateOverlayDesignerAssignmentControls();
 }
@@ -6044,9 +6116,7 @@ function syncSpinWheelOverlayState() {
 function updateSpinWheelOverlayControls(info = {}) {
   if (Object.prototype.hasOwnProperty.call(info, "url")) {
     const nextUrl = String(info.url ?? "").trim();
-    const hasHostedUrl = /^https:\/\/streamsyncpro\.co\.uk\//i.test(String(state.spinWheelOverlayBaseUrl ?? ""));
-    const nextIsLocalUrl = /^http:\/\/(?:localhost|127\.0\.0\.1):/i.test(nextUrl);
-    if (!(state.authenticatedUser?.id && hasHostedUrl && nextIsLocalUrl)) {
+    if (!shouldKeepExistingHostedOverlayUrl(state.spinWheelOverlayBaseUrl, nextUrl)) {
       state.spinWheelOverlayBaseUrl = nextUrl;
     }
   }
@@ -10163,6 +10233,7 @@ function showDashboardForUser(user) {
   state.sessionTerminationReason = "";
   signedInPill.textContent = user ? `Signed in as ${user.displayName || user.email}` : "Signed in";
   creditsPill.textContent = `Credits: ${Number(user?.credits ?? 0)}`;
+  renderReferralPanel();
     authShell.hidden = true;
   dashboardShell.hidden = false;
     applyDashboardCardVisibility();
@@ -10180,6 +10251,7 @@ function showAuthShell() {
     state.authenticatedUser = null;
   signedInPill.textContent = "Signed in";
   creditsPill.textContent = "Credits: 0";
+  renderReferralPanel();
   dashboardShell.hidden = true;
     authShell.hidden = false;
   stopAuthSessionMonitor();
@@ -10273,6 +10345,7 @@ function applySessionCheckUserSnapshot(user) {
   };
   signedInPill.textContent = `Signed in as ${state.authenticatedUser.displayName || state.authenticatedUser.email}`;
   creditsPill.textContent = `Credits: ${Number(state.authenticatedUser?.credits ?? 0)}`;
+  renderReferralPanel();
 }
 
 async function handleForcedAdminSignOut(message) {
@@ -10382,6 +10455,7 @@ async function syncAuthenticatedUser(user) {
   state.authenticatedUser = mergedUser;
   signedInPill.textContent = mergedUser ? `Signed in as ${mergedUser.displayName || mergedUser.email}` : "Signed in";
   creditsPill.textContent = `Credits: ${Number(mergedUser?.credits ?? 0)}`;
+  renderReferralPanel();
   await persistSettings({
     authUser: state.settings?.authRememberMe ? mergedUser ?? null : null
   });
@@ -10493,6 +10567,65 @@ async function authRequest(path, payload) {
     }
     throw error;
   }
+}
+
+async function authFormRequest(path, formData) {
+  const requestUrl = `${getAuthApiBaseUrl()}${path}`;
+  try {
+    const response = await fetch(requestUrl, {
+      method: "POST",
+      body: formData
+    });
+
+    const responseText = await response.text().catch(() => "");
+    let result = {};
+    if (responseText.trim()) {
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = {};
+      }
+    }
+
+    if (!response.ok) {
+      const fallbackMessage = responseText.trim()
+        ? `Upload request failed with HTTP ${response.status}: ${responseText.trim().slice(0, 220)}`
+        : `Upload request failed with HTTP ${response.status}.`;
+      const error = new Error(result.error || result.message || fallbackMessage);
+      error.authCode = result.code || "";
+      if (error.authCode === "admin_forced_sign_out") {
+        await handleForcedAdminSignOut(error.message || "Your session was ended by an administrator. The app will close now.");
+      }
+      if (error.authCode === "account_locked") {
+        await handleLockedAccountSignOut(error.message || "This account has been locked. Please contact admin.");
+      }
+      if (error.authCode === "signed_in_elsewhere") {
+        await handleSignedInElsewhereSignOut(error.message || "You were signed out because this account was signed in on another device.");
+      }
+      throw error;
+    }
+
+    return result;
+  } catch (error) {
+    const message = String(error?.message || "").trim().toLowerCase();
+    if (message === "failed to fetch" || message.includes("networkerror") || message.includes("load failed")) {
+      throw new Error(`Unable to reach the Stream Sync Pro sign-in service at ${requestUrl}. Please check that the website/API is online and reachable.`);
+    }
+    throw error;
+  }
+}
+
+async function readFileAsBase64(file) {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return btoa(binary);
 }
 
 async function reportAuthenticatedAppError(error, errorContext, details = {}) {
@@ -10651,7 +10784,7 @@ async function verifyAuthenticatedSession() {
   }
 }
 
-async function consumeConnectCredit(tiktokUsername = "") {
+async function consumeConnectCredit(tiktokUsername = "", profile = {}) {
   const user = state.authenticatedUser;
   if (!user?.id || !user?.sessionToken) {
     throw new Error("Please sign in again before connecting.");
@@ -10660,7 +10793,9 @@ async function consumeConnectCredit(tiktokUsername = "") {
     const result = await authRequest("/api/auth/consume-connect-credit", {
       userId: user.id,
       sessionToken: user.sessionToken,
-      tiktokUsername
+      tiktokUsername,
+      profileImageUrl: String(profile?.profileImageUrl ?? "").trim(),
+      profileBio: String(profile?.profileBio ?? "").trim()
     });
 
   await syncAuthenticatedUser(result.user);
@@ -11216,6 +11351,89 @@ async function runFactoryReset() {
   factoryResetRunButton.disabled = true;
   setStatusMessage(factoryResetStatus, "info", "Resetting local app data and relaunching...");
   await app.factoryResetAppData({ confirmation });
+}
+
+function openDeleteAccountModal() {
+  if (!deleteAccountModal) {
+    return;
+  }
+
+  deleteAccountConfirmationInput.value = "";
+  deleteAccountRunButton.disabled = true;
+  setStatusMessage(deleteAccountStatus, "info", "Only the currently signed-in account can be deleted.");
+  deleteAccountModal.hidden = false;
+  deleteAccountConfirmationInput?.focus();
+}
+
+function closeDeleteAccountModal() {
+  if (!deleteAccountModal) {
+    return;
+  }
+
+  deleteAccountModal.hidden = true;
+}
+
+function updateDeleteAccountConfirmationState() {
+  if (!deleteAccountRunButton || !deleteAccountConfirmationInput) {
+    return;
+  }
+
+  deleteAccountRunButton.disabled = deleteAccountConfirmationInput.value.trim().toUpperCase() !== "DELETE";
+}
+
+async function deleteSignedInAccount() {
+  const confirmation = deleteAccountConfirmationInput?.value ?? "";
+  if (String(confirmation).trim().toUpperCase() !== "DELETE") {
+    setStatusMessage(deleteAccountStatus, "error", "Type DELETE to confirm account deletion.");
+    return;
+  }
+
+  const user = state.authenticatedUser;
+  if (!user?.id || !user?.sessionToken) {
+    setStatusMessage(deleteAccountStatus, "error", "Sign in again before deleting this account.");
+    return;
+  }
+
+  deleteAccountRunButton.disabled = true;
+  setStatusMessage(deleteAccountStatus, "info", "Deleting account and clearing this app session...");
+
+  if (state.connected) {
+    try {
+      await app.disconnect();
+    } catch {
+      // Account deletion should still continue if the live socket is already gone.
+    }
+    state.connected = false;
+    state.connecting = false;
+    state.username = "";
+    state.roomId = null;
+    clearHostedFeedOverlayState();
+    setConnectionUiState();
+    updateHeaderPills();
+  }
+
+  await authRequest("/api/auth/delete-account", {
+    userId: user.id,
+    sessionToken: user.sessionToken,
+    confirmation: "DELETE"
+  });
+
+  state.authenticatedUser = null;
+  state.authRememberMeChoice = false;
+  await persistSettings({
+    authUser: null,
+    authRememberMe: false,
+    authRememberedEmail: ""
+  });
+
+  signinEmailInput.value = "";
+  signinPasswordInput.value = "";
+  signinRememberMeInput.checked = false;
+  closeDeleteAccountModal();
+  setAuthView("signin");
+  showAuthShell();
+  setAuthStatus("success", "Account deleted. You can create a new account or sign in with another one.");
+  showToast("Account deleted successfully.", "success");
 }
 
 async function saveDashboardLayoutVisibility() {
@@ -12086,7 +12304,102 @@ function renderDiagnosticsPanel() {
       </article>
     `;
   }).join("");
+  renderReferralPanel();
+  renderFeedbackAttachmentState();
   renderFeedbackReportPreview();
+}
+
+function renderReferralPanel() {
+  const referralCode = String(state.authenticatedUser?.referralCode ?? "").trim();
+  const referralLink = getReferralSignupLink(referralCode);
+
+  if (referralCodeDisplay) {
+    referralCodeDisplay.value = referralCode || "Sign in to load";
+  }
+  if (referralLinkDisplay) {
+    referralLinkDisplay.value = referralLink || "Sign in to load";
+  }
+  if (referralCopyCodeButton) {
+    referralCopyCodeButton.disabled = !referralCode;
+  }
+  if (referralCopyLinkButton) {
+    referralCopyLinkButton.disabled = !referralLink;
+  }
+  if (referralSendEmailButton) {
+    referralSendEmailButton.disabled = !referralCode || !state.authenticatedUser?.sessionToken;
+  }
+  setStatusMessage(
+    referralStatus,
+    referralCode ? "success" : "info",
+    referralCode
+      ? "Share this code or link before your friend registers."
+      : "Sign in to load your referral code."
+  );
+}
+
+async function copyReferralCode() {
+  const referralCode = String(state.authenticatedUser?.referralCode ?? "").trim();
+  if (!referralCode) {
+    throw new Error("Sign in to load your referral code first.");
+  }
+
+  await navigator.clipboard.writeText(referralCode);
+  setStatusMessage(referralStatus, "success", "Referral code copied.");
+  showToast("Referral code copied.", "success");
+}
+
+async function copyReferralLink() {
+  const referralCode = String(state.authenticatedUser?.referralCode ?? "").trim();
+  const referralLink = getReferralSignupLink(referralCode);
+  if (!referralLink) {
+    throw new Error("Sign in to load your referral link first.");
+  }
+
+  await navigator.clipboard.writeText(referralLink);
+  setStatusMessage(referralStatus, "success", "Referral link copied.");
+  showToast("Referral link copied.", "success");
+}
+
+async function sendReferralEmail() {
+  const user = state.authenticatedUser;
+  const referralCode = String(user?.referralCode ?? "").trim();
+  const friendEmail = String(referralFriendEmailInput?.value ?? "").trim();
+
+  if (!user?.id || !user?.sessionToken) {
+    throw new Error("Please sign in before sending a referral email.");
+  }
+
+  if (!referralCode) {
+    throw new Error("Your referral code is not loaded yet.");
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(friendEmail)) {
+    throw new Error("Enter a valid friend email address first.");
+  }
+
+  if (referralSendEmailButton) {
+    referralSendEmailButton.disabled = true;
+    referralSendEmailButton.textContent = "Sending...";
+  }
+  setStatusMessage(referralStatus, "info", "Sending referral email...");
+
+  try {
+    const result = await authRequest("/api/auth/send-referral-email", {
+      userId: user.id,
+      sessionToken: user.sessionToken,
+      friendEmail,
+      referralCode,
+      referralLink: getReferralSignupLink(referralCode)
+    });
+    referralFriendEmailInput.value = "";
+    setStatusMessage(referralStatus, "success", result.message || "Referral email sent.");
+    showToast("Referral email sent.", "success");
+  } finally {
+    if (referralSendEmailButton) {
+      referralSendEmailButton.textContent = "Send referral email";
+    }
+    renderReferralPanel();
+  }
 }
 
 function getOverlayReadinessSummary() {
@@ -12108,6 +12421,48 @@ function getOverlayReadinessSummary() {
   });
 }
 
+async function getFeedbackSystemDetails() {
+  let usage = null;
+  try {
+    usage = await app.getSystemUsage();
+  } catch {
+    usage = null;
+  }
+
+  return {
+    performance: usage ? {
+      cpuUsagePercent: usage.cpuUsagePercent ?? null,
+      ramUsagePercent: usage.ramUsagePercent ?? null,
+      usedMemoryMb: usage.usedMemoryMb ?? null,
+      totalMemoryMb: usage.totalMemoryMb ?? null,
+      platform: usage.platform ?? "",
+      architecture: usage.architecture ?? "",
+      release: usage.release ?? "",
+      cpuCores: usage.cpuCores ?? null,
+      uptimeSeconds: usage.uptimeSeconds ?? null
+    } : null,
+    browser: {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      languages: Array.from(navigator.languages || []),
+      online: navigator.onLine,
+      deviceMemoryGb: navigator.deviceMemory ?? null,
+      hardwareConcurrency: navigator.hardwareConcurrency ?? null
+    },
+    screen: {
+      width: window.screen?.width ?? null,
+      height: window.screen?.height ?? null,
+      availableWidth: window.screen?.availWidth ?? null,
+      availableHeight: window.screen?.availHeight ?? null,
+      pixelRatio: window.devicePixelRatio ?? 1
+    },
+    window: {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight
+    }
+  };
+}
+
 function buildFeedbackReport() {
   const settings = state.settings || {};
   const checks = getDiagnosticsChecks();
@@ -12120,6 +12475,7 @@ function buildFeedbackReport() {
   const progressBars = normalizeProgressBarOverlays(settings.progressBarOverlays);
   const viewerPoints = normalizeViewerPointsLeaderboard(settings.viewerPointsLeaderboard);
   const activeProfile = getActiveSettingsProfile();
+  const attachment = feedbackAttachmentInput?.files?.[0] || null;
   const lines = [
     "Stream Sync Pro Beta Feedback",
     "=============================",
@@ -12145,7 +12501,8 @@ function buildFeedbackReport() {
     `Progress bars: ${progressBars.length}`,
     `Viewer records: ${Object.keys(viewerPoints.users || {}).length}`,
     `Chat messages in memory: ${state.chatItems.length}`,
-    `Queued actions: ${state.queueCount || 0}`
+    `Queued actions: ${state.queueCount || 0}`,
+    `Private attachment: ${attachment ? `${attachment.name || "attachment"} (${Math.round(attachment.size / 1024)}KB)` : "none"}`
   ];
 
   if (includeDiagnostics) {
@@ -12162,7 +12519,7 @@ function buildFeedbackReport() {
   return lines.join("\n");
 }
 
-function buildFeedbackDiagnosticsPayload() {
+async function buildFeedbackDiagnosticsPayload() {
   const settings = state.settings || {};
   const checks = getDiagnosticsChecks();
   const rules = Array.isArray(settings.customEventRules) ? settings.customEventRules : [];
@@ -12191,6 +12548,7 @@ function buildFeedbackDiagnosticsPayload() {
     viewerRecords: Object.keys(viewerPoints.users || {}).length,
     chatItems: state.chatItems.length,
     queueCount: state.queueCount || 0,
+    system: await getFeedbackSystemDetails(),
     checks: checks.map((check) => ({
       key: check.key,
       title: check.title,
@@ -12208,6 +12566,24 @@ function renderFeedbackReportPreview() {
   }
 
   feedbackReportPreview.value = buildFeedbackReport();
+}
+
+function renderFeedbackAttachmentState() {
+  const attachment = feedbackAttachmentInput?.files?.[0] || null;
+  if (feedbackAttachmentName) {
+    feedbackAttachmentName.textContent = attachment
+      ? `${attachment.name || "attachment"} (${formatBytes(attachment.size || 0)})`
+      : "No attachment selected";
+    feedbackAttachmentName.title = attachment ? attachment.name || "attachment" : "";
+  }
+
+  if (feedbackAttachmentClearButton) {
+    feedbackAttachmentClearButton.disabled = !attachment;
+  }
+
+  if (attachment && attachment.size > 10 * 1024 * 1024) {
+    setStatusMessage(feedbackStatus, "error", "Selected attachment is over 10MB. Choose a smaller file before sending to Discord.");
+  }
 }
 
 async function copyFeedbackReport() {
@@ -12230,12 +12606,29 @@ async function sendFeedbackReport() {
     return;
   }
 
+  const attachment = feedbackAttachmentInput?.files?.[0] || null;
+  const maxAttachmentBytes = 10 * 1024 * 1024;
+  if (attachment && attachment.size > maxAttachmentBytes) {
+    setStatusMessage(feedbackStatus, "error", "Choose an attachment that is 10MB or smaller.");
+    return;
+  }
+
   if (feedbackSendReportButton) {
     feedbackSendReportButton.disabled = true;
   }
-  setStatusMessage(feedbackStatus, "info", "Sending beta feedback report...");
+  setStatusMessage(feedbackStatus, "info", "Sending report to Discord...");
 
   try {
+    const diagnostics = feedbackIncludeDiagnosticsInput?.checked === false ? null : await buildFeedbackDiagnosticsPayload();
+    const attachmentPayload = attachment
+      ? {
+          name: attachment.name || "stream-sync-pro-report-attachment",
+          type: attachment.type || "application/octet-stream",
+          size: attachment.size || 0,
+          contentBase64: await readFileAsBase64(attachment)
+        }
+      : null;
+
     const result = await authRequest("/api/feedback/submit", {
       userId: state.authenticatedUser.id,
       sessionToken: state.authenticatedUser.sessionToken,
@@ -12243,12 +12636,14 @@ async function sendFeedbackReport() {
       severity: feedbackSeverityInput?.value || "Normal",
       contact: String(feedbackContactInput?.value || "").trim(),
       appVersion: state.appVersion || "",
+      message: String(feedbackMessageInput?.value || "").trim(),
       report,
-      diagnostics: feedbackIncludeDiagnosticsInput?.checked === false ? null : buildFeedbackDiagnosticsPayload()
+      diagnostics,
+      attachment: attachmentPayload
     });
 
-    setStatusMessage(feedbackStatus, "success", result?.message || "Beta feedback report sent successfully.");
-    showToast(result?.message || "Beta feedback report sent.", "success");
+    setStatusMessage(feedbackStatus, "success", result?.message || "Report sent to Discord successfully.");
+    showToast(result?.message || "Report sent to Discord.", "success");
   } finally {
     if (feedbackSendReportButton) {
       feedbackSendReportButton.disabled = false;
@@ -19005,8 +19400,17 @@ async function connectToLiveSession({ auto = false } = {}) {
     await persistSettings({
       rememberedUsernames: buildRememberedUsernameHistory(state.username || username)
     });
-    const creditResult = await consumeConnectCredit(state.username || username);
+    const creditResult = await consumeConnectCredit(state.username || username, {
+      profileImageUrl: stableConnectionState.hostProfilePictureUrl || result.hostProfilePictureUrl || "",
+      profileBio: stableConnectionState.hostBio || result.hostBio || ""
+    });
     showToast(`${creditResult.message} Remaining credits: ${creditResult.user?.credits ?? 0}.`, "info");
+    if (creditResult.liveNotification && creditResult.liveNotification.ok === false) {
+      void reportAuthenticatedAppError(new Error(creditResult.liveNotification.message || "Live connected Discord notification failed."), "TikTok live connected Discord notification", {
+        username: state.username || username,
+        liveUrl: creditResult.liveNotification.liveUrl || ""
+      });
+    }
     showToast(`Connected to @${state.username}.`, "success");
   } catch (error) {
     if (state.connected) {
@@ -19295,15 +19699,37 @@ function wireAuthEvents() {
       setStatusMessage(factoryResetStatus, "error", error.message || "Factory reset failed.");
     });
   });
+  deleteAccountOpenButton?.addEventListener("click", () => openDeleteAccountModal());
+  deleteAccountCloseButton?.addEventListener("click", () => closeDeleteAccountModal());
+  deleteAccountCancelButton?.addEventListener("click", () => closeDeleteAccountModal());
+  deleteAccountConfirmationInput?.addEventListener("input", () => updateDeleteAccountConfirmationState());
+  deleteAccountRunButton?.addEventListener("click", () => {
+    void deleteSignedInAccount().catch((error) => {
+      deleteAccountRunButton.disabled = false;
+      setStatusMessage(deleteAccountStatus, "error", error.message || "Account deletion failed.");
+    });
+  });
   [
     feedbackCategoryInput,
     feedbackSeverityInput,
     feedbackContactInput,
     feedbackMessageInput,
-    feedbackIncludeDiagnosticsInput
+    feedbackIncludeDiagnosticsInput,
+    feedbackAttachmentInput
   ].forEach((input) => {
     input?.addEventListener("input", () => renderFeedbackReportPreview());
     input?.addEventListener("change", () => renderFeedbackReportPreview());
+  });
+  feedbackAttachmentInput?.addEventListener("change", () => {
+    renderFeedbackAttachmentState();
+    renderFeedbackReportPreview();
+  });
+  feedbackAttachmentClearButton?.addEventListener("click", () => {
+    if (feedbackAttachmentInput) {
+      feedbackAttachmentInput.value = "";
+    }
+    renderFeedbackAttachmentState();
+    renderFeedbackReportPreview();
   });
   feedbackCopyReportButton?.addEventListener("click", () => {
     void copyFeedbackReport().catch((error) => {
@@ -19318,6 +19744,22 @@ function wireAuthEvents() {
   feedbackEmailReportButton?.addEventListener("click", () => {
     void emailFeedbackReport().catch((error) => {
       setStatusMessage(feedbackStatus, "error", error.message || "Unable to open feedback email.");
+    });
+  });
+  referralCopyCodeButton?.addEventListener("click", () => {
+    void copyReferralCode().catch((error) => {
+      setStatusMessage(referralStatus, "error", error.message || "Unable to copy referral code.");
+    });
+  });
+  referralCopyLinkButton?.addEventListener("click", () => {
+    void copyReferralLink().catch((error) => {
+      setStatusMessage(referralStatus, "error", error.message || "Unable to copy referral link.");
+    });
+  });
+  referralSendEmailButton?.addEventListener("click", () => {
+    void sendReferralEmail().catch((error) => {
+      setStatusMessage(referralStatus, "error", error.message || "Unable to send referral email.");
+      renderReferralPanel();
     });
   });
   diagnosticsTabButton?.addEventListener("click", () => openFocusedDiagnosticsLayer());
@@ -19381,7 +19823,8 @@ function wireAuthEvents() {
       const result = await authRequest("/api/auth/register", {
         displayName: registerDisplayNameInput.value.trim(),
         email: registerEmailInput.value.trim(),
-        password: registerPasswordInput.value
+        password: registerPasswordInput.value,
+        promoCode: registerPromoCodeInput?.value?.trim() || ""
       });
 
       verifyEmailInput.value = registerEmailInput.value.trim();
@@ -22611,9 +23054,7 @@ async function initializeApp() {
     loadEventActionTikTokVoices({ silent: true }),
     ensureSoundCatalog(),
     loadOverlayInfoBundle(),
-    loadOverlayDesignerInfo(),
-    loadProgressBarOverlayInfo(),
-    loadSpinWheelOverlayInfo()
+    loadOverlayDesignerInfo()
   ]);
 
   void refreshKnownTikTokGiftCatalog();
