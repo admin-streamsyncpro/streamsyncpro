@@ -129,6 +129,7 @@ const diagnosticsGrid = document.getElementById("diagnostics-grid");
 const setupWizardList = document.getElementById("setup-wizard-list");
 const setupWizardProgressBar = document.getElementById("setup-wizard-progress-bar");
 const setupWizardProgressLabel = document.getElementById("setup-wizard-progress-label");
+const diagnosticsTestStatus = document.getElementById("diagnostics-test-status");
 const referralCodeDisplay = document.getElementById("referral-code-display");
 const referralLinkDisplay = document.getElementById("referral-link-display");
 const referralCopyCodeButton = document.getElementById("referral-copy-code");
@@ -12309,6 +12310,126 @@ function renderDiagnosticsPanel() {
   renderFeedbackReportPreview();
 }
 
+function getFirstRunnableCustomRule() {
+  const rules = Array.isArray(state.settings?.customEventRules) ? state.settings.customEventRules : [];
+  return rules.find((rule) => rule.enabled !== false && !isRuleWithinDisabledTimeWindow(rule))
+    || rules.find((rule) => rule.enabled !== false)
+    || rules[0]
+    || null;
+}
+
+function runLikeRaceOverlayTest() {
+  const settings = normalizeLikeRaceSettings({
+    ...state.settings?.likeRaceSettings,
+    enabled: true
+  });
+  state.settings.likeRaceSettings = settings;
+  resetLikeRace({ keepLobby: true });
+  [
+    { user: "racer_one", nickname: "Racer One" },
+    { user: "tapqueen", nickname: "TapQueen" },
+    { user: "giftboost", nickname: "GiftBoost" },
+    { user: "latecharger", nickname: "LateCharger" }
+  ].forEach((sample) => addLikeRaceRacer(sample, { test: true }));
+  startLikeRaceCountdown(3, Math.max(100, Number(settings.defaultRaceDistance) || 1000), { test: true });
+  window.setTimeout(() => {
+    const race = getLikeRace();
+    if (race.raceStatus !== "running") {
+      return;
+    }
+    moveLikeRaceRacer({ user: "racer_one", nickname: "Racer One" }, race.totalSpaces * 0.32, { type: "like", likes: 32 });
+    moveLikeRaceRacer({ user: "tapqueen", nickname: "TapQueen" }, race.totalSpaces * 0.48, { type: "like", likes: 48 });
+    moveLikeRaceRacer({ user: "giftboost", nickname: "GiftBoost" }, race.totalSpaces * 0.62, { type: "gift", giftName: "Rose", giftCoins: 20, giftCount: 20 });
+    moveLikeRaceRacer({ user: "latecharger", nickname: "LateCharger" }, race.totalSpaces * 1.05, { type: "gift", giftName: "Lion", giftCoins: 29999, giftCount: 1 });
+  }, 4200);
+}
+
+async function runDiagnosticsTest(testType = "") {
+  const type = String(testType ?? "").trim();
+  setStatusMessage(diagnosticsTestStatus, "info", "Running test...");
+
+  if (type === "chat") {
+    pushChatOverlayItem({
+      user: "testviewer",
+      nickname: "Test Viewer",
+      text: "This is a test chat message from Stream Sync Pro."
+    });
+    setStatusMessage(diagnosticsTestStatus, "success", "Test chat message sent to the chat overlay.");
+    showToast("Chat overlay test sent.", "success");
+    return;
+  }
+
+  if (type === "gift") {
+    pushGiftOverlayItem({
+      user: "testgifter",
+      nickname: "Test Gifter",
+      giftName: "Rose",
+      giftCount: 3,
+      totalCoins: 3,
+      coinValue: 1,
+      text: "Gift overlay test"
+    });
+    setStatusMessage(diagnosticsTestStatus, "success", "Test gift sent to the gift overlay.");
+    showToast("Gift overlay test sent.", "success");
+    return;
+  }
+
+  if (type === "tts") {
+    enqueueSpeech("Stream Sync Pro test mode is ready. Your text to speech queue is working.", {
+      sourceUser: "diagnostics",
+      sourceNickname: "Diagnostics"
+    });
+    setStatusMessage(diagnosticsTestStatus, "success", "Test TTS message added to the queue.");
+    showToast("TTS test queued.", "success");
+    return;
+  }
+
+  if (type === "event-action") {
+    const rule = getFirstRunnableCustomRule();
+    if (!rule) {
+      setStatusMessage(diagnosticsTestStatus, "info", "No event action exists yet. Opening Event Actions so you can create one.");
+      openEventActionsFromNavigation({ preferInline: true });
+      return;
+    }
+    await previewCustomRuleAction(rule.id);
+    setStatusMessage(diagnosticsTestStatus, "success", `Tested event action: ${rule.name || "Unnamed rule"}.`);
+    return;
+  }
+
+  if (type === "progress") {
+    const firstBar = normalizeProgressBarOverlays(state.settings?.progressBarOverlays)[0];
+    if (!firstBar) {
+      setStatusMessage(diagnosticsTestStatus, "info", "No progress bar exists yet. Opening the overlay hub.");
+      focusMainScreenCard("overlays-progress-bars");
+      return;
+    }
+    testProgressBarOverlay(firstBar.id);
+    setStatusMessage(diagnosticsTestStatus, "success", `Testing progress bar: ${firstBar.title}.`);
+    return;
+  }
+
+  if (type === "like-race") {
+    runLikeRaceOverlayTest();
+    setStatusMessage(diagnosticsTestStatus, "success", "Like Race overlay test started.");
+    showToast("Like Race overlay test started.", "success");
+    return;
+  }
+
+  if (type === "spin-wheel") {
+    const settings = normalizeSpinWheelSettings({
+      ...state.settings?.spinWheelSettings,
+      enabled: true
+    });
+    state.settings.spinWheelSettings = settings;
+    renderSpinWheelSettings();
+    await startSpinWheel({ user: "testviewer", nickname: "Test Viewer" }, { source: "manual", force: true });
+    setStatusMessage(diagnosticsTestStatus, "success", "Spin Wheel test started.");
+    return;
+  }
+
+  setStatusMessage(diagnosticsTestStatus, "error", "Unknown diagnostics test.");
+}
+
 function renderReferralPanel() {
   const referralCode = String(state.authenticatedUser?.referralCode ?? "").trim();
   const referralLink = getReferralSignupLink(referralCode);
@@ -19768,6 +19889,15 @@ function wireAuthEvents() {
     showToast("Diagnostics refreshed.", "info");
   });
   diagnosticsTabPanel?.addEventListener("click", (event) => {
+    const diagnosticsTestTarget = event.target.closest("[data-diagnostics-test]");
+    if (diagnosticsTestTarget) {
+      void runDiagnosticsTest(diagnosticsTestTarget.dataset.diagnosticsTest).catch((error) => {
+        setStatusMessage(diagnosticsTestStatus, "error", error.message || "Unable to run diagnostics test.");
+        showToast(error.message || "Unable to run diagnostics test.", "error");
+      });
+      return;
+    }
+
     const setupTarget = event.target.closest("[data-setup-wizard-open]");
     if (setupTarget) {
       openSetupWizardTarget(setupTarget.dataset.setupWizardOpen);
@@ -22796,24 +22926,7 @@ function wireLikeRaceEvents() {
       ...collectLikeRaceSettingsFromUi(),
       enabled: true
     };
-    resetLikeRace({ keepLobby: true });
-    [
-      { user: "racer_one", nickname: "Racer One" },
-      { user: "tapqueen", nickname: "TapQueen" },
-      { user: "giftboost", nickname: "GiftBoost" },
-      { user: "latecharger", nickname: "LateCharger" }
-    ].forEach((sample) => addLikeRaceRacer(sample, { test: true }));
-    startLikeRaceCountdown(3, Math.max(100, Number(likeRaceDistanceInput?.value) || 1000), { test: true });
-    window.setTimeout(() => {
-      const race = getLikeRace();
-      if (race.raceStatus !== "running") {
-        return;
-      }
-      moveLikeRaceRacer({ user: "racer_one", nickname: "Racer One" }, race.totalSpaces * 0.32, { type: "like", likes: 32 });
-      moveLikeRaceRacer({ user: "tapqueen", nickname: "TapQueen" }, race.totalSpaces * 0.48, { type: "like", likes: 48 });
-      moveLikeRaceRacer({ user: "giftboost", nickname: "GiftBoost" }, race.totalSpaces * 0.62, { type: "gift", giftName: "Rose", giftCoins: 20, giftCount: 20 });
-      moveLikeRaceRacer({ user: "latecharger", nickname: "LateCharger" }, race.totalSpaces * 1.05, { type: "gift", giftName: "Lion", giftCoins: 29999, giftCount: 1 });
-    }, 4200);
+    runLikeRaceOverlayTest();
     showToast("Like Race overlay test started.", "success");
   };
 

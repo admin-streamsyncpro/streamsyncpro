@@ -2667,6 +2667,25 @@
                     </div>
                     <div id="setup-wizard-list" class="setup-wizard-list"></div>
                   </div>
+                  <div class="diagnostics-test-lab" aria-live="polite">
+                    <div class="feedback-report-head">
+                      <div>
+                        <span class="diagnostics-summary-kicker">Test Mode</span>
+                        <strong>Simulate key stream moments</strong>
+                        <small>Run safe local tests for overlays, TTS, goals, games, and event actions without waiting for a live viewer event.</small>
+                      </div>
+                    </div>
+                    <div class="diagnostics-test-grid" role="group" aria-label="Diagnostics test mode actions">
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="chat">Test chat overlay</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="gift">Test gift overlay</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="tts">Test TTS</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="event-action">Test first event action</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="progress">Test first progress bar</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="like-race">Test Like Race</button>
+                      <button type="button" class="ghost compact-button" data-diagnostics-test="spin-wheel">Test Spin Wheel</button>
+                    </div>
+                    <p id="diagnostics-test-status" class="status info">Choose a test to confirm your setup before going live.</p>
+                  </div>
                   <div id="diagnostics-grid" class="diagnostics-grid" aria-live="polite"></div>
                   <div class="feedback-report-card">
                     <div class="feedback-report-head">

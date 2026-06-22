@@ -1108,6 +1108,28 @@ h3,
   gap: 12px;
 }
 
+.diagnostics-test-lab {
+  display: grid;
+  gap: 14px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid rgba(78, 231, 255, 0.18);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(78, 231, 255, 0.12), transparent 34%),
+    rgba(8, 18, 36, 0.72);
+}
+
+.diagnostics-test-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.diagnostics-test-grid .compact-button {
+  min-height: 42px;
+}
+
 .referral-email-action .compact-button {
   min-height: 46px;
   align-self: stretch;
